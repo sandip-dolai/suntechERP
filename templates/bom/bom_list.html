@@ -1,0 +1,99 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Bill of Materials - Suntech ERP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
+    <h2>Bill of Materials</h2>
+    <div class="d-flex gap-2">
+        <form method="get" class="d-flex">
+            <input type="text" name="q" class="form-control form-control-sm"
+                   placeholder="Search PO#, Item Code, Name..." value="{{ search_query }}">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
+        </form>
+        {% if perms.bom.add_billofmaterials %}
+            <a href="{% url 'bom:bom_create' %}" class="btn btn-success btn-sm">+ Create BOM</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if page_obj %}
+<table class="table table-bordered table-hover table-responsive">
+    <thead class="table-danger">
+        <tr>
+            <th class="text-center">#</th>
+            <th class="text-center">PO Number</th>
+            <th class="text-center">Item</th>
+            <th class="text-center">Quantity</th>
+            <th class="text-center">Unit</th>
+            <th class="text-center">Created By</th>
+            <th class="text-center">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for bom in page_obj %}
+        <tr>
+            <td class="text-center">{{ forloop.counter0|add:page_obj.start_index }}</td>
+            <td class="text-center">
+                {{ bom.po.po_number }}
+            </td>
+            <td>
+                <div><strong>{{ bom.item.code }}</strong></div>
+                <small class="text-muted">{{ bom.item.name }}</small>
+            </td>
+            <td class="text-end">{{ bom.quantity }}</td>
+            <td class="text-center">{{ bom.unit|default:"—" }}</td>
+            <td class="text-center">{{ bom.created_by.get_full_name|default:bom.created_by.username|default:"—" }}</td>
+            <td class="text-center">
+                {% if perms.bom.change_billofmaterials %}
+                    <a href="{% url 'bom:bom_edit' bom.pk %}" class="btn btn-primary btn-sm">Edit</a>
+                {% endif %}
+                {% if perms.bom.delete_billofmaterials %}
+                    <a href="{% url 'bom:bom_delete' bom.pk %}" class="btn btn-danger btn-sm">Delete</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">No BOM items found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- PAGINATION – preserves search query -->
+{% with query=request.GET.urlencode %}
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <div>
+        {% if page_obj.has_previous %}
+            <a href="?page=1{% if query %}&{{ query }}{% endif %}" class="btn btn-sm btn-outline-primary">First</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if query %}&{{ query }}{% endif %}" class="btn btn-sm btn-outline-primary">Previous</a>
+        {% else %}
+            <span class="btn btn-sm btn-secondary disabled">First</span>
+            <span class="btn btn-sm btn-secondary disabled">Previous</span>
+        {% endif %}
+    </div>
+    <div class="text-muted small">
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        | {{ page_obj.paginator.count }} item{{ page_obj.paginator.count|pluralize }}
+    </div>
+    <div>
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if query %}&{{ query }}{% endif %}" class="btn btn-sm btn-outline-primary">Next</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if query %}&{{ query }}{% endif %}" class="btn btn-sm btn-outline-primary">Last</a>
+        {% else %}
+            <span class="btn btn-sm btn-secondary disabled">Next</span>
+            <span class="btn btn-sm btn-secondary disabled">Last</span>
+        {% endif %}
+    </div>
+</div>
+{% endwith %}
+
+{% else %}
+<div class="alert alert-info text-center">
+    No Bill of Materials found.
+    {% if perms.bom.add_billofmaterials %}
+        <a href="{% url 'bom:bom_create' %}">Create one?</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

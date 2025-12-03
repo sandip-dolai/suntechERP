@@ -1,0 +1,70 @@
+{% extends 'base/base.html' %}
+{% block title %}
+  {% if form.instance.pk %}
+    Edit PO
+  {% else %}
+    Create PO
+  {% endif %}- Suntech ERP
+{% endblock %}
+
+{% block content %}
+  <div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="card shadow-lg w-100" style="max-width: 600px;">
+      <div class="card-body">
+        <h4 class="card-title text-center mb-4">
+          {% if form.instance.pk %}
+            Edit Purchase Order
+          {% else %}
+            Create Purchase Order
+          {% endif %}
+        </h4>
+
+        {% load widget_tweaks %}
+
+        <form method="post">
+          {% csrf_token %}
+          <div class="row">
+            <div class="col-md-6">
+              <label class="form-label">PO Number</label>
+              {{ form.po_number|add_class:'form-control' }}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">PO Date</label>
+              {{ form.po_date|add_class:'form-control' }}
+            </div>
+
+            <div class="col-md-12">
+              <label class="form-label">Supplier / Customer</label>
+              {{ form.company|add_class:'form-select select2' }}
+            </div>
+
+            <div class="col-md-12">
+              <label class="form-label">Material Description</label>
+              {{ form.material_description|add_class:'form-control' }}
+              <small class="text-muted">{{ form.material_description.help_text }}</small>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Quantity</label>
+              {{ form.quantity|add_class:'form-control' }}
+              <small class="text-muted">{{ form.quantity.help_text }}</small>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Delivery Date</label>
+              {{ form.delivery_date|add_class:'form-control' }}
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Status</label>
+              {{ form.status|add_class:'form-control select2' }}
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Save</button>
+          <a href="{% url 'po:po_list' %}" class="btn btn-secondary">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

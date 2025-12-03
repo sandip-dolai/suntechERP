@@ -1,0 +1,11 @@
+{% extends 'base/base.html' %}
+{% block title %}Delete PO - Suntech ERP{% endblock %}
+{% block content %}
+    <h2>Delete Purchase Order</h2>
+    <p>Are you sure you want to delete PO {{ po.po_number }} for {{ po.company_name }}?</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Confirm Delete</button>
+        <a href="{% url 'po:po_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends 'base/base.html' %}
+{% block title %}Delete BOM - Suntech ERP{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Confirm Delete</h4>
+                </div>
+                <div class="card-body">
+                    <p>Are you sure you want to delete the BOM line:</p>
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item"><strong>PO:</strong> {{ bom.po.po_number }}</li>
+                        <li class="list-group-item"><strong>Item:</strong> {{ bom.item.code }} – {{ bom.item.name }}</li>
+                        <li class="list-group-item"><strong>Qty:</strong> {{ bom.quantity }} {{ bom.unit }}</li>
+                    </ul>
+
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                    </form>
+                    <a href="{% url 'bom:bom_list' %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

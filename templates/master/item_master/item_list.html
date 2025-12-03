@@ -1,0 +1,96 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Item Master - Suntech ERP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Item Master</h2>
+    {% if perms.master.add_itemmaster %}
+    <a href="{% url 'master:item_create' %}" class="btn btn-success">
+        <i class="fa fa-plus"></i> Add Item
+    </a>
+    {% endif %}
+</div>
+
+<!-- Success Message -->
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Items Table -->
+<table class="table table-hover table-bordered">
+    <thead class="table-primary">
+        <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>UOM</th>
+            <th class="text-center">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td><strong>{{ item.code }}</strong></td>
+            <td>{{ item.name }}</td>
+            <td>{{ item.description|truncatewords:15|default:"—" }}</td>
+            <td>{{ item.uom }}</td>
+            <td class="text-center">
+                {% if perms.master.change_itemmaster %}
+                <a href="{% url 'master:item_edit' item.pk %}" class="btn btn-sm btn-warning">
+                    <i class="fa fa-edit"></i>
+                </a>
+                {% endif %}
+                {% if perms.master.delete_itemmaster %}
+                <a href="{% url 'master:item_delete' item.pk %}" class="btn btn-sm btn-danger">
+                    <i class="fa fa-trash"></i>
+                </a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" class="text-center text-muted">No items found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Pagination -->
+{% if items.has_other_pages %}
+<nav>
+    <ul class="pagination justify-content-center">
+        {% if items.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ items.previous_page_number }}">Previous</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Previous</span></li>
+        {% endif %}
+
+        {% for num in items.paginator.page_range %}
+            {% if items.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% else %}
+            <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+            {% endif %}
+        {% endfor %}
+
+        {% if items.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ items.next_page_number }}">Next</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Next</span></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

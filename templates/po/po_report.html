@@ -1,0 +1,97 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}PO Report - Suntech ERP{% endblock %}
+
+{% block content %}
+<h2>Purchase Order Report</h2>
+
+<!-- FILTER FORM -->
+<form method="get" class="mb-4">
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">PO Number</label>
+            <input type="text" name="po_number" class="form-control"
+                   value="{{ filters.po_number }}" placeholder="e.g. PO-123">
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label">Company</label>
+            <select name="company" class="select2" style="width: 100%;">
+                <option value="">All Companies</option>
+                {% for comp in companies %}
+                    <option value="{{ comp.id }}"
+                            {% if filters.company == comp.id|stringformat:"s" %}selected{% endif %}>
+                        {{ comp.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <label class="form-label">From Date</label>
+            <input type="date" name="date_from" class="form-control"
+                   value="{{ filters.date_from }}">
+        </div>
+
+        <div class="col-md-2">
+            <label class="form-label">To Date</label>
+            <input type="date" name="date_to" class="form-control"
+                   value="{{ filters.date_to }}">
+        </div>
+
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+                Filter
+            </button>
+        </div>
+    </div>
+</form>
+
+<!-- RESULTS TABLE -->
+{% if pos %}
+<table class="table table-bordered table-responsive table-hover">
+    <thead class="table-danger">
+        <tr>
+            <th class="text-center">#</th>
+            <th class="text-center">PO Number</th>
+            <th class="text-center">Company</th>
+            <th class="text-center">Material</th>
+            <th class="text-center">Quantity</th>
+            <th class="text-center">PO Date</th>
+            <th class="text-center">Delivery Date</th>
+            <th class="text-center">Status</th>
+            <th class="text-center">Created By</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for po in pos %}
+        <tr>
+            <td class="text-center">{{ forloop.counter }}</td>
+            <td class="text-center">{{ po.po_number }}</td>
+            <td class="text-center">{{ po.company }}</td>
+            <td class="text-center">{{ po.material_description|truncatewords:10 }}</td>
+            <td class="text-center">{{ po.quantity }}</td>
+            <td class="text-center">{{ po.po_date|date:"d M Y" }}</td>
+            <td class="text-center">{{ po.delivery_date|date:"d M Y"|default:"—" }}</td>
+            <td class="text-center">
+                <span class="badge bg-{% if po.status == 'COMPLETED' %}success
+                                      {% elif po.status == 'INPROCESS' %}warning
+                                      {% else %}secondary{% endif %}">
+                    {{ po.status }}
+                </span>
+            </td>
+            <td class="text-center">{{ po.creator_name|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="9" class="text-center text-muted">No POs found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">No Purchase Orders match the selected filters.</div>
+{% endif %}
+
+{% endblock %}

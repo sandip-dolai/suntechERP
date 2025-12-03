@@ -1,0 +1,92 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Company Master - Suntech ERP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Company Master</h2>
+    {% if perms.master.add_companymaster %}
+    <a href="{% url 'master:company_create' %}" class="btn btn-success">
+        <i class="fa fa-plus"></i> Add Company
+    </a>
+    {% endif %}
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<table class="table table-hover table-bordered">
+    <thead class="table-success">
+        <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Contact Person</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th class="text-center">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for company in companies %}
+        <tr>
+            <td><strong>{{ company.code }}</strong></td>
+            <td>{{ company.name }}</td>
+            <td>{{ company.contact_person|default:"—" }}</td>
+            <td>{{ company.phone|default:"—" }}</td>
+            <td>{{ company.email|default:"—" }}</td>
+            <td class="text-center">
+                {% if perms.master.change_companymaster %}
+                <a href="{% url 'master:company_edit' company.pk %}" class="btn btn-sm btn-warning">
+                    <i class="fa fa-edit"></i>
+                </a>
+                {% endif %}
+                {% if perms.master.delete_companymaster %}
+                <a href="{% url 'master:company_delete' company.pk %}" class="btn btn-sm btn-danger">
+                    <i class="fa fa-trash"></i>
+                </a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" class="text-center text-muted">No companies found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Pagination -->
+{% if companies.has_other_pages %}
+<nav>
+    <ul class="pagination justify-content-center">
+        {% if companies.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ companies.previous_page_number }}">Previous</a></li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Previous</span></li>
+        {% endif %}
+
+        {% for num in companies.paginator.page_range %}
+            {% if companies.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% else %}
+            <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+            {% endif %}
+        {% endfor %}
+
+        {% if companies.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ companies.next_page_number }}">Next</a></li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Next</span></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

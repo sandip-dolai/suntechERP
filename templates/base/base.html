@@ -1,0 +1,66 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      {% block title %}
+        Suntech ERP
+      {% endblock %}
+    </title>
+
+    {% include 'partials/header_links.html' %}
+
+    <style>
+      .cursor-pointer {
+        cursor: pointer;
+      }
+      .nav-2-level li.active > a {
+        background-color: #ccccccff;
+        color: #333;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+
+    {% block extra_css %}
+
+    {% endblock %}
+  </head>
+  <body class="fixed-navbar">
+    <div class="page-wrapper">
+      {% include 'partials/header.html' %}
+      {% include 'partials/navbar.html' %}
+      <div class="content-wrapper mt-4">
+        <div class="page-content fade-in-up">
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+
+          {% block content %}
+
+          {% endblock %}
+        </div>
+        {% include 'partials/footer.html' %}
+      </div>
+    </div>
+    {% include 'partials/footer_links.html' %}
+    {% block extra_js %}
+
+    {% endblock %}
+    <script>
+      function confirmLogout(event) {
+        event.preventDefault()
+        const confirmed = confirm('Are you sure you want to logout?')
+        if (confirmed) {
+          document.getElementById('logout-form').submit()
+        }
+      }
+    </script>
+  </body>
+</html>

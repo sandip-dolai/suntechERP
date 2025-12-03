@@ -1,0 +1,46 @@
+from django.db import models
+from django.core.validators import RegexValidator
+
+
+class ItemMaster(models.Model):
+    """Item / Material master."""
+    code = models.CharField(
+        max_length=30,
+        unique=True,
+        help_text="Unique item code (e.g. ITM-001)",
+        validators=[RegexValidator(r'^[A-Z0-9\-]+$', "Only uppercase, numbers and hyphen")]
+    )
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    uom = models.CharField(max_length=20, verbose_name="Unit of Measure", default="NOS")
+
+    class Meta:
+        ordering = ['code']
+        verbose_name = "Item"
+        verbose_name_plural = "Items"
+
+    def __str__(self):
+        return f"{self.code} – {self.name}"
+
+
+class CompanyMaster(models.Model):
+    """Supplier / Customer master."""
+    code = models.CharField(
+        max_length=30,
+        unique=True,
+        help_text="Unique company code (e.g. SUP-001)",
+        validators=[RegexValidator(r'^[A-Z0-9\-]+$', "Only uppercase, numbers and hyphen")]
+    )
+    name = models.CharField(max_length=200)
+    address = models.TextField(blank=True)
+    contact_person = models.CharField(max_length=150, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(blank=True)
+
+    class Meta:
+        ordering = ['code']
+        verbose_name = "Company"
+        verbose_name_plural = "Companies"
+
+    def __str__(self):
+        return f"{self.code} – {self.name}"

@@ -1,0 +1,92 @@
+{% extends 'base/base.html' %}
+{% block title %}Indents - Suntech ERP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
+    <h2>Indents</h2>
+    <div class="d-flex gap-2">
+        <form method="get" class="d-flex">
+            <input type="text" name="q" class="form-control form-control-sm"
+                   placeholder="Search Indent#, Item, PO..." value="{{ search_query }}">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
+        </form>
+        {% if perms.indent.add_indent %}
+            <a href="{% url 'indent:indent_create' %}" class="btn btn-success btn-sm">+ Create</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if page_obj %}
+<table class="table table-bordered table-hover">
+    <thead class="table-danger">
+        <tr>
+            <th>#</th>
+            <th>Indent Number</th>
+            <th>BOM Item</th>
+            <th>PO Number</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for indent in page_obj %}
+        <tr>
+            <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+            <td><strong>{{ indent.indent_number }}</strong></td>
+            <td>
+                <div><strong>{{ indent.bom.item.code }}</strong></div>
+                <small class="text-muted">{{ indent.bom.item.name }}</small>
+            </td>
+            <td>{{ indent.bom.po.po_number }}</td>
+            <td>
+                <span class="badge bg-{% if indent.status == 'APPROVED' %}success
+                    {% elif indent.status == 'REJECTED' %}danger
+                    {% else %}warning{% endif %}">
+                    {{ indent.get_status_display }}
+                </span>
+            </td>
+            <td>{{ indent.created_at|date:"d M Y" }}</td>
+            <td>
+                {% if perms.indent.change_indent %}
+                    <a href="{% url 'indent:indent_edit' indent.pk %}" class="btn btn-primary btn-sm">Edit</a>
+                {% endif %}
+                {% if perms.indent.delete_indent %}
+                    <a href="{% url 'indent:indent_delete' indent.pk %}" class="btn btn-danger btn-sm">Delete</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">No indents found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Pagination -->
+<div class="d-flex justify-content-between mt-3">
+    <div>
+        {% if page_obj.has_previous %}
+            <a href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-outline-primary">First</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-outline-primary">Prev</a>
+        {% endif %}
+    </div>
+    <div class="text-muted small">
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </div>
+    <div>
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-outline-primary">Next</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-outline-primary">Last</a>
+        {% endif %}
+    </div>
+</div>
+
+{% else %}
+<div class="alert alert-info">
+    No indents found.
+    {% if perms.indent.add_indent %}
+        <a href="{% url 'indent:indent_create' %}">Create one?</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

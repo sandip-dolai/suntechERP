@@ -1,0 +1,33 @@
+{% load static %}
+<header class="header">
+  <div class="page-brand">
+    <a class="link">
+      <span class="brand">
+        SUNTECH ERP
+      </span>
+      <span class="brand-mini">SUN</span>
+    </a>
+  </div>
+  <div class="flexbox flex-1">
+    <!-- START TOP-LEFT TOOLBAR -->
+    <ul class="nav navbar-toolbar">
+      <li>
+        <a class="nav-link sidebar-toggler js-sidebar-toggler"><i class="ti-menu"></i></a>
+      </li>
+      <li>
+        {{ header_content|default:"" }}
+      </li>
+    </ul>
+    <!-- END TOP-LEFT TOOLBAR -->
+    <!-- START TOP-RIGHT TOOLBAR -->
+    <ul class="nav navbar-toolbar">
+      <li class="dropdown dropdown-user">
+        <a class="nav-link dropdown-toggle link" data-toggle="dropdown">
+          <img src="{% static 'assets/img/admin-avatar.png' %}" />
+          <span style="">{{ user.username }}</span>
+        </a>
+      </li>
+    </ul>
+    <!-- END TOP-RIGHT TOOLBAR -->
+  </div>
+</header>

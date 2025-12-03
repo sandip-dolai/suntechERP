@@ -1,0 +1,206 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Suntech | Login</title>
+
+    <!-- GLOBAL STYLES -->
+    <link href="{% static 'assets/vendors/bootstrap/dist/css/bootstrap.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'assets/vendors/font-awesome/css/font-awesome.min.css' %}" rel="stylesheet" />
+
+    <style>
+      /* Body & Background */
+      body {
+        height: 100vh;
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(135deg, #3498DB, #2a5efa);
+      }
+
+      /* Login Card */
+      .login-card {
+        background: #fff;
+        padding: 50px 35px;
+        border-radius: 20px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .login-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+      }
+
+      /* Brand & Title */
+      .brand {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #2a5efa;
+        margin-bottom: 25px;
+        letter-spacing: 2px;
+      }
+
+      .login-title {
+        font-size: 1.5rem;
+        margin-bottom: 30px;
+        color: #333;
+      }
+
+      /* Input Fields */
+      .form-group {
+        position: relative;
+        margin-bottom: 25px;
+      }
+
+      .form-control {
+        width: 100%;
+        padding: 15px 45px;
+        border-radius: 12px;
+        border: 1px solid #ddd;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+      }
+
+      .form-control:focus {
+        border-color: #2a5efa;
+        box-shadow: 0 0 8px rgba(37, 117, 252, 0.3);
+        outline: none;
+      }
+
+      .input-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #2575fc;
+        font-size: 1.1rem;
+      }
+
+      /* Button */
+      .btn-info {
+        background: #2a5efa;
+        border: none;
+        width: 100%;
+        padding: 14px;
+        font-size: 1rem;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+      }
+
+      .btn-info:hover {
+        background: #2a5efa;
+      }
+
+      /* Error & Alert Styling */
+      .help-block {
+        font-size: 0.875rem;
+        margin-top: 5px;
+      }
+
+      .alert {
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+        border-radius: 10px;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 500px) {
+        .login-card {
+          padding: 35px 20px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="login-card">
+      <div class="brand">
+        <img src="{% static 'assets\img\logo.png' %}" alt="logo" style="width: 180px !important;">
+      </div>
+
+      <form method="post" id="login-form">
+        {% csrf_token %}
+        <!-- Username Field -->
+        <div class="form-group">
+          <div class="input-group-icon">
+            <div class="input-icon"><i class="fa fa-user"></i></div>
+            {{ form.username }}
+          </div>
+          {% if form.username.errors %}
+            <div class="help-block text-danger">
+              {% for error in form.username.errors %}
+                {{ error }}
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Password Field -->
+        <div class="form-group">
+          <div class="input-group-icon">
+            <div class="input-icon"><i class="fa fa-lock"></i></div>
+            {{ form.password }}
+          </div>
+          {% if form.password.errors %}
+            <div class="help-block text-danger">
+              {% for error in form.password.errors %}
+                {{ error }}
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">
+            {% for error in form.non_field_errors %}
+              {{ error }}
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <!-- Submit Button -->
+        <div class="form-group">
+          <button class="btn btn-info" type="submit">Login</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="{% static 'assets/vendors/jquery/dist/jquery.min.js' %}"></script>
+    <script src="{% static 'assets/vendors/bootstrap/dist/js/bootstrap.min.js' %}"></script>
+    <script src="{% static 'assets/vendors/jquery-validation/dist/jquery.validate.min.js' %}"></script>
+
+    <script>
+      $(function () {
+        $('#login-form').validate({
+          errorClass: 'help-block text-danger',
+          rules: {
+            username: { required: true },
+            password: { required: true }
+          },
+          highlight: function (e) {
+            $(e).closest('.form-group').addClass('has-error')
+          },
+          unhighlight: function (e) {
+            $(e).closest('.form-group').removeClass('has-error')
+          },
+          errorPlacement: function (error, element) {
+            error.insertAfter(element.closest('.input-group-icon'))
+          }
+        });
+      });
+
+
+
+    </script>
+  </body>
+</html>
