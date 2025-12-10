@@ -1,137 +1,209 @@
-from operator import concat
+# po/views.py
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
+from django.db import transaction, IntegrityError
 from django.db.models import F, Value, CharField
-from datetime import datetime
-from .models import PurchaseOrder
-from .forms import PurchaseOrderForm
-from master.models import CompanyMaster
-from django.db.models import Q, Value, CharField
 from django.db.models.functions import Concat, Coalesce
-
-# -------------------------------------------------
-# 1. PO LIST – with Creator Name
-# -------------------------------------------------
-@permission_required('po.view_purchaseorder', raise_exception=True)
-def po_list(request):
-    """
-    List all POs, newest first, showing the creator’s full name.
-    """
-    pos = (
-        PurchaseOrder.objects
-        .select_related('created_by')
-        .annotate(
-            creator_name=Concat(
-                F('created_by__first_name'), Value(' '), F('created_by__last_name'),
-                output_field=CharField()
-            )
-        )
-        .order_by('-id')
-    )
-
-    # Fallback: empty name → username (or “—”)
-    for po in pos:
-        if not po.creator_name or not po.creator_name.strip():
-            po.creator_name = po.created_by.username if po.created_by else '—'
-
-    return render(request, 'po/po_list.html', {'pos': pos})
+from .models import PurchaseOrder, PurchaseOrderItem
+from .forms import PurchaseOrderForm, PurchaseOrderItemFormSet
+from master.models import CompanyMaster
+from datetime import datetime
 
 
-# -------------------------------------------------
-# 2. CREATE PO
-# -------------------------------------------------
-@permission_required('po.add_purchaseorder', raise_exception=True)
+# ------------------------------
+# PO CREATE (header + items)
+# ------------------------------
+@permission_required("po.add_purchaseorder", raise_exception=True)
 def po_create(request):
-    if request.method == 'POST':
+    if request.method == "POST":
         form = PurchaseOrderForm(request.POST)
-        if form.is_valid():
-            po = form.save(commit=False)
-            po.created_by = request.user
-            po.save()
-            return redirect('po:po_list')
+        formset = PurchaseOrderItemFormSet(request.POST)
+        if form.is_valid() and formset.is_valid():
+            # require at least one non-deleted item
+            # note: formset.cleaned_data may contain deleted flags
+            non_deleted_forms = [
+                f for f in formset.cleaned_data if f and not f.get("DELETE", False)
+            ]
+            if not non_deleted_forms:
+                formset.add_error(None, "At least one item is required.")
+                return render(request, "po/po_form.html", {
+                    "form": form,
+                    "formset": formset
+                })
+            else:
+                try:
+                    with transaction.atomic():
+                        po = form.save(commit=False)
+                        po.created_by = request.user
+                        po.save()
+                        # save formset linked to po
+                        formset.instance = po
+                        formset.save()
+                    messages.success(request, "Purchase Order created successfully.")
+                    return redirect("po:po_list")
+                except IntegrityError as e:
+                    # likely unique constraint on po_number or oa_number
+                    # parse and attach to form error (simple approach)
+                    form.add_error(
+                        None, "Database error: possible duplicate PO/OA number."
+                    )
+        else:
+            # fall through to render with errors
+            pass
     else:
         form = PurchaseOrderForm()
-    return render(request, 'po/po_form.html', {'form': form})
-
-
-# -------------------------------------------------
-# 3. EDIT PO
-# -------------------------------------------------
-@permission_required('po.change_purchaseorder', raise_exception=True)
-def po_edit(request, pk):
-    po = get_object_or_404(PurchaseOrder, pk=pk)
-    if request.method == 'POST':
-        form = PurchaseOrderForm(request.POST, instance=po)
-        if form.is_valid():
-            form.save()
-            return redirect('po:po_list')
-    else:
-        form = PurchaseOrderForm(instance=po)
-    return render(request, 'po/po_form.html', {'form': form})
-
-
-# -------------------------------------------------
-# 4. DELETE PO
-# -------------------------------------------------
-@permission_required('po.delete_purchaseorder', raise_exception=True)
-def po_delete(request, pk):
-    po = get_object_or_404(PurchaseOrder, pk=pk)
-    if request.method == 'POST':
-        po.delete()
-        return redirect('po:po_list')
-    return render(request, 'po/po_delete.html', {'po': po})
-
-
-# -------------------------------------------------
-# 5. PO REPORT – with Filters + Creator Name
-# -------------------------------------------------
-@permission_required('po.view_purchaseorder', raise_exception=True)
-def po_report(request):
-    # Base queryset with related data
-    queryset = PurchaseOrder.objects.select_related('created_by', 'company')
-
-    # GET parameters
-    po_number = request.GET.get('po_number', '').strip()
-    company_id = request.GET.get('company', '')
-    date_from = request.GET.get('date_from', '').strip()
-    date_to = request.GET.get('date_to', '').strip()
-
-    # Filters
-    if po_number:
-        queryset = queryset.filter(po_number__icontains=po_number)
-    if company_id:
-        queryset = queryset.filter(company_id=company_id)
-    if date_from:
-        try:
-            queryset = queryset.filter(po_date__gte=datetime.strptime(date_from, '%Y-%m-%d').date())
-        except ValueError:
-            pass
-    if date_to:
-        try:
-            queryset = queryset.filter(po_date__lte=datetime.strptime(date_to, '%Y-%m-%d').date())
-        except ValueError:
-            pass
-
-    # Annotate creator name + fallback in ONE DB call
-    queryset = queryset.annotate(
-        creator_name=Coalesce(
-            Concat(F('created_by__first_name'), Value(' '), F('created_by__last_name')),
-            F('created_by__username'),
-            Value('—'),
-            output_field=CharField()
-        )
-    ).order_by('-po_date')
-
-    # No Python loop needed anymore!
+        formset = PurchaseOrderItemFormSet()
 
     context = {
-        'pos': queryset,
-        'companies': CompanyMaster.objects.order_by('code'),
-        'filters': {
-            'po_number': po_number,
-            'company': company_id,
-            'date_from': date_from,
-            'date_to': date_to,
-        },
+        "form": form,
+        "formset": formset,
+        "title": "Create Purchase Order",
+        "companies": CompanyMaster.objects.order_by("name"),
     }
-    return render(request, 'po/po_report.html', context)
+    return render(request, "po/po_form.html", context)
+
+
+# ------------------------------
+# PO EDIT (header + items)
+# ------------------------------
+@permission_required("po.change_purchaseorder", raise_exception=True)
+def po_edit(request, pk):
+    po = get_object_or_404(PurchaseOrder, pk=pk)
+
+    if request.method == "POST":
+        form = PurchaseOrderForm(request.POST, instance=po)
+        formset = PurchaseOrderItemFormSet(request.POST, instance=po)
+
+        if form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    form.save()
+                    formset.save()   # <-- THIS PROCESSES DELETE CHECKBOXES
+                messages.success(request, "Purchase Order updated successfully.")
+                return redirect("po:po_list")
+            except IntegrityError:
+                form.add_error(
+                    None, "Database error: possible duplicate PO/OA number."
+                )
+
+        # If invalid, fall through to re-render with errors
+
+    else:
+        form = PurchaseOrderForm(instance=po)
+        formset = PurchaseOrderItemFormSet(instance=po)
+
+    context = {
+        "form": form,
+        "formset": formset,
+        "title": f"Edit PO {po.po_number}",
+        "po": po,
+        "companies": CompanyMaster.objects.order_by("name"),
+    }
+
+    return render(request, "po/po_form.html", context)
+
+
+
+# ------------------------------
+# PO DELETE
+# ------------------------------
+@permission_required("po.delete_purchaseorder", raise_exception=True)
+def po_delete(request, pk):
+    po = get_object_or_404(PurchaseOrder, pk=pk)
+    if request.method == "POST":
+        po.delete()
+        messages.success(request, "Purchase Order deleted.")
+        return redirect("po:po_list")
+    return render(request, "po/po_delete.html", {"po": po})
+
+
+# ------------------------------
+# PO LIST (example with creator)
+# ------------------------------
+@permission_required("po.view_purchaseorder", raise_exception=True)
+def po_list(request):
+    pos = (
+        PurchaseOrder.objects.select_related("created_by", "company")
+        .annotate(
+            creator_name=Coalesce(
+                Concat(
+                    F("created_by__first_name"), Value(" "), F("created_by__last_name")
+                ),
+                F("created_by__username"),
+                Value("—"),
+                output_field=CharField(),
+            )
+        )
+        .order_by("-id")
+    )
+    return render(request, "po/po_list.html", {"pos": pos})
+
+
+@permission_required("po.view_purchaseorder", raise_exception=True)
+def po_report(request):
+    view_mode = request.GET.get("view", "summary").lower()
+
+    # required date defaults
+    today = datetime.today().date()
+    date_from = request.GET.get("date_from", "")
+    date_to = request.GET.get("date_to", "")
+
+    # ✔ Auto-fill if missing
+    if not date_from:
+        date_from = today.strftime("%Y-%m-%d")
+    if not date_to:
+        date_to = today.strftime("%Y-%m-%d")
+
+    # Detect if filters were applied
+    filter_used = 'po_number' in request.GET or 'company' in request.GET or 'date_from' in request.GET
+
+    # Base queryset (empty initially)
+    po_qs = PurchaseOrder.objects.none()
+
+    if filter_used:
+        po_qs = PurchaseOrder.objects.select_related("created_by", "company")
+
+        # Apply filters only after button click
+        if request.GET.get("po_number"):
+            po_qs = po_qs.filter(po_number__icontains=request.GET["po_number"])
+
+        if request.GET.get("company"):
+            po_qs = po_qs.filter(company_id=request.GET["company"])
+
+        # required date range
+        po_qs = po_qs.filter(po_date__range=[date_from, date_to])
+
+        # Creator name annotation
+        po_qs = po_qs.annotate(
+            creator_name=Coalesce(
+                Concat(F("created_by__first_name"), Value(" "), F("created_by__last_name")),
+                F("created_by__username"),
+                Value("—"),
+                output_field=CharField(),
+            )
+        )
+
+    # ITEM VIEW (only if filter used)
+    items = None
+    if view_mode == "items" and filter_used:
+        items = PurchaseOrderItem.objects.select_related("purchase_order", "purchase_order__company") \
+            .filter(purchase_order__in=po_qs) \
+            .order_by("purchase_order__po_number", "id")
+
+    context = {
+        "view": view_mode,
+        "filters": {
+            "po_number": request.GET.get("po_number", ""),
+            "company": request.GET.get("company", ""),
+            "date_from": date_from,
+            "date_to": date_to,
+        },
+        "pos": po_qs.order_by("-po_date") if filter_used else [],
+        "items": items,
+        "filter_used": filter_used,
+        "companies": CompanyMaster.objects.order_by("name"),
+    }
+
+    return render(request, "po/po_report.html", context)
+

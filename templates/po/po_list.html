@@ -1,45 +1,104 @@
 {% extends 'base/base.html' %}
-{% block title %}
-  Purchase Orders - Suntech ERP
-{% endblock %}
+{% block title %} Purchase Orders - Suntech ERP {% endblock %}
+
 {% block content %}
-  <div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
+<div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
     <h2 class="mb-2 mb-md-0">Purchase Orders</h2>
+
     {% if perms.po.add_purchaseorder %}
-      <a href="{% url 'po:po_create' %}" class="btn btn-success"><i class="bi bi-plus-lg"></i> Create PO</a>
+    <a href="{% url 'po:po_create' %}" class="btn btn-success">
+        <i class="bi bi-plus-lg"></i> Create PO
+    </a>
     {% endif %}
-  </div>
-  <table class="table table-bordered table-responsive table-hover">
-    <thead class="table-danger">
-      <tr>
-        <th class="text-center">PO Number</th>
-        <th class="text-center">Company</th>
-        <th class="text-center">Material</th>
-        <th class="text-center">Quantity</th>
-        <th class="text-center">Status</th>
-        <th class="text-center">Created By</th> <!-- NEW COLUMN -->
-        <th class="text-center">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for po in pos %}
+</div>
+
+<table class="table table-bordered table-hover table-responsive">
+    <thead class="table-success">
         <tr>
-          <td class="text-center">{{ po.po_number }}</td>
-          <td class="text-center">{{ po.company }}</td>
-          <td class="text-center">{{ po.material_description }}</td>
-          <td class="text-center">{{ po.quantity }}</td>
-          <td class="text-center">{{ po.status }}</td>
-          <td class="text-center">{{ po.creator_name|default:'—' }}</td> <!-- DISPLAY CREATOR NAME -->
-          <td class="text-center">
-            {% if perms.po.change_purchaseorder %}
-              <a href="{% url 'po:po_edit' po.pk %}" class="btn btn-primary btn-sm"><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
-            {% endif %}
-            {% if perms.po.delete_purchaseorder %}
-              <a href="{% url 'po:po_delete' po.pk %}" class="btn btn-danger btn-sm"><i class="fa fa-trash-o" aria-hidden="true"></i></a>
-            {% endif %}
-          </td>
+            <th class="text-center">PO Number</th>
+            <th class="text-center">OA Number</th>
+            <th class="text-center">Company</th>
+            <th class="text-center">Items</th>
+            <th class="text-center">Created By</th>
+            <th class="text-center">PO Date</th>
+            <th class="text-center">Actions</th>
         </tr>
-      {% endfor %}
+    </thead>
+
+    <tbody>
+        {% for po in pos %}
+        <tr>
+            <td class="text-center fw-bold">{{ po.po_number }}</td>
+
+            <td class="text-center">
+                {{ po.oa_number }}
+            </td>
+
+            <td class="text-center">
+                {{ po.company }}
+            </td>
+
+            <td>
+                {% if po.items.exists %}
+                <table class="table table-sm table-bordered mb-0 bg-light">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th style="font-size: 12px;">Material</th>
+                            <th style="font-size: 12px;">Qty</th>
+                            <th style="font-size: 12px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in po.items.all %}
+                        <tr>
+                            <td style="font-size: 12px;">{{ item.material_description|truncatewords:8 }}</td>
+                            <td class="text-center" style="font-size: 12px;">{{ item.quantity }}</td>
+                            <td class="text-center" style="font-size: 12px;">
+                                <span class="badge 
+                                    {% if item.status == 'COMPLETED' %} bg-success
+                                    {% elif item.status == 'INPROCESS' %} bg-warning text-dark
+                                    {% else %} bg-secondary 
+                                    {% endif %}">
+                                    {{ item.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    <span class="text-muted small">No Items</span>
+                {% endif %}
+            </td>
+
+
+            <td class="text-center">
+                {{ po.created_by|default:"—" }}
+            </td>
+
+            <td class="text-center">
+                {{ po.po_date }}
+            </td>
+
+            <td class="text-center">
+                {% if perms.po.change_purchaseorder %}
+                <a href="{% url 'po:po_edit' po.pk %}" class="btn btn-primary btn-sm">
+                    <i class="fa fa-pencil-square-o"></i>
+                </a>
+                {% endif %}
+
+                {% if perms.po.delete_purchaseorder %}
+                <a href="{% url 'po:po_delete' po.pk %}" class="btn btn-danger btn-sm">
+                    <i class="fa fa-trash-o"></i>
+                </a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="7" class="text-center text-muted">No Purchase Orders found.</td>
+        </tr>
+        {% endfor %}
     </tbody>
-  </table>
+</table>
 {% endblock %}

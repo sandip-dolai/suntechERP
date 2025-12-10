@@ -4,10 +4,23 @@
 {% block title %}PO Report - Suntech ERP{% endblock %}
 
 {% block content %}
-<h2>Purchase Order Report</h2>
+
+<h2 class="mb-3">Purchase Order Report</h2>
+
+<!-- VIEW MODE TOGGLE -->
+<div class="mb-3">
+    <a href="?view=summary" class="btn btn-sm {% if view == 'summary' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        Summary View
+    </a>
+    <a href="?view=items" class="btn btn-sm {% if view == 'items' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        Item View
+    </a>
+</div>
 
 <!-- FILTER FORM -->
 <form method="get" class="mb-4">
+    <input type="hidden" name="view" value="{{ view }}">
+
     <div class="row g-3">
         <div class="col-md-3">
             <label class="form-label">PO Number</label>
@@ -17,11 +30,11 @@
 
         <div class="col-md-3">
             <label class="form-label">Company</label>
-            <select name="company" class="select2" style="width: 100%;">
+            <select name="company" class="form-select select2">
                 <option value="">All Companies</option>
                 {% for comp in companies %}
                     <option value="{{ comp.id }}"
-                            {% if filters.company == comp.id|stringformat:"s" %}selected{% endif %}>
+                        {% if filters.company == comp.id %}selected{% endif %}>
                         {{ comp.name }}
                     </option>
                 {% endfor %}
@@ -41,57 +54,129 @@
         </div>
 
         <div class="col-md-2 d-flex align-items-end">
-            <button type="submit" class="btn btn-primary w-100">
-                Filter
-            </button>
+            <button type="submit" class="btn btn-primary w-100">Filter</button>
         </div>
     </div>
 </form>
 
-<!-- RESULTS TABLE -->
-{% if pos %}
-<table class="table table-bordered table-responsive table-hover">
-    <thead class="table-danger">
+<!-- ============================= -->
+<!--      SUMMARY VIEW (PER PO)    -->
+<!-- ============================= -->
+{% if view == "summary" %}
+<table class="table table-bordered table-hover">
+    <thead class="table-success">
         <tr>
             <th class="text-center">#</th>
             <th class="text-center">PO Number</th>
+            <th class="text-center">OA Number</th>
             <th class="text-center">Company</th>
-            <th class="text-center">Material</th>
-            <th class="text-center">Quantity</th>
+            <th class="text-center">Items</th>
             <th class="text-center">PO Date</th>
             <th class="text-center">Delivery Date</th>
-            <th class="text-center">Status</th>
             <th class="text-center">Created By</th>
         </tr>
     </thead>
+
     <tbody>
         {% for po in pos %}
         <tr>
             <td class="text-center">{{ forloop.counter }}</td>
             <td class="text-center">{{ po.po_number }}</td>
+            <td class="text-center">{{ po.oa_number }}</td>
             <td class="text-center">{{ po.company }}</td>
-            <td class="text-center">{{ po.material_description|truncatewords:10 }}</td>
-            <td class="text-center">{{ po.quantity }}</td>
-            <td class="text-center">{{ po.po_date|date:"d M Y" }}</td>
-            <td class="text-center">{{ po.delivery_date|date:"d M Y"|default:"—" }}</td>
-            <td class="text-center">
-                <span class="badge bg-{% if po.status == 'COMPLETED' %}success
-                                      {% elif po.status == 'INPROCESS' %}warning
-                                      {% else %}secondary{% endif %}">
-                    {{ po.status }}
-                </span>
+
+            <!-- 🟦 Nested Items Table -->
+            <td>
+                {% if po.items.exists %}
+                <table class="table table-sm table-bordered mb-0 bg-light">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th style="font-size: 12px;">Material</th>
+                            <th style="font-size: 12px;">Qty</th>
+                            <th style="font-size: 12px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in po.items.all %}
+                        <tr>
+                            <td style="font-size: 12px;">
+                                {{ item.material_description|truncatewords:8 }}
+                            </td>
+                            <td class="text-center" style="font-size: 12px;">
+                                {{ item.quantity }}
+                            </td>
+                            <td class="text-center" style="font-size: 12px;">
+                                <span class="badge 
+                                    {% if item.status == 'COMPLETED' %} bg-success
+                                    {% elif item.status == 'INPROCESS' %} bg-warning text-dark
+                                    {% else %} bg-secondary 
+                                    {% endif %}">
+                                    {{ item.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <span class="text-muted small">No items</span>
+                {% endif %}
             </td>
-            <td class="text-center">{{ po.creator_name|default:"—" }}</td>
+
+            <td class="text-center">{{ po.po_date }}</td>
+            <td class="text-center">{{ po.delivery_date|default:"—" }}</td>
+            <td class="text-center">{{ po.created_by|default:"—" }}</td>
         </tr>
         {% empty %}
         <tr>
-            <td colspan="9" class="text-center text-muted">No POs found.</td>
+            <td colspan="8" class="text-center text-muted">No POs found.</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
-{% else %}
-<div class="alert alert-info">No Purchase Orders match the selected filters.</div>
+{% endif %}
+
+<!-- ============================= -->
+<!--     ITEM VIEW (PER ITEM)      -->
+<!-- ============================= -->
+{% if view == "items" %}
+<table class="table table-bordered table-hover">
+    <thead class="table-warning">
+        <tr>
+            <th class="text-center">#</th>
+            <th class="text-center">PO Number</th>
+            <th class="text-center">OA Number</th>
+            <th class="text-center">Company</th>
+            <th class="text-center">Material</th>
+            <th class="text-center">Quantity</th>
+            <th class="text-center">Status</th>
+            <th class="text-center">PO Date</th>
+            <th class="text-center">Delivery Date</th>
+            <th class="text-center">Created By</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td class="text-center">{{ forloop.counter }}</td>
+            <td class="text-center">{{ item.purchase_order.po_number }}</td>
+            <td class="text-center">{{ item.purchase_order.oa_number }}</td>
+            <td class="text-center">{{ item.purchase_order.company }}</td>
+            <td>{{ item.material_description }}</td>
+            <td class="text-center">{{ item.quantity }}</td>
+            <td class="text-center">{{ item.get_status_display }}</td>
+            <td class="text-center">{{ item.purchase_order.po_date }}</td>
+            <td class="text-center">{{ item.purchase_order.delivery_date|default:"—" }}</td>
+            <td class="text-center">{{ item.purchase_order.created_by|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="10" class="text-center text-muted">No items found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% endif %}
 
 {% endblock %}
