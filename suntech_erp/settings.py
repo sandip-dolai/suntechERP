@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ================================
 SECRET_KEY = "HWuyNCqgEXrv7t8reeM1DW8VvduOGwkabtlC7pHLg-q_uQS_gBDMy3l6qeCHf46NfG8"
 
-DEBUG = False  # Production
+DEBUG = True  # Production
 
 ALLOWED_HOSTS = [
     "api.matchb.online",
