@@ -27,17 +27,26 @@
             <th>Name</th>
             <th>Email</th>
             <th>Department</th>
+            <th>Status</th>
             <th class="text-center">Actions</th>
         </tr>
     </thead>
 
     <tbody>
         {% for u in users %}
-        <tr>
+        <tr class="{% if not u.is_active %}table-danger{% endif %}">
             <td><strong>{{ u.username }}</strong></td>
             <td>{{ u.first_name }} {{ u.last_name }}</td>
             <td>{{ u.email }}</td>
             <td>{{ u.department|default:"—" }}</td>
+            <td>
+                {% if u.is_active %}
+                    <span class="badge bg-success">Active</span>
+                {% else %}
+                    <span class="badge bg-danger">Inactive</span>
+                {% endif %}
+            </td>
+
             <td class="text-center">
                 <a href="{% url 'users:user_edit' u.id %}" class="btn btn-sm btn-warning">
                     <i class="fa fa-edit"></i>
