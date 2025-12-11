@@ -15,3 +15,4 @@ urlpatterns = [
     path('indent/', include('indent.urls')),
     path('', include('master.urls')),
 ]
+handler404 = "users.views.custom_404"
