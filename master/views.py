@@ -1,12 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import permission_required
+from suntech_erp.permissions import admin_required
 from django.core.paginator import Paginator
 from .models import ItemMaster, CompanyMaster
 from .forms import ItemMasterForm, CompanyMasterForm
 
 
 # ======================  ITEM MASTER  ======================
-@permission_required('master.view_itemmaster', raise_exception=True)
+@admin_required
 def item_list(request):
     queryset = ItemMaster.objects.all()
     paginator = Paginator(queryset, 25)
@@ -15,7 +15,7 @@ def item_list(request):
     return render(request, 'master/item_master/item_list.html', {'items': items})
 
 
-@permission_required('master.add_itemmaster', raise_exception=True)
+@admin_required
 def item_create(request):
     if request.method == 'POST':
         form = ItemMasterForm(request.POST)
@@ -27,7 +27,7 @@ def item_create(request):
     return render(request, 'master/item_master/item_form.html', {'form': form, 'title': 'Create Item'})
 
 
-@permission_required('master.change_itemmaster', raise_exception=True)
+@admin_required
 def item_edit(request, pk):
     obj = get_object_or_404(ItemMaster, pk=pk)
     if request.method == 'POST':
@@ -40,7 +40,7 @@ def item_edit(request, pk):
     return render(request, 'master/item_master/item_form.html', {'form': form, 'title': 'Edit Item'})
 
 
-@permission_required('master.delete_itemmaster', raise_exception=True)
+@admin_required
 def item_delete(request, pk):
     obj = get_object_or_404(ItemMaster, pk=pk)
     if request.method == 'POST':
@@ -50,7 +50,7 @@ def item_delete(request, pk):
 
 
 # ======================  COMPANY MASTER  ======================
-@permission_required('master.view_companymaster', raise_exception=True)
+@admin_required
 def company_list(request):
     queryset = CompanyMaster.objects.all()
     paginator = Paginator(queryset, 25)
@@ -59,7 +59,7 @@ def company_list(request):
     return render(request, 'master/company_master/company_list.html', {'companies': companies})
 
 
-@permission_required('master.add_companymaster', raise_exception=True)
+@admin_required
 def company_create(request):
     if request.method == 'POST':
         form = CompanyMasterForm(request.POST)
@@ -71,7 +71,7 @@ def company_create(request):
     return render(request, 'master/company_master/company_form.html', {'form': form, 'title': 'Create Company'})
 
 
-@permission_required('master.change_companymaster', raise_exception=True)
+@admin_required
 def company_edit(request, pk):
     obj = get_object_or_404(CompanyMaster, pk=pk)
     if request.method == 'POST':
@@ -84,7 +84,7 @@ def company_edit(request, pk):
     return render(request, 'master/company_master/company_form.html', {'form': form, 'title': 'Edit Company'})
 
 
-@permission_required('master.delete_companymaster', raise_exception=True)
+@admin_required
 def company_delete(request, pk):
     obj = get_object_or_404(CompanyMaster, pk=pk)
     if request.method == 'POST':

@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from suntech_erp.permissions import admin_required
 from django.contrib.auth.views import LoginView
 from .forms import LoginForm
 from .models import CustomUser
@@ -12,13 +13,6 @@ from django.contrib.auth.hashers import make_password
 def custom_404(request, exception):
     return render(request, "404.html", status=404)
 
-def admin_only(view_func):
-    def wrapper(request, *args, **kwargs):
-        if not request.user.is_superuser or request.user.department != 'Admin':
-            return render(request, "403.html", status=403)
-        return view_func(request, *args, **kwargs)
-    return wrapper
-
 @login_required(login_url='/users/login/')
 def dashboard_view(request):
     return render(request, 'base/dashboard.html')
@@ -29,15 +23,13 @@ class CustomLoginView(LoginView):
     
     
 
-@login_required
-@admin_only
+@admin_required
 def user_list(request):
     users = CustomUser.objects.all()
     return render(request, "users/user_list.html", {"users": users})
 
 
-@login_required
-@admin_only
+@admin_required
 def user_create(request):
     if request.method == "POST":
         form = UserCreateForm(request.POST)
@@ -50,8 +42,7 @@ def user_create(request):
     return render(request, "users/user_create.html", {"form": form})
 
 
-@login_required
-@admin_only
+@admin_required
 def user_edit(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
 
@@ -67,8 +58,7 @@ def user_edit(request, user_id):
 
 
 
-@login_required
-@admin_only
+@admin_required
 def user_reset_password(request, user_id):
     user = get_object_or_404(CustomUser, id=user_id)
 

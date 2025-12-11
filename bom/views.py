@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import permission_required
+from suntech_erp.permissions import login_required_view
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, F, Value, CharField
@@ -12,7 +12,7 @@ from po.models import PurchaseOrder
 from master.models import CompanyMaster
 
 
-@permission_required('bom.view_billofmaterials', raise_exception=True)
+@login_required_view
 def bom_list(request):
     queryset = BillOfMaterials.objects.select_related(
         'po', 'po__company', 'item', 'created_by'
@@ -42,7 +42,7 @@ def bom_list(request):
 # ----------------------------------------------------------------------
 # 2. CREATE – standalone or from PO
 # ----------------------------------------------------------------------
-@permission_required('bom.add_billofmaterials', raise_exception=True)
+@login_required_view
 def bom_create(request, po_id=None):
     po = None
     if po_id:
@@ -73,7 +73,7 @@ def bom_create(request, po_id=None):
 # ----------------------------------------------------------------------
 # 3. EDIT
 # ----------------------------------------------------------------------
-@permission_required('bom.change_billofmaterials', raise_exception=True)
+@login_required_view
 def bom_edit(request, pk):
     bom = get_object_or_404(BillOfMaterials, pk=pk)
 
@@ -96,7 +96,7 @@ def bom_edit(request, pk):
 # ----------------------------------------------------------------------
 # 4. DELETE
 # ----------------------------------------------------------------------
-@permission_required('bom.delete_billofmaterials', raise_exception=True)
+@login_required_view
 def bom_delete(request, pk):
     bom = get_object_or_404(BillOfMaterials, pk=pk)
 
@@ -112,7 +112,7 @@ def bom_delete(request, pk):
 # ----------------------------------------------------------------------
 # 5. REPORT – advanced filtering + creator name
 # ----------------------------------------------------------------------
-@permission_required('bom.view_billofmaterials', raise_exception=True)
+@login_required_view
 def bom_report(request):
     queryset = BillOfMaterials.objects.select_related(
         'po', 'po__company', 'item', 'created_by'

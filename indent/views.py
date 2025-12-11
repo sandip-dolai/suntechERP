@@ -1,6 +1,6 @@
 # indent/views.py
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import permission_required
+from suntech_erp.permissions import login_required_view
 from django.core.paginator import Paginator
 from django.db.models import Q, F, Value, CharField
 from django.db.models.functions import Concat, Coalesce
@@ -13,7 +13,7 @@ from master.models import CompanyMaster
 
 
 # === ENHANCED LIST ===
-@permission_required('indent.view_indent', raise_exception=True)
+@login_required_view
 def indent_list(request):
     queryset = Indent.objects.select_related(
         'bom__po__company', 'bom__item', 'created_by'
@@ -49,7 +49,7 @@ def indent_list(request):
 
 
 # === CREATE / EDIT (unchanged, but form now works) ===
-@permission_required('indent.add_indent', raise_exception=True)
+@login_required_view
 def indent_create(request):
     if request.method == 'POST':
         form = IndentForm(request.POST)
@@ -63,7 +63,7 @@ def indent_create(request):
     return render(request, 'indent/indent_form.html', {'form': form})
 
 
-@permission_required('indent.change_indent', raise_exception=True)
+@login_required_view
 def indent_edit(request, pk):
     indent = get_object_or_404(Indent, pk=pk)
     if request.method == 'POST':
@@ -76,7 +76,7 @@ def indent_edit(request, pk):
     return render(request, 'indent/indent_form.html', {'form': form})
 
 
-@permission_required('indent.delete_indent', raise_exception=True)
+@login_required_view
 def indent_delete(request, pk):
     indent = get_object_or_404(Indent, pk=pk)
     if request.method == 'POST':
@@ -86,7 +86,7 @@ def indent_delete(request, pk):
 
 
 # === INDENT REPORT ===
-@permission_required('indent.view_indent', raise_exception=True)
+@login_required_view
 def indent_report(request):
     queryset = Indent.objects.select_related(
         'bom__po__company', 'bom__item', 'created_by'

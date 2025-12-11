@@ -1,7 +1,7 @@
 # po/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.contrib.auth.decorators import permission_required
+from suntech_erp.permissions import login_required_view
 from django.db import transaction, IntegrityError
 from django.db.models import F, Value, CharField
 from django.db.models.functions import Concat, Coalesce
@@ -14,7 +14,7 @@ from datetime import datetime
 # ------------------------------
 # PO CREATE (header + items)
 # ------------------------------
-@permission_required("po.add_purchaseorder", raise_exception=True)
+@login_required_view
 def po_create(request):
     if request.method == "POST":
         form = PurchaseOrderForm(request.POST)
@@ -67,7 +67,7 @@ def po_create(request):
 # ------------------------------
 # PO EDIT (header + items)
 # ------------------------------
-@permission_required("po.change_purchaseorder", raise_exception=True)
+@login_required_view
 def po_edit(request, pk):
     po = get_object_or_404(PurchaseOrder, pk=pk)
 
@@ -108,7 +108,7 @@ def po_edit(request, pk):
 # ------------------------------
 # PO DELETE
 # ------------------------------
-@permission_required("po.delete_purchaseorder", raise_exception=True)
+@login_required_view
 def po_delete(request, pk):
     po = get_object_or_404(PurchaseOrder, pk=pk)
     if request.method == "POST":
@@ -121,7 +121,7 @@ def po_delete(request, pk):
 # ------------------------------
 # PO LIST (example with creator)
 # ------------------------------
-@permission_required("po.view_purchaseorder", raise_exception=True)
+@login_required_view
 def po_list(request):
     pos = (
         PurchaseOrder.objects.select_related("created_by", "company")
@@ -140,7 +140,7 @@ def po_list(request):
     return render(request, "po/po_list.html", {"pos": pos})
 
 
-@permission_required("po.view_purchaseorder", raise_exception=True)
+@login_required_view
 def po_report(request):
     view_mode = request.GET.get("view", "summary").lower()
 
