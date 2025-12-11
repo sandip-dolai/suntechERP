@@ -1,10 +1,14 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from .forms import LoginForm
 from .models import CustomUser
 from .forms import UserCreateForm, UserUpdateForm
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.hashers import make_password
+
 # from django.core.mail import send_mail
+
 # from django.conf import settings
 
 
@@ -50,10 +54,22 @@ def user_edit(request, user_id):
     else:
         form = UserUpdateForm(instance=user)
 
-    return render(request, "users/user_edit.html", {"form": form, "user": user})
+    return render(request, "users/user_edit.html", {"form": form, "selected_user": user})
 
 
 
+@login_required
+def user_reset_password(request, user_id):
+    user = get_object_or_404(CustomUser, id=user_id)
+
+    if request.method == "POST":
+        new_password = request.POST.get("password")
+        user.password = make_password(new_password)
+        user.save()
+        messages.success(request, "Password reset successfully!")
+        return redirect("users:user_edit", user_id=user.id)
+
+    return render(request, "users/user_reset_password.html", {"user": user})
 
 # def custom_page_not_found_view(request, exception):
 #     return render(request, '404.html', status=404)
