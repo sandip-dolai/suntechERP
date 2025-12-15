@@ -1,0 +1,71 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}PO Processes - {{ po.po_number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>
+        PO Processes – {{ po.po_number }}
+        <small class="text-muted">({{ po.company.name }})</small>
+    </h4>
+    <a href="{% url 'po:po_list' %}" class="btn btn-secondary btn-sm">
+        ← Back to PO List
+    </a>
+</div>
+
+<table class="table table-bordered table-hover">
+    <thead class="table-success">
+        <tr>
+            <th style="width: 15%;">Department</th>
+            <th>Process</th>
+            <th style="width: 15%;">Current Status</th>
+            <th style="width: 20%;">Last Updated</th>
+            <th style="width: 15%;" class="text-center">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for process in processes %}
+        <tr>
+            <td><strong>{{ process.department_process.department }}</strong></td>
+            <td>{{ process.department_process.name }}</td>
+            <td>
+                <span class="badge bg-info text-dark">
+                    {{ process.current_status.name }}
+                </span>
+            </td>
+            <td>
+                {% if process.last_updated_by %}
+                    {{ process.last_updated_by }}
+                    <br>
+                    <small class="text-muted">
+                        {{ process.last_updated_at|date:"d M Y, h:i A" }}
+                    </small>
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td class="text-center">
+                <a href="{% url 'po:po_process_history' process.id %}"
+                   class="btn btn-sm btn-outline-secondary">
+                    History
+                </a>
+
+                {% if request.user.is_staff or request.user.department == process.department_process.department %}
+                    <a href="{% url 'po:po_process_update' process.id %}"
+                       class="btn btn-sm btn-warning">
+                        Update
+                    </a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" class="text-center text-muted">
+                No processes found.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
