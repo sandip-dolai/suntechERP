@@ -1,14 +1,14 @@
-# po/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from suntech_erp.permissions import login_required_view
 from django.db import transaction, IntegrityError
 from django.db.models import F, Value, CharField
 from django.db.models.functions import Concat, Coalesce
-from .models import PurchaseOrder, PurchaseOrderItem
-from .forms import PurchaseOrderForm, PurchaseOrderItemFormSet
+from .models import PurchaseOrder, PurchaseOrderItem, POProcess, POProcessHistory
+from .forms import PurchaseOrderForm, PurchaseOrderItemFormSet, POProcessUpdateForm
 from master.models import CompanyMaster
 from datetime import datetime
+from django.http import HttpResponseForbidden
 
 
 # ------------------------------
@@ -27,10 +27,9 @@ def po_create(request):
             ]
             if not non_deleted_forms:
                 formset.add_error(None, "At least one item is required.")
-                return render(request, "po/po_form.html", {
-                    "form": form,
-                    "formset": formset
-                })
+                return render(
+                    request, "po/po_form.html", {"form": form, "formset": formset}
+                )
             else:
                 try:
                     with transaction.atomic():
@@ -79,13 +78,11 @@ def po_edit(request, pk):
             try:
                 with transaction.atomic():
                     form.save()
-                    formset.save()   # <-- THIS PROCESSES DELETE CHECKBOXES
+                    formset.save()  # <-- THIS PROCESSES DELETE CHECKBOXES
                 messages.success(request, "Purchase Order updated successfully.")
                 return redirect("po:po_list")
             except IntegrityError:
-                form.add_error(
-                    None, "Database error: possible duplicate PO/OA number."
-                )
+                form.add_error(None, "Database error: possible duplicate PO/OA number.")
 
         # If invalid, fall through to re-render with errors
 
@@ -102,7 +99,6 @@ def po_edit(request, pk):
     }
 
     return render(request, "po/po_form.html", context)
-
 
 
 # ------------------------------
@@ -156,7 +152,11 @@ def po_report(request):
         date_to = today.strftime("%Y-%m-%d")
 
     # Detect if filters were applied
-    filter_used = 'po_number' in request.GET or 'company' in request.GET or 'date_from' in request.GET
+    filter_used = (
+        "po_number" in request.GET
+        or "company" in request.GET
+        or "date_from" in request.GET
+    )
 
     # Base queryset (empty initially)
     po_qs = PurchaseOrder.objects.none()
@@ -177,7 +177,9 @@ def po_report(request):
         # Creator name annotation
         po_qs = po_qs.annotate(
             creator_name=Coalesce(
-                Concat(F("created_by__first_name"), Value(" "), F("created_by__last_name")),
+                Concat(
+                    F("created_by__first_name"), Value(" "), F("created_by__last_name")
+                ),
                 F("created_by__username"),
                 Value("—"),
                 output_field=CharField(),
@@ -187,9 +189,13 @@ def po_report(request):
     # ITEM VIEW (only if filter used)
     items = None
     if view_mode == "items" and filter_used:
-        items = PurchaseOrderItem.objects.select_related("purchase_order", "purchase_order__company") \
-            .filter(purchase_order__in=po_qs) \
+        items = (
+            PurchaseOrderItem.objects.select_related(
+                "purchase_order", "purchase_order__company"
+            )
+            .filter(purchase_order__in=po_qs)
             .order_by("purchase_order__po_number", "id")
+        )
 
     context = {
         "view": view_mode,
@@ -207,3 +213,108 @@ def po_report(request):
 
     return render(request, "po/po_report.html", context)
 
+
+# ------------------------------
+# PO PROCESS LIST
+# ------------------------------
+@login_required_view
+def po_process_list(request, po_id):
+    po = get_object_or_404(PurchaseOrder, pk=po_id)
+
+    processes = po.processes.select_related(
+        "department_process",
+        "current_status",
+        "last_updated_by",
+    ).order_by(
+        "department_process__department",
+        "department_process__name",
+    )
+
+    context = {
+        "po": po,
+        "processes": processes,
+    }
+
+    return render(request, "po/po_process_list.html", context)
+
+
+# ------------------------------
+# PO PROCESS UPDATE
+# ------------------------------
+def can_edit_po_process(user, po_process):
+    """
+    Admin can edit all.
+    Department users can edit only their department processes.
+    """
+    if user.is_superuser or user.is_staff:
+        return True
+
+    return getattr(user, "department", None) == po_process.department_process.department
+
+
+@login_required_view
+def po_process_update(request, process_id):
+    po_process = get_object_or_404(POProcess, pk=process_id)
+    po = po_process.purchase_order
+
+    # 🔐 Permission check
+    if not can_edit_po_process(request.user, po_process):
+        return HttpResponseForbidden(
+            "You do not have permission to update this process."
+        )
+
+    if request.method == "POST":
+        form = POProcessUpdateForm(
+            request.POST,
+            instance=po_process,
+            user=request.user,
+        )
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Process status updated successfully.")
+            return redirect(
+                "po:po_process_list",
+                po_id=po.id,
+            )
+    else:
+        form = POProcessUpdateForm(
+            instance=po_process,
+            user=request.user,
+        )
+
+    context = {
+        "form": form,
+        "po": po,
+        "po_process": po_process,
+    }
+
+    return render(
+        request,
+        "po/po_process_update.html",
+        context,
+    )
+
+
+# ------------------------------
+# PO PROCESS HISTORY VIEW
+# ------------------------------
+@login_required_view
+def po_process_history(request, process_id):
+    po_process = get_object_or_404(POProcess, pk=process_id)
+    po = po_process.purchase_order
+
+    history = po_process.history.select_related("status", "changed_by").order_by(
+        "-changed_at"
+    )
+
+    context = {
+        "po": po,
+        "po_process": po_process,
+        "history": history,
+    }
+
+    return render(
+        request,
+        "po/po_process_history.html",
+        context,
+    )
