@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from suntech_erp.permissions import admin_required
 from django.core.paginator import Paginator
-from .models import ItemMaster, CompanyMaster
-from .forms import ItemMasterForm, CompanyMasterForm
+from .models import ItemMaster, CompanyMaster, ProcessStatusMaster
+from .forms import ItemMasterForm, CompanyMasterForm, ProcessStatusMasterForm
 
 
 # ======================  ITEM MASTER  ======================
@@ -91,3 +91,50 @@ def company_delete(request, pk):
         obj.delete()
         return redirect('master:company_list')
     return render(request, 'master/company_master/company_delete.html', {'obj': obj, 'type': 'Company'})
+
+
+# ======================  PROCESS STATUS MASTER  ======================
+@admin_required
+def process_status_list(request):
+    queryset = ProcessStatusMaster.objects.all()
+    paginator = Paginator(queryset, 25)
+    page = request.GET.get('page')
+    statuses = paginator.get_page(page)
+    return render(
+        request,
+        'master/process_status_master/status_list.html',
+        {'statuses': statuses}
+    )
+
+
+@admin_required
+def process_status_create(request):
+    if request.method == 'POST':
+        form = ProcessStatusMasterForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('master:process_status_list')
+    else:
+        form = ProcessStatusMasterForm()
+    return render(
+        request,
+        'master/process_status_master/status_form.html',
+        {'form': form, 'title': 'Create Process Status'}
+    )
+
+
+@admin_required
+def process_status_edit(request, pk):
+    obj = get_object_or_404(ProcessStatusMaster, pk=pk)
+    if request.method == 'POST':
+        form = ProcessStatusMasterForm(request.POST, instance=obj)
+        if form.is_valid():
+            form.save()
+            return redirect('master:process_status_list')
+    else:
+        form = ProcessStatusMasterForm(instance=obj)
+    return render(
+        request,
+        'master/process_status_master/status_form.html',
+        {'form': form, 'title': 'Edit Process Status'}
+    )

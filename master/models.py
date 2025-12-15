@@ -64,3 +64,22 @@ class CompanyMaster(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.code2} – {self.name}"
+
+
+class ProcessStatusMaster(models.Model):
+    """Master for department process status dropdown."""
+
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Status name as per Excel (e.g. COMPLETED, PENDING)"
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Process Status"
+        verbose_name_plural = "Process Statuses"
+
+    def __str__(self):
+        return self.name
