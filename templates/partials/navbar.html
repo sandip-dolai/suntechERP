@@ -100,14 +100,14 @@
         </li>
 
           <!-- User Management -->
-          <li>
+          <li class="{% if current_url in 'user_list user_create user_edit' %}active{% endif %}">
               <a href="javascript:;">
                   <i class="sidebar-item-icon fa fa-users"></i>
                   <span class="nav-label">User Management</span>
                   <i class="fa fa-angle-left arrow"></i>
               </a>
               <ul class="nav-2-level collapse">
-                  <li>
+                  <li class="{% if current_url in 'user_list user_create user_edit' %}active{% endif %}">
                       <a href="{% url 'users:user_list' %}">User List</a>
                   </li>
                   <li>
