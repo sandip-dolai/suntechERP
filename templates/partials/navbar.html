@@ -76,28 +76,36 @@
           </li>
 
           <!-- Masters -->
-          <li class="{% if current_url in 'company_list company_create company_edit company_delete item_list item_create item_edit item_delete process_status_list process_status_create process_status_edit' %}active{% endif %}">
-            <a href="javascript:;">
-                <i class="sidebar-item-icon fa fa-cog"></i>
-                <span class="nav-label">Masters</span>
-                <i class="fa fa-angle-left arrow"></i>
-            </a>
-            <ul class="nav-2-level collapse">
+          <li class="{% if current_url in 'company_list company_create company_edit company_delete item_list item_create item_edit item_delete process_status_list process_status_create process_status_edit department_process_list department_process_create department_process_edit' %}active{% endif %}">
+              <a href="javascript:;">
+                  <i class="sidebar-item-icon fa fa-cog"></i>
+                  <span class="nav-label">Masters</span>
+                  <i class="fa fa-angle-left arrow"></i>
+              </a>
 
-                <li class="{% if current_url in 'company_list company_create company_edit company_delete' %}active{% endif %}">
-                    <a href="{% url 'master:company_list' %}">Company Master</a>
-                </li>
+              <ul class="nav-2-level collapse">
 
-                <li class="{% if current_url in 'item_list item_create item_edit item_delete' %}active{% endif %}">
-                    <a href="{% url 'master:item_list' %}">Item Master</a>
-                </li>
+                  <li class="{% if current_url in 'company_list company_create company_edit company_delete' %}active{% endif %}">
+                      <a href="{% url 'master:company_list' %}">Company Master</a>
+                  </li>
 
-                <li class="{% if current_url in 'process_status_list process_status_create process_status_edit' %}active{% endif %}">
-                    <a href="{% url 'master:process_status_list' %}">Process Status Master</a>
-                </li>
+                  <li class="{% if current_url in 'item_list item_create item_edit item_delete' %}active{% endif %}">
+                      <a href="{% url 'master:item_list' %}">Item Master</a>
+                  </li>
 
-            </ul>
-        </li>
+                  <li class="{% if current_url in 'process_status_list process_status_create process_status_edit' %}active{% endif %}">
+                      <a href="{% url 'master:process_status_list' %}">PO Status Master</a>
+                  </li>
+
+                  <li class="{% if current_url in 'department_process_list department_process_create department_process_edit' %}active{% endif %}">
+                      <a href="{% url 'master:department_process_list' %}">
+                          Process Master
+                      </a>
+                  </li>
+
+              </ul>
+          </li>
+
 
           <!-- User Management -->
           <li class="{% if current_url in 'user_list user_create user_edit' %}active{% endif %}">

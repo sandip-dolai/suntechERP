@@ -1,0 +1,87 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Department Process Master - Suntech ERP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Department Process Master</h2>
+    {% if perms.master.add_departmentprocessmaster %}
+    <a href="{% url 'master:department_process_create' %}" class="btn btn-primary">
+        <i class="fa fa-plus"></i> Add Process
+    </a>
+    {% endif %}
+</div>
+
+<table class="table table-hover table-bordered">
+    <thead class="table-primary">
+        <tr>
+            <th>Department</th>
+            <th>Process Name</th>
+            <th class="text-center">Status</th>
+            <th class="text-center">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for process in processes %}
+        <tr>
+            <td><strong>{{ process.department }}</strong></td>
+            <td>{{ process.name }}</td>
+            <td class="text-center">
+                {% if process.is_active %}
+                    <span class="badge bg-success">Active</span>
+                {% else %}
+                    <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                {% if perms.master.change_departmentprocessmaster %}
+                <a href="{% url 'master:department_process_edit' process.pk %}"
+                   class="btn btn-sm btn-primary">
+                    <i class="fa fa-edit"></i>
+                </a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="4" class="text-center text-muted">
+                No department processes found.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if processes.has_other_pages %}
+<nav>
+    <ul class="pagination justify-content-center">
+        {% if processes.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ processes.previous_page_number }}">Previous</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Previous</span></li>
+        {% endif %}
+
+        {% for num in processes.paginator.page_range %}
+            {% if processes.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% else %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+
+        {% if processes.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ processes.next_page_number }}">Next</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Next</span></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
