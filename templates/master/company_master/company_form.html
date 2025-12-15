@@ -8,7 +8,7 @@
     <div class="row justify-content-center">
         <div class="col-md-9">
             <div class="card shadow">
-                <div class="card-header bg-success text-white">
+                <div class="card-header bg-primary text-white">
                     <h4 class="mb-0">{{ title }}</h4>
                 </div>
                 <div class="card-body">
@@ -56,8 +56,8 @@
                             {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors }}</div>{% endif %}
                         </div>
 
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-success">
+                        <div class="d-flex">
+                            <button type="submit" class="btn btn-primary mr-2">
                                 Save Company
                             </button>
                             <a href="{% url 'master:company_list' %}" class="btn btn-secondary">

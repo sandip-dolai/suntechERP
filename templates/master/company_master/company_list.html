@@ -7,7 +7,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Company Master</h2>
     {% if perms.master.add_companymaster %}
-    <a href="{% url 'master:company_create' %}" class="btn btn-success">
+    <a href="{% url 'master:company_create' %}" class="btn btn-primary">
         <i class="fa fa-plus"></i> Add Company
     </a>
     {% endif %}
@@ -23,7 +23,7 @@
 {% endif %}
 
 <table class="table table-hover table-bordered">
-    <thead class="table-success">
+    <thead class="table-primary">
         <tr>
             <th>Code</th>
             <th>Code 2</th>
@@ -45,7 +45,7 @@
             <td>{{ company.email|default:"—" }}</td>
             <td class="text-center">
                 {% if perms.master.change_companymaster %}
-                <a href="{% url 'master:company_edit' company.pk %}" class="btn btn-sm btn-warning">
+                <a href="{% url 'master:company_edit' company.pk %}" class="btn btn-sm btn-primary">
                     <i class="fa fa-edit"></i>
                 </a>
                 {% endif %}

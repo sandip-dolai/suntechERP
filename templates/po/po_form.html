@@ -120,7 +120,7 @@
                                 {% if form_item.instance.pk %}
                                     {{ form_item.DELETE|add_class:"delete-flag" }}
                                 {% endif %}
-                                <button type="button" class="btn btn-danger btn-sm remove-item shadow-sm">−</button>
+                                <button type="button" class="btn btn-danger remove-item shadow-sm">−</button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -128,10 +128,10 @@
                 </table>
             </div>
 
-            <button type="button" id="add-row" class="btn btn-outline-primary add-row-btn btn-sm shadow-sm mt-2">+ Add Item</button>
+            <button type="button" id="add-row" class="btn btn-outline-primary add-row-btn shadow-sm mt-2">+ Add Item</button>
 
             <div class="mt-4">
-                <button type="submit" class="btn btn-success px-4 rounded-3 shadow-sm">Save PO</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">Save PO</button>
                 <a href="{% url 'po:po_list' %}" class="btn btn-secondary px-4 rounded-3 shadow-sm">Cancel</a>
             </div>
 

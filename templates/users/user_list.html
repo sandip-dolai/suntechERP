@@ -6,7 +6,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>User Management</h2>
-    <a href="{% url 'users:user_create' %}" class="btn btn-success">
+    <a href="{% url 'users:user_create' %}" class="btn btn-primary">
         <i class="fa fa-plus"></i> Create User
     </a>
 </div>
@@ -21,7 +21,7 @@
 {% endif %}
 
 <table class="table table-hover table-bordered">
-    <thead class="table-success">
+    <thead class="table-primary">
         <tr>
             <th>Username</th>
             <th>Name</th>
@@ -48,7 +48,7 @@
             </td>
 
             <td class="text-center">
-                <a href="{% url 'users:user_edit' u.id %}" class="btn btn-sm btn-warning">
+                <a href="{% url 'users:user_edit' u.id %}" class="btn btn-sm btn-primary">
                     <i class="fa fa-edit"></i>
                 </a>
             </td>

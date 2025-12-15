@@ -64,7 +64,7 @@
 <!-- ============================= -->
 {% if view == "summary" %}
 <table class="table table-bordered table-hover">
-    <thead class="table-success">
+    <thead class="table-primary">
         <tr>
             <th class="text-center">#</th>
             <th class="text-center">PO Number</th>
@@ -107,8 +107,8 @@
                             </td>
                             <td class="text-center" style="font-size: 12px;">
                                 <span class="badge 
-                                    {% if item.status == 'COMPLETED' %} bg-success
-                                    {% elif item.status == 'INPROCESS' %} bg-warning text-dark
+                                    {% if item.status == 'COMPLETED' %} bg-primary
+                                    {% elif item.status == 'INPROCESS' %} bg-primary text-dark
                                     {% else %} bg-secondary 
                                     {% endif %}">
                                     {{ item.get_status_display }}
@@ -141,7 +141,7 @@
 <!-- ============================= -->
 {% if view == "items" %}
 <table class="table table-bordered table-hover">
-    <thead class="table-warning">
+    <thead class="table-primary">
         <tr>
             <th class="text-center">#</th>
             <th class="text-center">PO Number</th>
