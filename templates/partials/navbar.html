@@ -76,21 +76,29 @@
           </li>
 
           <!-- Masters -->
-          <li class="{% if current_url in 'company_list company_create company_edit company_delete item_list item_create item_edit item_delete' %}active{% endif %}">
+          <li class="{% if current_url in 'company_list company_create company_edit company_delete item_list item_create item_edit item_delete process_status_list process_status_create process_status_edit' %}active{% endif %}">
             <a href="javascript:;">
-              <i class="sidebar-item-icon fa fa-cog"></i>
-              <span class="nav-label">Masters</span>
-              <i class="fa fa-angle-left arrow"></i>
+                <i class="sidebar-item-icon fa fa-cog"></i>
+                <span class="nav-label">Masters</span>
+                <i class="fa fa-angle-left arrow"></i>
             </a>
             <ul class="nav-2-level collapse">
-              <li class="{% if current_url in 'company_list company_create company_edit company_delete' %}active{% endif %}">
-                <a href="{% url 'master:company_list' %}">Company Master</a>
-              </li>
-              <li class="{% if current_url in 'item_list item_create item_edit item_delete' %}active{% endif %}">
-                <a href="{% url 'master:item_list' %}">Item Master</a>
-              </li>
+
+                <li class="{% if current_url in 'company_list company_create company_edit company_delete' %}active{% endif %}">
+                    <a href="{% url 'master:company_list' %}">Company Master</a>
+                </li>
+
+                <li class="{% if current_url in 'item_list item_create item_edit item_delete' %}active{% endif %}">
+                    <a href="{% url 'master:item_list' %}">Item Master</a>
+                </li>
+
+                <li class="{% if current_url in 'process_status_list process_status_create process_status_edit' %}active{% endif %}">
+                    <a href="{% url 'master:process_status_list' %}">Process Status Master</a>
+                </li>
+
             </ul>
-          </li>
+        </li>
+
           <!-- User Management -->
           <li>
               <a href="javascript:;">

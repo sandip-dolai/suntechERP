@@ -1,0 +1,53 @@
+{% extends 'base/base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title }} - Suntech ERP{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">{{ title }}</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="row pb-4">
+                            <div class="col-md-8">
+                                <label class="form-label">
+                                    Status Name <span class="text-danger">*</span>
+                                </label>
+                                {{ form.name|add_class:"form-control" }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger small">{{ form.name.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label>&nbsp;</label>
+                                <div class="form-check">
+                                {{ form.is_active|add_class:"form-check-input" }}
+                                <label class="form-check-label fw-semibold" for="{{ form.is_active.id_for_label }}">
+                                    Active
+                                </label>
+                            </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex">
+                            <button type="submit" class="btn btn-success mr-2">
+                                Save Status
+                            </button>
+                            <a href="{% url 'master:process_status_list' %}" class="btn btn-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

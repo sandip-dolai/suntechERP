@@ -1,0 +1,92 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Process Status Master - Suntech ERP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Process Status Master</h2>
+    {% if perms.master.add_processstatusmaster %}
+    <a href="{% url 'master:process_status_create' %}" class="btn btn-success">
+        <i class="fa fa-plus"></i> Add Status
+    </a>
+    {% endif %}
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<table class="table table-hover table-bordered">
+    <thead class="table-success">
+        <tr>
+            <th>Status Name</th>
+            <th>Active</th>
+            <th class="text-center">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for status in statuses %}
+        <tr>
+            <td><strong>{{ status.name }}</strong></td>
+            <td>
+                {% if status.is_active %}
+                    <span class="badge bg-success">Active</span>
+                {% else %}
+                    <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                {% if perms.master.change_processstatusmaster %}
+                <a href="{% url 'master:process_status_edit' status.pk %}" class="btn btn-sm btn-warning">
+                    <i class="fa fa-edit"></i>
+                </a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3" class="text-center text-muted">No statuses found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Pagination -->
+{% if statuses.has_other_pages %}
+<nav>
+    <ul class="pagination justify-content-center">
+        {% if statuses.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ statuses.previous_page_number }}">Previous</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Previous</span></li>
+        {% endif %}
+
+        {% for num in statuses.paginator.page_range %}
+            {% if statuses.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% else %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+
+        {% if statuses.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ statuses.next_page_number }}">Next</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Next</span></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
