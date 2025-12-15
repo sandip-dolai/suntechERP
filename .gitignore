@@ -2,3 +2,4 @@
 .env.prod
 .envx
 static/
+logs/

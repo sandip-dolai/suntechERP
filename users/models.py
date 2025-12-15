@@ -9,6 +9,7 @@ class CustomUser(AbstractUser):
         ("Production", "Production"),
         ("Quality", "Quality"),
         ("Admin", "Admin"),
+        ("Logistics", "Logistics"),
     ]
 
     department = models.CharField(max_length=50, choices=DEPARTMENT_CHOICES, blank=True)
