@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from suntech_erp.permissions import login_required_view
+from suntech_erp.permissions import login_required_view, admin_required
 from django.db import transaction, IntegrityError
 from django.db.models import F, Value, CharField
 from django.db.models.functions import Concat, Coalesce
@@ -15,6 +15,7 @@ from django.http import HttpResponseForbidden
 # PO CREATE (header + items)
 # ------------------------------
 @login_required_view
+@admin_required
 def po_create(request):
     if request.method == "POST":
         form = PurchaseOrderForm(request.POST)

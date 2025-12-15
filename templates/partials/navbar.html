@@ -25,21 +25,26 @@
         {% with current_url=request.resolver_match.url_name %}
 
           <!-- Purchase Orders -->
-          <li class="{% if current_url in 'po_list po_create po_edit po_report' %}active{% endif %}">
+          <li class="{% if current_url in 'po_list po_create po_edit po_report po_process_list po_process_update po_process_history' %}active{% endif %}">
             <a href="javascript:;">
               <i class="sidebar-item-icon fa fa-file-text"></i>
               <span class="nav-label">Purchase Orders</span>
               <i class="fa fa-angle-left arrow"></i>
             </a>
+
             <ul class="nav-2-level collapse">
+
               <li class="{% if current_url in 'po_list po_create po_edit' %}active{% endif %}">
                 <a href="{% url 'po:po_list' %}">PO Operation</a>
               </li>
+
               <li class="{% if current_url == 'po_report' %}active{% endif %}">
                 <a href="{% url 'po:po_report' %}">PO Report</a>
               </li>
+
             </ul>
           </li>
+
 
           <!-- Bill of Materials -->
           <li class="{% if current_url in 'bom_list bom_create bom_edit bom_delete bom_report' %}active{% endif %}">
