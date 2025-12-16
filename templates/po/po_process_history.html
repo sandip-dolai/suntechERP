@@ -34,7 +34,9 @@
                 {% for h in history %}
                 <tr>
                     <td>
-                        <span class="badge bg-info text-dark">
+                        <span class="badge"
+                              style="background-color: {{ h.status.color_code }};
+                                     color: #fff;">
                             {{ h.status.name }}
                         </span>
                     </td>

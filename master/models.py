@@ -78,6 +78,11 @@ class ProcessStatusMaster(models.Model):
         unique=True,
         help_text="Status name as per Excel (e.g. COMPLETED, PENDING)",
     )
+    color_code = models.CharField(
+        max_length=7,
+        default="#6c757d",
+        help_text="HEX color code (e.g. #28a745)",
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:

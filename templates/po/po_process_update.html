@@ -9,7 +9,7 @@
         <div class="col-md-8">
 
             <div class="card shadow">
-                <div class="card-header bg-warning">
+                <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
                         Update Process – {{ po.po_number }}
                     </h5>
@@ -40,7 +40,7 @@
                         </div>
 
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-success">
+                            <button type="submit" class="btn btn-primary mr-2">
                                 Save Update
                             </button>
                             <a href="{% url 'po:po_process_list' po.id %}"

@@ -1,5 +1,10 @@
 from django import forms
-from .models import ItemMaster, CompanyMaster, ProcessStatusMaster, DepartmentProcessMaster
+from .models import (
+    ItemMaster,
+    CompanyMaster,
+    ProcessStatusMaster,
+    DepartmentProcessMaster,
+)
 
 
 class ItemMasterForm(forms.ModelForm):
@@ -23,7 +28,27 @@ class CompanyMasterForm(forms.ModelForm):
 class ProcessStatusMasterForm(forms.ModelForm):
     class Meta:
         model = ProcessStatusMaster
-        fields = "__all__"
+        fields = ["name", "color_code", "is_active"]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Enter status name (e.g. COMPLETED)",
+                }
+            ),
+            "color_code": forms.TextInput(
+                attrs={
+                    "type": "color",
+                    "class": "form-control",
+                    "title": "Choose status color",
+                }
+            ),
+            "is_active": forms.CheckboxInput(
+                attrs={
+                    "class": "form-check-input",
+                }
+            ),
+        }
 
 
 class DepartmentProcessMasterForm(forms.ModelForm):

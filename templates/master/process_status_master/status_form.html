@@ -16,7 +16,7 @@
                         {% csrf_token %}
 
                         <div class="row pb-4">
-                            <div class="col-md-8">
+                            <div class="col-md-7">
                                 <label class="form-label">
                                     Status Name <span class="text-danger">*</span>
                                 </label>
@@ -25,7 +25,11 @@
                                     <div class="text-danger small">{{ form.name.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Color</label>
+                                {{ form.color_code }}
+                            </div>
+                            <div class="col-md-2 ">
                                 <label>&nbsp;</label>
                                 <div class="form-check">
                                 {{ form.is_active|add_class:"form-check-input" }}

@@ -15,11 +15,11 @@
 </div>
 
 <table class="table table-bordered table-hover">
-    <thead class="table-success">
+    <thead class="table-primary">
         <tr>
             <th style="width: 15%;">Department</th>
             <th>Process</th>
-            <th style="width: 15%;">Current Status</th>
+            <th style="width: 15%;" class="text-center">Current Status</th>
             <th style="width: 20%;">Last Updated</th>
             <th style="width: 15%;" class="text-center">Actions</th>
         </tr>
@@ -29,11 +29,13 @@
         <tr>
             <td><strong>{{ process.department_process.department }}</strong></td>
             <td>{{ process.department_process.name }}</td>
-            <td>
-                <span class="badge bg-info text-dark">
+            <td class="text-center">
+                <span class="badge"
+                    style="background-color: {{ process.current_status.color_code }}; color: #fff;">
                     {{ process.current_status.name }}
                 </span>
             </td>
+
             <td>
                 {% if process.last_updated_by %}
                     {{ process.last_updated_by }}
@@ -53,7 +55,7 @@
 
                 {% if request.user.is_staff or request.user.department == process.department_process.department %}
                     <a href="{% url 'po:po_process_update' process.id %}"
-                       class="btn btn-sm btn-warning">
+                       class="btn btn-sm btn-outline-primary">
                         Update
                     </a>
                 {% endif %}
