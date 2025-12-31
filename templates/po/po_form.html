@@ -8,119 +8,198 @@
 
 {% block content %}
 
+<!-- ================= ERP FORM CSS ================= -->
 <style>
-.erp-card { border-radius: 12px; padding: 30px !important; }
-.erp-section-title { font-size: 18px; font-weight: 600; margin-bottom: 18px; border-bottom: 2px solid #e9ecef; padding-bottom: 6px; }
-.form-label { font-weight: 600; margin-bottom: 4px; }
-.erp-field { height: 42px !important; border-radius: 8px !important; }
-.erp-table th { background: #f8f9fc !important; font-weight: bold; color: #444; border-bottom: 2px solid #dee2e6; }
-.erp-table td { padding: 8px !important; }
-.remove-row { width: 32px; height: 32px; padding: 0 !important; border-radius: 50%; }
-.add-row-btn { border-radius: 8px; font-weight: 600; }
-.delete-flag { display: none !important; }
-.small-error { font-size: 0.85rem; color: #b94a48; }
+/* Base inputs */
+.form-control,
+.form-select {
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    padding: 8px 10px;
+    font-size: 0.95rem;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+/* Focus */
+.form-control:focus,
+.form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 .15rem rgba(13,110,253,.15);
+}
+
+/* Validation */
+.is-invalid {
+    border-color: #dc3545;
+}
+.invalid-feedback,
+.small-error {
+    font-size: .82rem;
+    color: #dc3545;
+    margin-top: 4px;
+    display: block;
+}
+
+/* Table */
+.table thead th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+}
+.table td {
+    vertical-align: middle;
+    padding: 8px;
+}
+.table tbody tr:hover {
+    background: #f9fbfd;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 8px;
+    font-size: .9rem;
+}
+.btn-danger.remove-item {
+    padding: 4px 10px;
+}
+
+/* Card */
+.card {
+    border-radius: 12px;
+}
+
+/* Section title */
+.erp-section-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+/* Select2 */
+.select2-container .select2-selection--single {
+    height: 42px;
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+}
+.select2-selection__rendered {
+    line-height: 42px !important;
+}
+.select2-selection__arrow {
+    height: 42px !important;
+}
 </style>
 
 <div class="container my-4">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold text-dark m-0">
+        <h2 class="fw-bold">
             {% if form.instance.pk %} Edit Purchase Order {% else %} Create Purchase Order {% endif %}
         </h2>
-        <a href="{% url 'po:po_list' %}" class="btn btn-outline-secondary btn-sm rounded-3">← Back to List</a>
+        <a href="{% url 'po:po_list' %}" class="btn btn-outline-secondary btn-sm">← Back</a>
     </div>
 
-    <div class="card shadow-sm border-0 erp-card">
+    <div class="card shadow-sm border-0 p-4">
 
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} rounded-3 shadow-sm">{{ message }}</div>
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
             {% endfor %}
         {% endif %}
 
         <form method="post" novalidate>
             {% csrf_token %}
 
+            <!-- ================= PO DETAILS ================= -->
             <div class="erp-section-title">PO Details</div>
 
-            <div class="row g-4">
+            <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">PO Number</label>
-                    {{ form.po_number|add_class:"form-control erp-field shadow-sm" }}
-                    {% if form.po_number.errors %}<div class="small-error">{{ form.po_number.errors }}</div>{% endif %}
+                    {{ form.po_number|add_class:"form-control" }}
+                    {% if form.po_number.errors %}
+                        <div class="invalid-feedback">{{ form.po_number.errors|striptags }}</div>
+                    {% endif %}
                 </div>
 
                 <div class="col-md-3">
                     <label class="form-label">PO Date</label>
-                    {{ form.po_date|add_class:"form-control erp-field shadow-sm" }}
-                    {% if form.po_date.errors %}<div class="small-error">{{ form.po_date.errors }}</div>{% endif %}
+                    {{ form.po_date|add_class:"form-control" }}
+                    {% if form.po_date.errors %}
+                        <div class="invalid-feedback">{{ form.po_date.errors|striptags }}</div>
+                    {% endif %}
                 </div>
 
                 <div class="col-md-3">
                     <label class="form-label">OA Number</label>
-                    {{ form.oa_number|add_class:"form-control erp-field shadow-sm" }}
-                    {% if form.oa_number.errors %}<div class="small-error">{{ form.oa_number.errors }}</div>{% endif %}
+                    {{ form.oa_number|add_class:"form-control" }}
+                    {% if form.oa_number.errors %}
+                        <div class="invalid-feedback">{{ form.oa_number.errors|striptags }}</div>
+                    {% endif %}
                 </div>
 
                 <div class="col-md-3">
                     <label class="form-label">Delivery Date</label>
-                    {{ form.delivery_date|add_class:"form-control erp-field shadow-sm" }}
-                    {% if form.delivery_date.errors %}<div class="small-error">{{ form.delivery_date.errors }}</div>{% endif %}
+                    {{ form.delivery_date|add_class:"form-control" }}
+                    {% if form.delivery_date.errors %}
+                        <div class="invalid-feedback">{{ form.delivery_date.errors|striptags }}</div>
+                    {% endif %}
                 </div>
 
                 <div class="col-md-12">
                     <label class="form-label">Supplier / Customer</label>
-                    {{ form.company|add_class:"form-select erp-field shadow-sm select2" }}
-                    {% if form.company.errors %}<div class="small-error">{{ form.company.errors }}</div>{% endif %}
+                    {{ form.company|add_class:"form-select select2" }}
+                    {% if form.company.errors %}
+                        <div class="invalid-feedback">{{ form.company.errors|striptags }}</div>
+                    {% endif %}
                 </div>
             </div>
 
+            <!-- ================= PO ITEMS ================= -->
             <div class="erp-section-title mt-4">PO Items</div>
-
-            {% if formset.non_form_errors %}
-              <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
-            {% endif %}
 
             {{ formset.management_form }}
 
+            {% if formset.non_form_errors %}
+                <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
+            {% endif %}
+
             <div class="table-responsive">
-                <table class="table table-bordered erp-table align-middle" id="po-items-table">
+                <table class="table table-bordered align-middle">
                     <thead>
                         <tr>
                             <th>Material Description</th>
                             <th width="120">Qty</th>
                             <th width="180">Status</th>
-                            <th width="70" class="text-center">Delete</th>
+                            <th width="80" class="text-center">Remove</th>
                         </tr>
                     </thead>
-
                     <tbody id="items-body">
-                        {% for form_item in formset.forms %}
+                        {% for f in formset.forms %}
                         <tr class="item-row">
                             <td>
-                                {{ form_item.id }}
-                                {{ form_item.material_description|add_class:"form-control erp-field shadow-sm" }}
-                                {% if form_item.errors.material_description %}
-                                    <div class="small-error">{{ form_item.errors.material_description }}</div>
+                                {{ f.id }}
+                                {{ f.material_description|add_class:"form-control" }}
+                                {% if f.material_description.errors %}
+                                    <div class="invalid-feedback">{{ f.material_description.errors|striptags }}</div>
                                 {% endif %}
                             </td>
                             <td>
-                                {{ form_item.quantity|add_class:"form-control erp-field shadow-sm" }}
-                                {% if form_item.errors.quantity %}
-                                    <div class="small-error">{{ form_item.errors.quantity }}</div>
+                                {{ f.quantity|add_class:"form-control" }}
+                                {% if f.quantity.errors %}
+                                    <div class="invalid-feedback">{{ f.quantity.errors|striptags }}</div>
                                 {% endif %}
                             </td>
                             <td>
-                                {{ form_item.status|add_class:"form-select erp-field shadow-sm" }}
-                                {% if form_item.errors.status %}
-                                    <div class="small-error">{{ form_item.errors.status }}</div>
+                                {{ f.status|add_class:"form-select" }}
+                                {% if f.status.errors %}
+                                    <div class="invalid-feedback">{{ f.status.errors|striptags }}</div>
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                {% if form_item.instance.pk %}
-                                    {{ form_item.DELETE|add_class:"delete-flag" }}
-                                {% endif %}
-                                <button type="button" class="btn btn-danger remove-item shadow-sm">−</button>
+                                {{ f.DELETE|add_class:"d-none delete-flag" }}
+                                <button type="button" class="btn btn-danger btn-sm remove-item">−</button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -128,102 +207,77 @@
                 </table>
             </div>
 
-            <button type="button" id="add-row" class="btn btn-outline-primary add-row-btn shadow-sm mt-2">+ Add Item</button>
+            <button type="button" id="add-item" class="btn btn-outline-primary btn-sm mt-2">
+                + Add Item
+            </button>
 
+            <!-- ================= ACTIONS ================= -->
             <div class="mt-4">
-                <button type="submit" class="btn btn-primary px-4 rounded-3 shadow-sm">Save PO</button>
-                <a href="{% url 'po:po_list' %}" class="btn btn-secondary px-4 rounded-3 shadow-sm">Cancel</a>
+                <button type="submit" class="btn btn-primary px-4">Save PO</button>
+                <a href="{% url 'po:po_list' %}" class="btn btn-secondary px-4">Cancel</a>
             </div>
 
         </form>
     </div>
 </div>
 
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/css/select2.min.css" rel="stylesheet" />
+<!-- ================= SELECT2 ================= -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/css/select2.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
 <script>
-  $(document).ready(function () { $(".select2").select2(); });
+$(function () {
+    $(".select2").select2();
+});
 </script>
 
+<!-- ================= SAFE FORMSET JS ================= -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const prefix = "{{ formset.prefix }}";
-    const totalFormsInput = document.getElementById("id_" + prefix + "-TOTAL_FORMS");
-    const maxFormsInput = document.getElementById("id_" + prefix + "-MAX_NUM_FORMS");
+    const totalForms = document.getElementById(`id_${prefix}-TOTAL_FORMS`);
     const tbody = document.getElementById("items-body");
-    let totalForms = parseInt(totalFormsInput.value);
 
-    const emptyRowTemplate = `
-      <tr class="item-row">
-        <td>
-          {{ formset.empty_form.id }}
-          {{ formset.empty_form.material_description|add_class:"form-control erp-field shadow-sm" }}
-        </td>
-        <td>
-          {{ formset.empty_form.quantity|add_class:"form-control erp-field shadow-sm" }}
-        </td>
-        <td>
-          {{ formset.empty_form.status|add_class:"form-select erp-field shadow-sm" }}
-        </td>
-        <td class="text-center">
-          <button type="button" class="btn btn-danger btn-sm remove-item shadow-sm">−</button>
-        </td>
-      </tr>
+    const emptyRow = `
+        <tr class="item-row">
+            <td>
+                {{ formset.empty_form.id }}
+                {{ formset.empty_form.material_description|add_class:"form-control" }}
+            </td>
+            <td>
+                {{ formset.empty_form.quantity|add_class:"form-control" }}
+            </td>
+            <td>
+                {{ formset.empty_form.status|add_class:"form-select" }}
+            </td>
+            <td class="text-center">
+                {{ formset.empty_form.DELETE|add_class:"d-none delete-flag" }}
+                <button type="button" class="btn btn-danger btn-sm remove-item">−</button>
+            </td>
+        </tr>
     `.trim();
 
-    function replacePrefix(html, index) {
-        return html.replace(/__prefix__/g, index);
-    }
-
-    function reindexAllForms() {
-        const rows = Array.from(tbody.querySelectorAll("tr.item-row"));
-        rows.forEach(function (row, idx) {
-            const inputs = row.querySelectorAll("input, select, textarea");
-            inputs.forEach(function (el) {
-                if (el.name) {
-                    el.name = el.name.replace(new RegExp(`${prefix}-(\\d+)-`), `${prefix}-${idx}-`);
-                }
-                if (el.id) {
-                    el.id = el.id.replace(new RegExp(`${prefix}-(\\d+)-`), `${prefix}-${idx}-`);
-                }
-            });
-        });
-
-        totalForms = tbody.querySelectorAll("tr.item-row").length;
-        totalFormsInput.value = totalForms;
-    }
-
-    document.getElementById("add-row").addEventListener("click", function () {
-        if (maxFormsInput && maxFormsInput.value && totalForms >= parseInt(maxFormsInput.value)) {
-            return;
-        }
+    document.getElementById("add-item").addEventListener("click", function () {
+        const index = parseInt(totalForms.value);
+        const html = emptyRow.replace(/__prefix__/g, index);
 
         const temp = document.createElement("tbody");
-        temp.innerHTML = replacePrefix(emptyRowTemplate, totalForms);
-        const newRow = temp.firstElementChild;
-        tbody.appendChild(newRow);
+        temp.innerHTML = html;
+        tbody.appendChild(temp.firstElementChild);
 
-        totalForms++;
-        totalFormsInput.value = totalForms;
+        totalForms.value = index + 1;
     });
 
     document.addEventListener("click", function (e) {
         if (!e.target.classList.contains("remove-item")) return;
 
-        const row = e.target.closest("tr.item-row");
-        if (!row) return;
+        const row = e.target.closest(".item-row");
+        const del = row.querySelector(".delete-flag");
 
-        const deleteCheckbox = row.querySelector("input[type='checkbox'].delete-flag");
-
-        if (deleteCheckbox) {
-            deleteCheckbox.checked = true;
+        if (del) {
+            del.checked = true;
             row.style.display = "none";
-        } else {
-            row.remove();
-            reindexAllForms();
         }
     });
-
 });
 </script>
 

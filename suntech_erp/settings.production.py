@@ -1,35 +1,28 @@
-import os
 from pathlib import Path
+from datetime import timedelta
 
-# ================================
-# BASE DIRECTORY
-# ================================
+# --------------------------------------------------
+# BASE
+# --------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+SECRET_KEY = "django-insecure-demo-secret-key-change-later"
 
-# ================================
-# BASIC SETTINGS
-# ================================
-SECRET_KEY = "HWuyNCqgEXrv7t8reeM1DW8VvduOGwkabtlC7pHLg-q_uQS_gBDMy3l6qeCHf46NfG8"
-
-DEBUG = False  # Production
+DEBUG = False  # ✅ Explicitly production mode
 
 ALLOWED_HOSTS = [
-    "api.matchb.online",
-    "31.97.229.150",
+    "api.demoapp.com",
+    "www.api.demoapp.com",
+    "127.0.0.1",
     "localhost",
 ]
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://api.matchb.online",
-    "https://31.97.229.150",
-]
 
-
-# ================================
-# INSTALLED APPS
-# ================================
+# --------------------------------------------------
+# APPLICATIONS
+# --------------------------------------------------
 INSTALLED_APPS = [
+    # Django core
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -38,27 +31,35 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 
     # Third-party
-    "import_export",
-    "widget_tweaks",
+    "corsheaders",
+    "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
+    "channels",
 
-    # Local apps
-    "master.apps.MasterConfig",
-    "users.apps.UsersConfig",
-    "po.apps.PoConfig",
-    "bom.apps.BomConfig",
-    "indent.apps.IndentConfig",
+    # Project apps
+    "users",
+    "experts",
+    "entrepreneurs",
+    "investors",
+    "community",
+    "chat",
+    "bookings",
+    "payments",
+    "subscriptions",
 ]
 
 
-# ================================
+# --------------------------------------------------
 # MIDDLEWARE
-# ================================
+# --------------------------------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
 
-    # Whitenoise MUST be here (directly after SecurityMiddleware)
+    # WhiteNoise must be directly after SecurityMiddleware
     "whitenoise.middleware.WhiteNoiseMiddleware",
 
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -68,23 +69,78 @@ MIDDLEWARE = [
 ]
 
 
-# ================================
-# URLS & WSGI
-# ================================
-ROOT_URLCONF = "suntech_erp.urls"
-WSGI_APPLICATION = "suntech_erp.wsgi.application"
+# --------------------------------------------------
+# URL / WSGI / ASGI
+# --------------------------------------------------
+ROOT_URLCONF = "rplatform.urls"
+
+WSGI_APPLICATION = "rplatform.wsgi.application"
+ASGI_APPLICATION = "rplatform.asgi.application"
 
 
-# ================================
+# --------------------------------------------------
+# CORS (React + Flutter)
+# --------------------------------------------------
+CORS_ALLOWED_ORIGINS = [
+    "https://demoapp.com",
+    "https://www.demoapp.com",
+    "http://localhost:3000",      # React dev
+    "http://127.0.0.1:3000",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+
+# --------------------------------------------------
+# CSRF
+# --------------------------------------------------
+CSRF_TRUSTED_ORIGINS = [
+    "https://demoapp.com",
+    "https://www.demoapp.com",
+]
+
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = True
+
+
+# --------------------------------------------------
+# REST FRAMEWORK
+# --------------------------------------------------
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.CursorPagination",
+    "PAGE_SIZE": 10,
+}
+
+
+# --------------------------------------------------
+# JWT
+# --------------------------------------------------
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+
+# --------------------------------------------------
 # DATABASE (MySQL)
-# ================================
+# --------------------------------------------------
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": "suntech_db",
+        "NAME": "rplatform_db",
         "USER": "root",
-        "PASSWORD": "",
-        "HOST": "localhost",
+        "PASSWORD": "password",
+        "HOST": "127.0.0.1",
         "PORT": "3306",
         "OPTIONS": {
             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
@@ -94,9 +150,9 @@ DATABASES = {
 }
 
 
-# ================================
+# --------------------------------------------------
 # TEMPLATES
-# ================================
+# --------------------------------------------------
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -113,9 +169,32 @@ TEMPLATES = [
 ]
 
 
-# ================================
+# --------------------------------------------------
+# STATIC FILES (WhiteNoise)
+# --------------------------------------------------
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+
+# --------------------------------------------------
+# MEDIA FILES
+# --------------------------------------------------
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+
+# --------------------------------------------------
+# AUTH
+# --------------------------------------------------
+AUTH_USER_MODEL = "users.User"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# --------------------------------------------------
 # PASSWORD VALIDATION
-# ================================
+# --------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -124,89 +203,44 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# ================================
-# LANGUAGE & TIMEZONE
-# ================================
+# --------------------------------------------------
+# INTERNATIONALIZATION
+# --------------------------------------------------
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Kolkata"
 USE_I18N = True
 USE_TZ = True
 
 
-# ================================
-# STATIC FILES (Whitenoise)
-# ================================
-STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# Whitenoise static file handling
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
-
-# ================================
-# MEDIA FILES
-# ================================
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
-
-# ================================
-# CUSTOM USER MODEL
-# ================================
-AUTH_USER_MODEL = "users.CustomUser"
-
-
-# ================================
-# LOGIN REDIRECTS
-# ================================
-LOGIN_REDIRECT_URL = "dashboard"
-LOGOUT_REDIRECT_URL = "users:login"
-LOGIN_URL = "users:login"
-
-IMPORT_EXPORT_USE_TRANSACTIONS = True
-
-
-# ================================
-# EMAIL (CONSOLE OR SMTP)
-# ================================
+# --------------------------------------------------
+# EMAIL (safe default)
+# --------------------------------------------------
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 
-# ================================
-# SECURITY HEADERS
-# ================================
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
+# --------------------------------------------------
+# CHANNELS (kept, idle unless WebSocket used)
+# --------------------------------------------------
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
 
-SECURE_HSTS_SECONDS = 31536000  # 1 year
+
+# --------------------------------------------------
+# SECURITY (ALWAYS ON)
+# --------------------------------------------------
+SECURE_SSL_REDIRECT = True
+
+SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# ================================
-# LOGGING
-# ================================
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "file": {
-            "level": "INFO",
-            "class": "logging.FileHandler",
-            "filename": BASE_DIR / "logs/django.log",
-        },
-        "console": {
-            "class": "logging.StreamHandler",
-        }
-    },
-    "loggers": {
-        "django": {
-            "handlers": ["file", "console"],
-            "level": "INFO",
-            "propagate": True,
-        }
-    }
-}
+X_FRAME_OPTIONS = "DENY"
