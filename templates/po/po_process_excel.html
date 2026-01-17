@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 6px;
+            text-align: left;
+        }
+        th {
+            background: #e9ecef;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h3>
+    PO Processes – {{ po.po_number }} ({{ po.company.name }})
+</h3>
+
+<table>
+    <thead>
+        <tr>
+            <th>Department</th>
+            <th>Process</th>
+            <th>Status</th>
+            <th>Last Updated By</th>
+            <th>Last Updated At</th>
+            <th>Latest Remark</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for process in processes %}
+        <tr>
+            <td>{{ process.department_process.department }}</td>
+            <td>{{ process.department_process.name }}</td>
+            <td>{{ process.current_status.name }}</td>
+            <td>{{ process.last_updated_by|default:"—" }}</td>
+            <td>
+                {% if process.last_updated_at %}
+                    {{ process.last_updated_at|date:"d-m-Y H:i" }}
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td>{{ process.latest_remark|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+</body>
+</html>

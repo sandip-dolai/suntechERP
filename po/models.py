@@ -55,7 +55,6 @@ class PurchaseOrder(models.Model):
 class PurchaseOrderItem(models.Model):
     """
     PO Line Item — one record per material row inside a PO.
-    Multiple items belong to one PurchaseOrder.
     """
 
     STATUS_CHOICES = [
@@ -68,8 +67,24 @@ class PurchaseOrderItem(models.Model):
         PurchaseOrder, on_delete=models.CASCADE, related_name="items"
     )
 
+    material_code = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        verbose_name="Material Code",
+    )
+
     material_description = models.TextField()
+
     quantity = models.CharField(max_length=100)
+
+    material_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Material Value",
+    )
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
 

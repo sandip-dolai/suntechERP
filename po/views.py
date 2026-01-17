@@ -2,13 +2,30 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from suntech_erp.permissions import login_required_view, admin_required
 from django.db import transaction, IntegrityError
-from django.db.models import F, Value, CharField
-from django.db.models.functions import Concat, Coalesce
+from django.db.models import (
+    F,
+    Q,
+    Value,
+    CharField,
+    OuterRef,
+    Subquery,
+    Sum,
+    FloatField,
+    DecimalField,
+)
+from django.db.models.functions import Concat, Coalesce, Cast, TruncMonth
 from .models import PurchaseOrder, PurchaseOrderItem, POProcess, POProcessHistory
 from .forms import PurchaseOrderForm, PurchaseOrderItemFormSet, POProcessUpdateForm
 from master.models import CompanyMaster
 from datetime import datetime
 from django.http import HttpResponseForbidden
+
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+import json
+
+def can_view_value(user):
+    return user.is_superuser or getattr(user, "department", None) == "Admin"
 
 
 # ------------------------------
@@ -21,33 +38,20 @@ def po_create(request):
         form = PurchaseOrderForm(request.POST)
         formset = PurchaseOrderItemFormSet(request.POST)
         if form.is_valid() and formset.is_valid():
-            # require at least one non-deleted item
-            # note: formset.cleaned_data may contain deleted flags
-            non_deleted_forms = [
-                f for f in formset.cleaned_data if f and not f.get("DELETE", False)
-            ]
-            if not non_deleted_forms:
-                formset.add_error(None, "At least one item is required.")
-                return render(
-                    request, "po/po_form.html", {"form": form, "formset": formset}
-                )
-            else:
-                try:
-                    with transaction.atomic():
-                        po = form.save(commit=False)
-                        po.created_by = request.user
-                        po.save()
-                        # save formset linked to po
-                        formset.instance = po
-                        formset.save()
-                    messages.success(request, "Purchase Order created successfully.")
-                    return redirect("po:po_list")
-                except IntegrityError as e:
-                    # likely unique constraint on po_number or oa_number
-                    # parse and attach to form error (simple approach)
-                    form.add_error(
-                        None, "Database error: possible duplicate PO/OA number."
-                    )
+            try:
+                with transaction.atomic():
+                    po = form.save(commit=False)
+                    po.created_by = request.user
+                    po.save()
+                    # save formset linked to po
+                    formset.instance = po
+                    formset.save()
+                messages.success(request, "Purchase Order created successfully.")
+                return redirect("po:po_list")
+            except IntegrityError as e:
+                # likely unique constraint on po_number or oa_number
+                # parse and attach to form error (simple approach)
+                form.add_error(None, "Database error: possible duplicate PO/OA number.")
         else:
             # fall through to render with errors
             pass
@@ -122,18 +126,32 @@ def po_delete(request, pk):
 def po_list(request):
     pos = (
         PurchaseOrder.objects.select_related("created_by", "company")
+        .prefetch_related("items")
         .annotate(
             creator_name=Coalesce(
                 Concat(
-                    F("created_by__first_name"), Value(" "), F("created_by__last_name")
+                    F("created_by__first_name"),
+                    Value(" "),
+                    F("created_by__last_name"),
                 ),
                 F("created_by__username"),
                 Value("—"),
                 output_field=CharField(),
-            )
+            ),
+            total_quantity=Coalesce(
+                Sum(Cast("items__quantity", FloatField())),
+                Value(0.0),
+                output_field=FloatField(),
+            ),
+            total_value=Coalesce(
+                Sum("items__material_value"),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
         )
         .order_by("-id")
     )
+
     return render(request, "po/po_list.html", {"pos": pos})
 
 
@@ -141,75 +159,132 @@ def po_list(request):
 def po_report(request):
     view_mode = request.GET.get("view", "summary").lower()
 
-    # required date defaults
     today = datetime.today().date()
-    date_from = request.GET.get("date_from", "")
-    date_to = request.GET.get("date_to", "")
+    date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
+    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
 
-    # ✔ Auto-fill if missing
-    if not date_from:
-        date_from = today.strftime("%Y-%m-%d")
-    if not date_to:
-        date_to = today.strftime("%Y-%m-%d")
-
-    # Detect if filters were applied
     filter_used = (
         "po_number" in request.GET
+        or "oa_number" in request.GET
         or "company" in request.GET
         or "date_from" in request.GET
     )
 
-    # Base queryset (empty initially)
+    # =====================================================
+    # 1️⃣ BASE FILTERS (REUSED)
+    # =====================================================
+    base_filters = {"po_date__range": [date_from, date_to]}
+
+    if request.GET.get("po_number"):
+        base_filters["id"] = request.GET["po_number"]
+
+    if request.GET.get("oa_number"):
+        base_filters["id"] = request.GET["oa_number"]
+
+    if request.GET.get("company"):
+        base_filters["company_id"] = request.GET["company"]
+
+    # =====================================================
+    # 2️⃣ CHART DATA (MONTH-WISE, INDEPENDENT)
+    # =====================================================
+    chart_data = []
+
+    if filter_used:
+        chart_qs = (
+            PurchaseOrder.objects.filter(**base_filters)
+            .annotate(month=TruncMonth("po_date"))
+            .values("month")
+            .annotate(
+                total_quantity=Coalesce(
+                    Sum(Cast("items__quantity", FloatField())),
+                    0.0,
+                    output_field=FloatField(),
+                ),
+                total_value=Coalesce(
+                    Sum("items__material_value"),
+                    Value(0),
+                    output_field=DecimalField(max_digits=12, decimal_places=2),
+                ),
+            )
+            .order_by("month")
+        )
+
+        for row in chart_qs:
+            chart_data.append(
+                {
+                    "month": row["month"].strftime("%b %Y"),
+                    "quantity": float(row["total_quantity"]),
+                    "value": float(row["total_value"]),
+                }
+            )
+
+    # =====================================================
+    # 3️⃣ PO LIST (TABLE DATA)
+    # =====================================================
     po_qs = PurchaseOrder.objects.none()
 
     if filter_used:
-        po_qs = PurchaseOrder.objects.select_related("created_by", "company")
-
-        # Apply filters only after button click
-        if request.GET.get("po_number"):
-            po_qs = po_qs.filter(po_number__icontains=request.GET["po_number"])
-
-        if request.GET.get("company"):
-            po_qs = po_qs.filter(company_id=request.GET["company"])
-
-        # required date range
-        po_qs = po_qs.filter(po_date__range=[date_from, date_to])
-
-        # Creator name annotation
-        po_qs = po_qs.annotate(
-            creator_name=Coalesce(
-                Concat(
-                    F("created_by__first_name"), Value(" "), F("created_by__last_name")
+        po_qs = (
+            PurchaseOrder.objects.select_related("created_by", "company")
+            .filter(**base_filters)
+            .annotate(
+                total_quantity=Coalesce(
+                    Sum(Cast("items__quantity", FloatField())),
+                    0.0,
+                    output_field=FloatField(),
                 ),
-                F("created_by__username"),
-                Value("—"),
-                output_field=CharField(),
+                total_value=Coalesce(
+                    Sum("items__material_value"),
+                    Value(0),
+                    output_field=DecimalField(max_digits=12, decimal_places=2),
+                ),
             )
         )
 
-    # ITEM VIEW (only if filter used)
+    # =====================================================
+    # 4️⃣ ITEM VIEW DATA
+    # =====================================================
     items = None
+    grand_totals = None
+
     if view_mode == "items" and filter_used:
-        items = (
-            PurchaseOrderItem.objects.select_related(
-                "purchase_order", "purchase_order__company"
-            )
-            .filter(purchase_order__in=po_qs)
-            .order_by("purchase_order__po_number", "id")
+        items = PurchaseOrderItem.objects.select_related(
+            "purchase_order", "purchase_order__company"
+        ).filter(purchase_order__in=po_qs)
+
+        grand_totals = items.aggregate(
+            total_quantity=Coalesce(
+                Sum(Cast("quantity", FloatField())),
+                0.0,
+                output_field=FloatField(),
+            ),
+            total_value=Coalesce(
+                Sum("material_value"),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
         )
 
+    # =====================================================
+    # 5️⃣ CONTEXT
+    # =====================================================
     context = {
         "view": view_mode,
+        "pos": po_qs,
+        "items": items,
+        "grand_totals": grand_totals,
+        "filter_used": filter_used,
+        "companies": CompanyMaster.objects.order_by("name"),
+        "po_list": PurchaseOrder.objects.order_by("-id"),
         "filters": {
             "po_number": request.GET.get("po_number", ""),
+            "oa_number": request.GET.get("oa_number", ""),
             "company": request.GET.get("company", ""),
             "date_from": date_from,
             "date_to": date_to,
         },
-        "pos": po_qs.order_by("-po_date") if filter_used else [],
-        "items": items,
-        "filter_used": filter_used,
-        "companies": CompanyMaster.objects.order_by("name"),
+        "can_view_value": can_view_value(request.user),
+        "chart_data": json.dumps(chart_data),
     }
 
     return render(request, "po/po_report.html", context)
@@ -222,13 +297,23 @@ def po_report(request):
 def po_process_list(request, po_id):
     po = get_object_or_404(PurchaseOrder, pk=po_id)
 
-    processes = po.processes.select_related(
-        "department_process",
-        "current_status",
-        "last_updated_by",
-    ).order_by(
-        "department_process__department",
-        "department_process__name",
+    latest_remark_subquery = (
+        POProcessHistory.objects.filter(po_process=OuterRef("pk"))
+        .order_by("-changed_at")
+        .values("remark")[:1]
+    )
+
+    processes = (
+        po.processes.select_related(
+            "department_process",
+            "current_status",
+            "last_updated_by",
+        )
+        .annotate(latest_remark=Subquery(latest_remark_subquery))
+        .order_by(
+            "department_process__department",
+            "department_process__name",
+        )
     )
 
     context = {
@@ -319,3 +404,194 @@ def po_process_history(request, process_id):
         "po/po_process_history.html",
         context,
     )
+
+
+# ------------------------------
+# PO PROCESS EXPORT TO EXCEL
+# ------------------------------
+@login_required_view
+def po_process_excel(request, po_id):
+    po = get_object_or_404(PurchaseOrder, pk=po_id)
+
+    processes = po.processes.select_related(
+        "department_process",
+        "current_status",
+        "last_updated_by",
+    ).order_by(
+        "department_process__department",
+        "department_process__name",
+    )
+
+    filename = f"PO_{po.po_number}_processes.xls"
+
+    # Render HTML table
+    html = render_to_string(
+        "po/po_process_excel.html",
+        {
+            "po": po,
+            "processes": processes,
+        },
+    )
+
+    # Excel headers (PHP-style)
+    response = HttpResponse(html)
+    response["Content-Type"] = "application/vnd.ms-excel"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+
+    return response
+
+
+@login_required_view
+def po_report_summary_excel(request):
+    today = datetime.today().date()
+    date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
+    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
+
+    pos = PurchaseOrder.objects.select_related("company").filter(
+        po_date__range=[date_from, date_to]
+    )
+
+    if request.GET.get("po_number"):
+        pos = pos.filter(id=request.GET["po_number"])
+
+    if request.GET.get("oa_number"):
+        pos = pos.filter(id=request.GET["oa_number"])
+
+    if request.GET.get("company"):
+        pos = pos.filter(company_id=request.GET["company"])
+
+    pos = pos.annotate(
+        total_quantity=Coalesce(
+            Sum(Cast("items__quantity", FloatField())),
+            0.0,
+            output_field=FloatField(),
+        ),
+        total_value=Coalesce(
+            Sum("items__material_value"),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        ),
+    )
+
+    html = render_to_string(
+        "po/po_report_summary_excel.html",
+        {
+            "pos": pos,
+            "can_view_value": can_view_value(request.user),
+        },
+    )
+
+    response = HttpResponse(html)
+    response["Content-Type"] = "application/vnd.ms-excel"
+    response["Content-Disposition"] = (
+        f'attachment; filename="PO_Summary_Report_{date_from}_to_{date_to}.xls"'
+    )
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    return response
+
+
+@login_required_view
+def po_report_item_excel(request):
+    today = datetime.today().date()
+    date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
+    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
+
+    items = PurchaseOrderItem.objects.select_related(
+        "purchase_order", "purchase_order__company"
+    ).filter(purchase_order__po_date__range=[date_from, date_to])
+
+    if request.GET.get("po_number"):
+        items = items.filter(purchase_order_id=request.GET["po_number"])
+
+    if request.GET.get("oa_number"):
+        items = items.filter(purchase_order_id=request.GET["oa_number"])
+
+    if request.GET.get("company"):
+        items = items.filter(purchase_order__company_id=request.GET["company"])
+
+    grand_totals = items.aggregate(
+        total_quantity=Coalesce(
+            Sum(Cast("quantity", FloatField())),
+            0.0,
+            output_field=FloatField(),
+        ),
+        total_value=Coalesce(
+            Sum("material_value"),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        ),
+    )
+
+    html = render_to_string(
+        "po/po_report_item_excel.html",
+        {
+            "items": items,
+            "grand_totals": grand_totals,
+            "can_view_value": can_view_value(request.user),
+        },
+    )
+
+    response = HttpResponse(html)
+    response["Content-Type"] = "application/vnd.ms-excel"
+    response["Content-Disposition"] = (
+        f'attachment; filename="PO_Item_Report_{date_from}_to_{date_to}.xls"'
+    )
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    return response
+
+
+@login_required_view
+def po_list(request):
+    query = request.GET.get("q", "").strip()
+
+    pos = PurchaseOrder.objects.select_related(
+        "created_by", "company"
+    ).prefetch_related("items")
+
+    if query:
+        pos = pos.filter(
+            Q(po_number__icontains=query)
+            | Q(oa_number__icontains=query)
+            | Q(company__name__icontains=query)
+            | Q(items__material_code__icontains=query)
+            | Q(items__material_description__icontains=query)
+        )
+
+    pos = (
+        pos.annotate(
+            creator_name=Coalesce(
+                Concat(
+                    F("created_by__first_name"),
+                    Value(" "),
+                    F("created_by__last_name"),
+                ),
+                F("created_by__username"),
+                Value("—"),
+                output_field=CharField(),
+            ),
+            total_quantity=Coalesce(
+                Sum(Cast("items__quantity", FloatField())),
+                Value(0.0),
+                output_field=FloatField(),
+            ),
+            total_value=Coalesce(
+                Sum("items__material_value"),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+        )
+        .distinct()
+        .order_by("-id")
+    )
+
+    context = {
+        "pos": pos,
+        "search_query": query,
+        "can_view_value": can_view_value(request.user),
+    }
+
+    return render(request, "po/po_list.html", context)

@@ -169,37 +169,40 @@
                 <table class="table table-bordered align-middle">
                     <thead>
                         <tr>
-                            <th>Material Description</th>
-                            <th width="120">Qty</th>
-                            <th width="180">Status</th>
-                            <th width="80" class="text-center">Remove</th>
+                            <th class="text-center">Material Code</th>
+                            <th class="text-center">Material Description</th>
+                            <th class="text-center">Qty</th>
+                            <th class="text-center">Value</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Remove</th>
                         </tr>
                     </thead>
                     <tbody id="items-body">
                         {% for f in formset.forms %}
                         <tr class="item-row">
-                            <td>
-                                {{ f.id }}
+                            <td class="text-center">
+                                {{ f.material_code|add_class:"form-control" }}
+                            </td>
+
+                            <td class="text-center">
                                 {{ f.material_description|add_class:"form-control" }}
-                                {% if f.material_description.errors %}
-                                    <div class="invalid-feedback">{{ f.material_description.errors|striptags }}</div>
-                                {% endif %}
                             </td>
-                            <td>
+
+                            <td class="text-center">
                                 {{ f.quantity|add_class:"form-control" }}
-                                {% if f.quantity.errors %}
-                                    <div class="invalid-feedback">{{ f.quantity.errors|striptags }}</div>
-                                {% endif %}
                             </td>
-                            <td>
+
+                            <td class="text-center">
+                                {{ f.material_value|add_class:"form-control" }}
+                            </td>
+
+                            <td class="text-center">
                                 {{ f.status|add_class:"form-select" }}
-                                {% if f.status.errors %}
-                                    <div class="invalid-feedback">{{ f.status.errors|striptags }}</div>
-                                {% endif %}
                             </td>
+
                             <td class="text-center">
                                 {{ f.DELETE|add_class:"d-none delete-flag" }}
-                                <button type="button" class="btn btn-danger btn-sm remove-item">−</button>
+                                <button type="button" class="btn btn-danger btn-sm remove-item"><i class="fa fa-minus" aria-hidden="true"></i></button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -239,16 +242,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const emptyRow = `
         <tr class="item-row">
-            <td>
-                {{ formset.empty_form.id }}
+            <td class="text-center">
+                {{ formset.empty_form.material_code|add_class:"form-control" }}
+            </td>
+            <td class="text-center">
                 {{ formset.empty_form.material_description|add_class:"form-control" }}
             </td>
-            <td>
+            <td class="text-center">
                 {{ formset.empty_form.quantity|add_class:"form-control" }}
             </td>
-            <td>
+            <td class="text-center">
+                {{ formset.empty_form.material_value|add_class:"form-control" }}
+            </td>
+            <td class="text-center">
                 {{ formset.empty_form.status|add_class:"form-select" }}
             </td>
+
             <td class="text-center">
                 {{ formset.empty_form.DELETE|add_class:"d-none delete-flag" }}
                 <button type="button" class="btn btn-danger btn-sm remove-item">−</button>

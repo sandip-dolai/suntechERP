@@ -3,6 +3,7 @@ from django.forms import inlineformset_factory
 from .models import PurchaseOrder, PurchaseOrderItem, POProcess, POProcessHistory
 from master.models import CompanyMaster, ProcessStatusMaster
 import datetime
+from django.forms import BaseInlineFormSet
 
 
 # ------------------------------
@@ -43,12 +44,22 @@ class PurchaseOrderForm(forms.ModelForm):
 class PurchaseOrderItemForm(forms.ModelForm):
     class Meta:
         model = PurchaseOrderItem
-        fields = ["material_description", "quantity", "status"]
+        fields = [
+            "material_code",
+            "material_description",
+            "quantity",
+            "material_value",
+            "status",
+        ]
         widgets = {
+            "material_code": forms.TextInput(attrs={"class": "form-control"}),
             "material_description": forms.Textarea(
                 attrs={"class": "form-control", "rows": 2}
             ),
             "quantity": forms.TextInput(attrs={"class": "form-control"}),
+            "material_value": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.01"}
+            ),
             "status": forms.Select(attrs={"class": "form-select"}),
         }
 
@@ -56,10 +67,27 @@ class PurchaseOrderItemForm(forms.ModelForm):
 # ------------------------------
 # PURCHASE ORDER ITEM FORMSET
 # ------------------------------
+
+
+class BasePurchaseOrderItemFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+
+        non_deleted_forms = [
+            form
+            for form in self.forms
+            if form.cleaned_data and not form.cleaned_data.get("DELETE", False)
+        ]
+
+        if not non_deleted_forms:
+            raise forms.ValidationError("At least one PO item is required.")
+
+
 PurchaseOrderItemFormSet = inlineformset_factory(
     PurchaseOrder,
     PurchaseOrderItem,
     form=PurchaseOrderItemForm,
+    formset=BasePurchaseOrderItemFormSet,
     extra=1,
     can_delete=True,
 )
@@ -96,13 +124,12 @@ class POProcessUpdateForm(forms.ModelForm):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
-        self.fields["current_status"].queryset = (
-            ProcessStatusMaster.objects.filter(is_active=True)
+        self.fields["current_status"].queryset = ProcessStatusMaster.objects.filter(
+            is_active=True
         )
 
         if self.instance.pk:
             self.fields["current_status"].initial = self.instance.current_status
-
 
     def save(self, commit=True):
         if not self.user:
