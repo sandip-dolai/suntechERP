@@ -9,6 +9,11 @@ class PurchaseOrder(models.Model):
     """
     PO Header — one record per purchase order.
     """
+    
+    STATUS_CHOICES = [
+        ("PENDING", "Pending"),
+        ("COMPLETED", "Completed"),
+    ]
 
     po_number = models.CharField(max_length=100, unique=True)
     po_date = models.DateField()
@@ -35,7 +40,13 @@ class PurchaseOrder(models.Model):
         null=True,
         related_name="created_purchase_orders",
     )
-
+    
+    po_status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="PENDING",
+        db_index=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
