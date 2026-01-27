@@ -1,0 +1,133 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">
+            Indent Details — {{ indent.indent_number }}
+        </h4>
+
+        <div>
+            <a href="{% url 'indent:list' %}" class="btn btn-secondary btn-sm">
+                Back to List
+            </a>
+
+            {% if indent.status == "OPEN" %}
+                <a href="{% url 'indent:update' indent.id %}"
+                   class="btn btn-primary btn-sm">
+                    Edit
+                </a>
+
+                <a href="{% url 'indent:close' indent.id %}"
+                   class="btn btn-warning btn-sm"
+                   onclick="return confirm('Are you sure you want to close this indent?');">
+                    Close
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Indent Header Info -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+
+                <div class="col-md-3">
+                    <strong>Indent No</strong><br>
+                    {{ indent.indent_number }}
+                </div>
+
+                <div class="col-md-3">
+                    <strong>Indent Date</strong><br>
+                    {{ indent.indent_date }}
+                </div>
+
+                <div class="col-md-3">
+                    <strong>PO Number</strong><br>
+                    {{ indent.purchase_order.po_number }}
+                </div>
+
+                <div class="col-md-3">
+                    <strong>Status</strong><br>
+                    {% if indent.status == "OPEN" %}
+                        <span class="badge bg-warning text-dark">OPEN</span>
+                    {% else %}
+                        <span class="badge bg-success">CLOSED</span>
+                    {% endif %}
+                </div>
+
+            </div>
+
+            <hr>
+
+            <div class="row">
+
+                <div class="col-md-6">
+                    <strong>Production Process</strong><br>
+                    {{ indent.po_process.department_process.name }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Created By</strong><br>
+                    {{ indent.created_by|default:"—" }}
+                </div>
+
+            </div>
+
+            {% if indent.remarks %}
+                <hr>
+                <div class="row">
+                    <div class="col-md-12">
+                        <strong>Remarks</strong><br>
+                        {{ indent.remarks }}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Indent Items -->
+    <div class="card">
+        <div class="card-header">
+            <strong>Indent Items</strong>
+        </div>
+
+        <div class="card-body p-0">
+            <table class="table table-bordered table-striped table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>PO Item</th>
+                        <th>Required Quantity</th>
+                        <th>UOM</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in indent.items.all %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                                {{ item.purchase_order_item.material_description }}
+                            </td>
+                            <td>{{ item.required_quantity }}</td>
+                            <td>{{ item.uom }}</td>
+                            <td>{{ item.remarks|default:"—" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">
+                                No indent items found.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

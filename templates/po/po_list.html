@@ -64,33 +64,33 @@
                 <table class="table table-sm table-bordered mb-0 bg-light">
                     <thead class="table-secondary">
                         <tr>
-                            <th >Code</th>
-                            <th >Material</th>
-                            <th >Qty</th>
+                            <th>Code</th>
+                            <th>Material</th>
+                            <th>Qty</th>
                             {% if can_view_value %}
-                            <th >Value</th>   
-                            {% endif %}                         
-                            <th >Status</th>
+                            <th>Value</th>
+                            {% endif %}
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in po.items.all %}
                         <tr>
-                            <td class="text-center" >
+                            <td class="text-center">
                                 {{ item.material_code }}
                             </td>
-                            <td >
+                            <td>
                                 {{ item.material_description|truncatewords:8 }}
                             </td>
-                            <td class="text-right" >
-                                {{ item.quantity|floatformat:2 }}
+                            <td class="text-end">
+                                {{ item.quantity_value|floatformat:3 }} {{ item.uom }}
                             </td>
                             {% if can_view_value %}
-                            <td class="text-right" >
+                            <td class="text-end">
                                 {{ item.material_value }}
                             </td>
                             {% endif %}
-                            <td class="text-center" >
+                            <td class="text-center">
                                 <span class="badge 
                                     {% if item.status == 'COMPLETED' %} bg-success
                                     {% elif item.status == 'INPROCESS' %} bg-warning text-dark
@@ -104,13 +104,16 @@
                         <tr>
                             <td></td>
                             <td></td>
-                            <td class="text-right">{{ po.total_quantity|floatformat:2 }}</td>
+                            <td class="text-end">
+                                {{ po.total_quantity|floatformat:3 }}
+                            </td>
                             {% if can_view_value %}
-                            <td class="text-right">{{ po.total_value|floatformat:2 }}</td>
+                            <td class="text-end">
+                                {{ po.total_value|floatformat:2 }}
+                            </td>
                             {% endif %}
                             <td></td>
                         </tr>
-
                     </tbody>
                 </table>
                 {% else %}

@@ -147,13 +147,25 @@
                     {% endif %}
                 </div>
 
-                <div class="col-md-12">
+                <div class="col-md-10">
                     <label class="form-label">Supplier / Customer</label>
                     {{ form.company|add_class:"form-select select2" }}
                     {% if form.company.errors %}
                         <div class="invalid-feedback">{{ form.company.errors|striptags }}</div>
                     {% endif %}
                 </div>
+                {% if form.instance.pk %}
+                <div class="col-md-2">
+                    <label class="form-label">PO Status</label>
+                    {{ form.po_status|add_class:"form-select" }}
+                    {% if form.po_status.errors %}
+                        <div class="invalid-feedback">
+                            {{ form.po_status.errors|striptags }}
+                        </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
             </div>
 
             <!-- ================= PO ITEMS ================= -->
@@ -172,6 +184,7 @@
                             <th class="text-center">Material Code</th>
                             <th class="text-center">Material Description</th>
                             <th class="text-center">Qty</th>
+                            <th class="text-center">UOM</th>
                             <th class="text-center">Value</th>
                             <th class="text-center">Status</th>
                             <th class="text-center">Remove</th>
@@ -189,7 +202,10 @@
                             </td>
 
                             <td class="text-center">
-                                {{ f.quantity|add_class:"form-control" }}
+                                {{ f.quantity_value |add_class:"form-control" }}
+                            </td>
+                            <td class="text-center">
+                                {{ f.uom|add_class:"form-control" }}
                             </td>
 
                             <td class="text-center">
@@ -249,7 +265,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 {{ formset.empty_form.material_description|add_class:"form-control" }}
             </td>
             <td class="text-center">
-                {{ formset.empty_form.quantity|add_class:"form-control" }}
+                {{ formset.empty_form.quantity_value|add_class:"form-control" }}
+            </td>
+            <td class="text-center">
+                {{ formset.empty_form.uom|add_class:"form-control" }}
             </td>
             <td class="text-center">
                 {{ formset.empty_form.material_value|add_class:"form-control" }}
@@ -289,5 +308,37 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 </script>
+
+
+
+
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.querySelector("form");
+
+    form.addEventListener("submit", function (e) {
+        e.preventDefault();   // 🔒 STOP PAGE RELOAD
+
+        console.group("🔐 SUBMIT LOCK ENABLED");
+
+        console.log("Submit button clicked");
+        console.log("Form action:", form.action);
+        console.log("Form method:", form.method);
+
+        // dump form data
+        const fd = new FormData(form);
+        for (const [key, value] of fd.entries()) {
+            console.log(key, "=>", value);
+        }
+
+        console.groupEnd();
+
+        alert("Submit locked. Check console logs.");
+    });
+});
+</script>
+
 
 {% endblock %}

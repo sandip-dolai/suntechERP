@@ -192,7 +192,7 @@
                                 {{ item.material_description|truncatewords:8 }}
                             </td>
                             <td class="text-right" >
-                                {{ item.quantity|floatformat:2 }}
+                                {{ item.quantity_value|floatformat:2 }}{{item.uom}}
                             </td>
                             {% if can_view_value %}
                             <td class="text-right" >
@@ -287,7 +287,7 @@
             <td class="text-center">{{ item.purchase_order.company }}</td>
             <td class="text-center">{{ item.material_code|default:"—" }}</td>
             <td>{{ item.material_description }}</td>
-            <td class="text-right">{{ item.quantity |default:0|floatformat:2 }}</td>
+            <td class="text-right">{{ item.quantity_value |default:0|floatformat:2 }}{{ item.uom }}</td>
             {% if can_view_value %}
             <td class="text-right">{{ item.material_value|default:0|floatformat:2 }}</td>
             {% endif %}

@@ -1,153 +1,217 @@
-# indent/views.py
-from django.shortcuts import render, redirect, get_object_or_404
-from suntech_erp.permissions import login_required_view
-from django.core.paginator import Paginator
-from django.db.models import Q, F, Value, CharField
-from django.db.models.functions import Concat, Coalesce
-from django.utils.dateparse import parse_date
-from .models import Indent
-from .forms import IndentForm
-from bom.models import BillOfMaterials
-from po.models import PurchaseOrder
-from master.models import CompanyMaster
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.db import transaction
+
+from .models import Indent, PurchaseOrder
+from .forms import IndentForm, IndentItemFormSet
+from django.http import JsonResponse
+from po.models import POProcess, PurchaseOrderItem
+
+INDENT_PROCESS_IDS = [13, 18, 23]
 
 
-# === ENHANCED LIST ===
-@login_required_view
+# INDENT LIST VIEW
+@login_required
 def indent_list(request):
-    queryset = Indent.objects.select_related(
-        'bom__po__company', 'bom__item', 'created_by'
-    ).annotate(
-        po_number=F('bom__po__po_number'),
-        company_name=F('bom__po__company__name'),
-        item_code=F('bom__item__code'),
-        item_name=F('bom__item__name'),
-        creator_name=Coalesce(
-            Concat('created_by__first_name', Value(' '), 'created_by__last_name'),
-            'created_by__username',
-            Value('—'),
-            output_field=CharField()
-        )
-    ).order_by('-indent_date', '-id')
+    indents = Indent.objects.select_related(
+        "purchase_order",
+        "po_process",
+        "created_by",
+    ).order_by("-id")
 
-    # Search
-    q = request.GET.get('q', '').strip()
-    if q:
-        queryset = queryset.filter(
-            Q(indent_number__icontains=q) |
-            Q(po_number__icontains=q) |
-            Q(item_code__icontains=q)
-        )
-
-    paginator = Paginator(queryset, 25)
-    page_obj = paginator.get_page(request.GET.get('page'))
-
-    return render(request, 'indent/indent_list.html', {
-        'page_obj': page_obj,
-        'search_query': q,
-    })
-
-
-# === CREATE / EDIT (unchanged, but form now works) ===
-@login_required_view
-def indent_create(request):
-    if request.method == 'POST':
-        form = IndentForm(request.POST)
-        if form.is_valid():
-            indent = form.save(commit=False)
-            indent.created_by = request.user
-            indent.save()
-            return redirect('indent:indent_list')
-    else:
-        form = IndentForm()
-    return render(request, 'indent/indent_form.html', {'form': form})
-
-
-@login_required_view
-def indent_edit(request, pk):
-    indent = get_object_or_404(Indent, pk=pk)
-    if request.method == 'POST':
-        form = IndentForm(request.POST, instance=indent)
-        if form.is_valid():
-            form.save()
-            return redirect('indent:indent_list')
-    else:
-        form = IndentForm(instance=indent)
-    return render(request, 'indent/indent_form.html', {'form': form})
-
-
-@login_required_view
-def indent_delete(request, pk):
-    indent = get_object_or_404(Indent, pk=pk)
-    if request.method == 'POST':
-        indent.delete()
-        return redirect('indent:indent_list')
-    return render(request, 'indent/indent_delete.html', {'indent': indent})
-
-
-# === INDENT REPORT ===
-@login_required_view
-def indent_report(request):
-    queryset = Indent.objects.select_related(
-        'bom__po__company', 'bom__item', 'created_by'
-    ).annotate(
-        po_number=F('bom__po__po_number'),
-        company_name=F('bom__po__company__name'),
-        item_code=F('bom__item__code'),
-        item_name=F('bom__item__name'),
-        creator_name=Coalesce(
-            Concat('created_by__first_name', Value(' '), 'created_by__last_name'),
-            'created_by__username',
-            Value('—'),
-            output_field=CharField()
-        )
+    return render(
+        request,
+        "indent/indent_list.html",
+        {"indents": indents},
     )
 
-    # Filters
-    indent_number = request.GET.get('indent_number', '').strip()
-    po_number = request.GET.get('po_number', '').strip()
-    company_id = request.GET.get('company', '')
-    item_code = request.GET.get('item_code', '').strip()
-    status = request.GET.get('status', '')
-    date_from = request.GET.get('date_from', '').strip()
-    date_to = request.GET.get('date_to', '').strip()
 
-    if indent_number:
-        queryset = queryset.filter(indent_number__icontains=indent_number)
-    if po_number:
-        queryset = queryset.filter(po_number__icontains=po_number)
-    if company_id and company_id.isdigit():
-        queryset = queryset.filter(bom__po__company_id=int(company_id))
-    if item_code:
-        queryset = queryset.filter(item_code__icontains=item_code)
-    if status:
-        queryset = queryset.filter(status=status)
-    if date_from:
-        d = parse_date(date_from)
-        if d:
-            queryset = queryset.filter(indent_date__gte=d)
-    if date_to:
-        d = parse_date(date_to)
-        if d:
-            queryset = queryset.filter(indent_date__lte=d)
+# INDENT DETAIL VIEW
+@login_required
+def indent_detail(request, pk):
+    indent = get_object_or_404(
+        Indent.objects.select_related(
+            "purchase_order",
+            "po_process",
+            "created_by",
+        ).prefetch_related("items"),
+        pk=pk,
+    )
 
-    queryset = queryset.order_by('-indent_date', '-id')
+    return render(
+        request,
+        "indent/indent_detail.html",
+        {"indent": indent},
+    )
 
-    paginator = Paginator(queryset, 25)
-    page_obj = paginator.get_page(request.GET.get('page'))
 
-    context = {
-        'page_obj': page_obj,
-        'companies': CompanyMaster.objects.order_by('code'),
-        'statuses': Indent.STATUS_CHOICES,
-        'filters': {
-            'indent_number': indent_number,
-            'po_number': po_number,
-            'company': company_id,
-            'item_code': item_code,
-            'status': status,
-            'date_from': date_from,
-            'date_to': date_to,
+# INDENT CREATE VIEW
+@login_required
+def indent_create(request):
+    if request.method == "POST":
+        form = IndentForm(request.POST)
+
+        # 🔑 Extract PO safely from POST
+        purchase_order = None
+        po_id = request.POST.get("purchase_order")
+        if po_id:
+            purchase_order = PurchaseOrder.objects.filter(id=po_id).first()
+
+        formset = IndentItemFormSet(
+            request.POST,
+            form_kwargs={"purchase_order": purchase_order},
+        )
+
+        if form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    indent = form.save(commit=False)
+                    indent.created_by = request.user
+                    indent.save()
+
+                    formset.instance = indent
+                    formset.save()
+
+                messages.success(request, "Indent created successfully.")
+                return redirect("indent:list")
+
+            except Exception as e:
+                messages.error(request, str(e))
+    else:
+        form = IndentForm()
+        formset = IndentItemFormSet()
+
+    return render(
+        request,
+        "indent/indent_form.html",
+        {
+            "form": form,
+            "formset": formset,
+            "mode": "create",
         },
-    }
-    return render(request, 'indent/indent_report.html', context)
+    )
+
+
+# INDENT UPDATE (OPEN ONLY) VIEW
+@login_required
+def indent_update(request, pk):
+    indent = get_object_or_404(Indent, pk=pk)
+
+    if indent.status != "OPEN":
+        messages.error(request, "Closed indent cannot be edited.")
+        return redirect("indent:detail", pk=pk)
+
+    if request.method == "POST":
+        form = IndentForm(request.POST, instance=indent)
+
+        formset = IndentItemFormSet(
+            request.POST,
+            instance=indent,
+            form_kwargs={"purchase_order": indent.purchase_order},
+        )
+
+        if form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    form.save()
+                    formset.save()
+
+                messages.success(request, "Indent updated successfully.")
+                return redirect("indent:detail", pk=pk)
+
+            except Exception as e:
+                messages.error(request, str(e))
+    else:
+        form = IndentForm(instance=indent)
+        formset = IndentItemFormSet(
+            instance=indent,
+            form_kwargs={"purchase_order": indent.purchase_order},
+        )
+
+    return render(
+        request,
+        "indent/indent_form.html",
+        {
+            "form": form,
+            "formset": formset,
+            "mode": "edit",
+            "indent": indent,
+        },
+    )
+
+
+# INDENT CLOSE VIEW
+@login_required
+def indent_close(request, pk):
+    indent = get_object_or_404(Indent, pk=pk)
+
+    if indent.status != "OPEN":
+        messages.warning(request, "Indent already closed.")
+        return redirect("indent:detail", pk=pk)
+
+    indent.status = "CLOSED"
+    indent.save(update_fields=["status"])
+
+    messages.success(request, "Indent closed successfully.")
+    return redirect("indent:detail", pk=pk)
+
+
+# INDENT DELETE (OPEN ONLY) VIEW
+@login_required
+def indent_delete(request, pk):
+    indent = get_object_or_404(Indent, pk=pk)
+
+    if indent.status != "OPEN":
+        messages.error(
+            request,
+            "Closed indent cannot be deleted.",
+        )
+        return redirect("indent:detail", pk=pk)
+
+    if request.method == "POST":
+        indent.delete()
+        messages.success(request, "Indent deleted successfully.")
+        return redirect("indent:list")
+
+    return render(
+        request,
+        "indent/indent_confirm_delete.html",
+        {"indent": indent},
+    )
+
+
+def ajax_load_po_processes(request):
+    po_id = request.GET.get("po_id")
+
+    processes = POProcess.objects.filter(
+        purchase_order_id=po_id,
+        department_process_id__in=INDENT_PROCESS_IDS,
+        department_process__department="Production",
+    ).select_related("department_process")
+
+    data = [
+        {
+            "id": p.id,
+            "name": p.department_process.name,
+        }
+        for p in processes
+    ]
+
+    return JsonResponse(data, safe=False)
+
+
+def ajax_load_po_items(request):
+    po_id = request.GET.get("po_id")
+
+    items = PurchaseOrderItem.objects.filter(purchase_order_id=po_id)
+
+    data = [
+        {
+            "id": item.id,
+            "name": item.material_description,
+        }
+        for item in items
+    ]
+
+    return JsonResponse(data, safe=False)

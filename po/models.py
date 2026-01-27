@@ -89,6 +89,19 @@ class PurchaseOrderItem(models.Model):
 
     quantity = models.CharField(max_length=100)
 
+    quantity_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Numeric quantity (for calculations)",
+    )
+
+    uom = models.CharField(
+        max_length=20,
+        default="SET",
+        help_text="Unit of Measure",
+    )
     material_value = models.DecimalField(
         max_digits=12,
         decimal_places=2,

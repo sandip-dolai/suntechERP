@@ -66,22 +66,35 @@
           {% endif %}
           <!-- Indent -->
           {% if user.department == "Admin" %}
-          <li class="{% if current_url in 'indent_list indent_create indent_edit indent_delete indent_report' %}active{% endif %}">
+
+          {% comment %} <li class="{% if current_url in 'indent list create update detail' %}active{% endif %}">
             <a href="javascript:;">
               <i class="sidebar-item-icon fa fa-file-text"></i>
               <span class="nav-label">Indent</span>
               <i class="fa fa-angle-left arrow"></i>
             </a>
+
             <ul class="nav-1-level collapse">
-              <li class="{% if current_url in 'indent_list indent_create indent_edit indent_delete' %}active{% endif %}">
-                <a href="{% url 'indent:indent_list' %}"><i class="fa fa-circle{% if current_url not in 'indent_list indent_create indent_edit indent_delete' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;Indent Operation</a>
-              </li>
+              <li class="{% if current_url in 'indent list create update detail' %}active{% endif %}">
+                <a href="{% url 'indent:list' %}">
+                  <i class="fa fa-circle{% if current_url not in 'indent list create update detail' %}-thin{% endif %}"></i>
+                  &nbsp;&nbsp;&nbsp;Indent Operation
+                </a>
+              </li>  {% endcomment %}
+
+              <!-- Disable until implemented -->
+              {% comment %} {# 
               <li class="{% if current_url == 'indent_report' %}active{% endif %}">
-                <a href="{% url 'indent:indent_report' %}"><i class="fa fa-circle{% if current_url != 'indent_report' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;Indent Report</a>
+                <a href="{% url 'indent:indent_report' %}">
+                  <i class="fa fa-circle{% if current_url != 'indent_report' %}-thin{% endif %}"></i>
+                  &nbsp;&nbsp;&nbsp;Indent Report
+                </a>
               </li>
-            </ul>
-          </li>
+              #} {% endcomment %}
+            {% comment %} </ul>
+          </li> {% endcomment %}
           {% endif %}
+
 
           <!-- Masters -->
           {% if user.department == "Admin" %}

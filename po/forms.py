@@ -18,6 +18,7 @@ class PurchaseOrderForm(forms.ModelForm):
             "oa_number",
             "company",
             "delivery_date",
+            "po_status",
         ]
         widgets = {
             "po_number": forms.TextInput(attrs={"class": "form-control"}),
@@ -27,6 +28,7 @@ class PurchaseOrderForm(forms.ModelForm):
             "delivery_date": forms.DateInput(
                 attrs={"type": "date", "class": "form-control"}
             ),
+            "po_status": forms.Select(attrs={"class": "form-select"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -47,7 +49,9 @@ class PurchaseOrderItemForm(forms.ModelForm):
         fields = [
             "material_code",
             "material_description",
-            "quantity",
+            # "quantity",
+            "quantity_value",
+            "uom",
             "material_value",
             "status",
         ]
@@ -56,7 +60,7 @@ class PurchaseOrderItemForm(forms.ModelForm):
             "material_description": forms.Textarea(
                 attrs={"class": "form-control", "rows": 2}
             ),
-            "quantity": forms.TextInput(attrs={"class": "form-control"}),
+            "quantity_value": forms.TextInput(attrs={"class": "form-control"}),
             "material_value": forms.NumberInput(
                 attrs={"class": "form-control", "step": "0.01"}
             ),
