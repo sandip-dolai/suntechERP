@@ -109,42 +109,6 @@ def po_delete(request, pk):
     return render(request, "po/po_delete.html", {"po": po})
 
 
-# ------------------------------
-# PO LIST
-# ------------------------------
-@login_required_view
-def po_list(request):
-    pos = (
-        PurchaseOrder.objects.select_related("created_by", "company")
-        .prefetch_related("items")
-        .annotate(
-            creator_name=Coalesce(
-                Concat(
-                    F("created_by__first_name"),
-                    Value(" "),
-                    F("created_by__last_name"),
-                ),
-                F("created_by__username"),
-                Value("—"),
-                output_field=CharField(),
-            ),
-            total_quantity=Coalesce(
-                Sum("items__quantity_value"),
-                Value(0),
-                output_field=DecimalField(max_digits=12, decimal_places=3),
-            ),
-            total_value=Coalesce(
-                Sum("items__material_value"),
-                Value(0),
-                output_field=DecimalField(max_digits=12, decimal_places=2),
-            ),
-        )
-        .order_by("-id")
-    )
-
-    return render(request, "po/po_list.html", {"pos": pos})
-
-
 @login_required_view
 def po_report(request):
     view_mode = request.GET.get("view", "summary").lower()
@@ -268,12 +232,6 @@ def po_report(request):
 # ------------------------------
 # PO PROCESS LIST / UPDATE / HISTORY / EXCEL
 # ------------------------------
-# (NO CHANGES BELOW — LEFT EXACTLY AS IS)
-
-
-# ------------------------------
-# PO PROCESS LIST
-# ------------------------------
 @login_required_view
 def po_process_list(request, po_id):
     po = get_object_or_404(PurchaseOrder, pk=po_id)
@@ -297,12 +255,14 @@ def po_process_list(request, po_id):
         )
     )
 
-    context = {
-        "po": po,
-        "processes": processes,
-    }
-
-    return render(request, "po/po_process_list.html", context)
+    return render(
+        request,
+        "po/po_process_list.html",
+        {
+            "po": po,
+            "processes": processes,
+        },
+    )
 
 
 # ------------------------------
