@@ -110,7 +110,11 @@
 
         <form method="post" novalidate>
             {% csrf_token %}
-
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
             <!-- ================= PO DETAILS ================= -->
             <div class="erp-section-title">PO Details</div>
 
@@ -193,6 +197,7 @@
                     <tbody id="items-body">
                         {% for f in formset.forms %}
                         <tr class="item-row">
+                            {{ f.id }}
                             <td class="text-center">
                                 {{ f.material_code|add_class:"form-control" }}
                             </td>
@@ -240,14 +245,6 @@
     </div>
 </div>
 
-<!-- ================= SELECT2 ================= -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/css/select2.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
-<script>
-$(function () {
-    $(".select2").select2();
-});
-</script>
 
 <!-- ================= SAFE FORMSET JS ================= -->
 <script>
@@ -305,37 +302,6 @@ document.addEventListener("DOMContentLoaded", function () {
             del.checked = true;
             row.style.display = "none";
         }
-    });
-});
-</script>
-
-
-
-
-
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const form = document.querySelector("form");
-
-    form.addEventListener("submit", function (e) {
-        e.preventDefault();   // 🔒 STOP PAGE RELOAD
-
-        console.group("🔐 SUBMIT LOCK ENABLED");
-
-        console.log("Submit button clicked");
-        console.log("Form action:", form.action);
-        console.log("Form method:", form.method);
-
-        // dump form data
-        const fd = new FormData(form);
-        for (const [key, value] of fd.entries()) {
-            console.log(key, "=>", value);
-        }
-
-        console.groupEnd();
-
-        alert("Submit locked. Check console logs.");
     });
 });
 </script>

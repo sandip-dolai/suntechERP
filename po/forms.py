@@ -20,24 +20,18 @@ class PurchaseOrderForm(forms.ModelForm):
             "delivery_date",
             "po_status",
         ]
-        widgets = {
-            "po_number": forms.TextInput(attrs={"class": "form-control"}),
-            "po_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
-            "oa_number": forms.TextInput(attrs={"class": "form-control"}),
-            "company": forms.Select(attrs={"class": "form-select"}),
-            "delivery_date": forms.DateInput(
-                attrs={"type": "date", "class": "form-control"}
-            ),
-            "po_status": forms.Select(attrs={"class": "form-select"}),
-        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.fields["company"].queryset = CompanyMaster.objects.order_by("name")
         self.fields["company"].empty_label = "— Select Company —"
 
         if not self.instance.pk:
             self.fields["po_date"].initial = datetime.date.today()
+
+            self.fields["po_status"].required = False
+            self.fields["po_status"].widget = forms.HiddenInput()
 
 
 # ------------------------------
@@ -49,7 +43,6 @@ class PurchaseOrderItemForm(forms.ModelForm):
         fields = [
             "material_code",
             "material_description",
-            # "quantity",
             "quantity_value",
             "uom",
             "material_value",
@@ -66,6 +59,13 @@ class PurchaseOrderItemForm(forms.ModelForm):
             ),
             "status": forms.Select(attrs={"class": "form-select"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["status"].queryset = ProcessStatusMaster.objects.filter(
+            is_active=True
+        )
 
 
 # ------------------------------
@@ -92,7 +92,7 @@ PurchaseOrderItemFormSet = inlineformset_factory(
     PurchaseOrderItem,
     form=PurchaseOrderItemForm,
     formset=BasePurchaseOrderItemFormSet,
-    extra=1,
+    extra=0,
     can_delete=True,
 )
 

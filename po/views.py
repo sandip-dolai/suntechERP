@@ -71,7 +71,6 @@ def po_edit(request, pk):
     if request.method == "POST":
         form = PurchaseOrderForm(request.POST, instance=po)
         formset = PurchaseOrderItemFormSet(request.POST, instance=po)
-
         if form.is_valid() and formset.is_valid():
             try:
                 with transaction.atomic():
@@ -102,10 +101,14 @@ def po_edit(request, pk):
 @login_required_view
 def po_delete(request, pk):
     po = get_object_or_404(PurchaseOrder, pk=pk)
+
     if request.method == "POST":
-        po.delete()
-        messages.success(request, "Purchase Order deleted.")
+        po.po_status = "CANCELLED" 
+        po.save()
+
+        messages.warning(request, "Purchase Order cancelled (not deleted).")
         return redirect("po:po_list")
+
     return render(request, "po/po_delete.html", {"po": po})
 
 
