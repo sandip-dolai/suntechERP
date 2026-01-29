@@ -40,12 +40,20 @@
                                     <span class="badge bg-success">CLOSED</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td class="text-center">
                                 <a href="{% url 'indent:detail' indent.id %}"
-                                   class="btn btn-sm btn-info">
-                                    View
+                                class="btn btn-sm btn-info">
+                                    <i class="fa fa-eye"></i>
                                 </a>
+
+                                {% if indent.status == "OPEN" %}
+                                    <a href="{% url 'indent:delete' indent.id %}"
+                                    class="btn btn-sm btn-danger ms-1">
+                                        <i class="fa fa-trash"></i>
+                                    </a>
+                                {% endif %}
                             </td>
+
                         </tr>
                     {% empty %}
                         <tr>

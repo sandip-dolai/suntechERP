@@ -81,6 +81,7 @@ class IndentItemForm(forms.ModelForm):
             "remarks",
         ]
         widgets = {
+            "purchase_order_item": forms.Select(attrs={"class": "form-control"}),
             "required_quantity": forms.NumberInput(
                 attrs={"step": "0.001", "class": "form-control"}
             ),
@@ -92,22 +93,17 @@ class IndentItemForm(forms.ModelForm):
         self.purchase_order = kwargs.pop("purchase_order", None)
         super().__init__(*args, **kwargs)
 
-        # Filter PO items by selected PO
         if self.purchase_order:
-            self.fields["purchase_order_item"].queryset = (
-                PurchaseOrderItem.objects.filter(purchase_order=self.purchase_order)
+            qs = PurchaseOrderItem.objects.filter(purchase_order=self.purchase_order)
+            self.fields["purchase_order_item"].queryset = qs
+
+            self.fields["purchase_order_item"].label_from_instance = (
+                lambda obj: obj.material_description
             )
         else:
             self.fields["purchase_order_item"].queryset = (
                 PurchaseOrderItem.objects.none()
             )
-
-        self.fields["purchase_order_item"].widget.attrs.update(
-            {"class": "form-control po-item-select"}
-        )
-
-        for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
 
     def clean_required_quantity(self):
         qty = self.cleaned_data.get("required_quantity")
@@ -137,6 +133,6 @@ IndentItemFormSet = inlineformset_factory(
     IndentItem,
     form=IndentItemForm,
     formset=BaseIndentItemFormSet,
-    extra=1,
+    extra=0,
     can_delete=True,
 )
