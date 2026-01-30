@@ -74,9 +74,7 @@
                       <a href="{% url 'master:company_list' %}"><i class="fa fa-circle{% if current_url not in 'company_list company_create company_edit company_delete' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;Company Master</a>
                   </li>
 
-                  <li class="{% if current_url in 'process_status_list process_status_create process_status_edit' %}active{% endif %}">
-                      <a href="{% url 'master:process_status_list' %}"><i class="fa fa-circle{% if current_url not in 'process_status_list process_status_create process_status_edit' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;PROCESS Status Master</a>
-                  </li>
+                  
 
                   <li class="{% if current_url in 'department_process_list department_process_create department_process_edit' %}active{% endif %}">
                       <a href="{% url 'master:department_process_list' %}">
@@ -84,6 +82,9 @@
                       </a>
                   </li>
 
+                  <li class="{% if current_url in 'process_status_list process_status_create process_status_edit' %}active{% endif %}">
+                      <a href="{% url 'master:process_status_list' %}"><i class="fa fa-circle{% if current_url not in 'process_status_list process_status_create process_status_edit' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;Process Status Master</a>
+                  </li>
               </ul>
           </li>
           {% endif %}
