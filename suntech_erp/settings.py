@@ -42,7 +42,7 @@ WSGI_APPLICATION = "suntech_erp.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": "suntech_db",
+        "NAME": "suntech_db_2",
         "USER": "root",
         "PASSWORD": "",
         "HOST": "localhost",
