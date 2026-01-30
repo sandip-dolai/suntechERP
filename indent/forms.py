@@ -17,6 +17,12 @@ class IndentForm(forms.ModelForm):
             "remarks",
         ]
         widgets = {
+            "purchase_order": forms.Select(
+                attrs={"class": "form-control po-select select2"}
+            ),
+            "po_process": forms.Select(
+                attrs={"class": "form-control po-process-select select2"}
+            ),
             "indent_date": forms.DateInput(
                 attrs={"type": "date", "class": "form-control"}
             ),
@@ -26,18 +32,19 @@ class IndentForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # UI consistency
-        for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
+        self.fields["po_process"].queryset = POProcess.objects.none()
 
-        # Default empty querysets (will be filtered via PO)
-        self.fields["po_process"].queryset = POProcess.objects.filter(
-            department_process_id__in=INDENT_PROCESS_IDS,
-            department_process__department="Production",
-        )
+        # 🔑 HANDLE POST (CREATE)
+        if self.data.get("purchase_order"):
+            po_id = self.data.get("purchase_order")
+            self.fields["po_process"].queryset = POProcess.objects.filter(
+                purchase_order_id=po_id,
+                department_process_id__in=INDENT_PROCESS_IDS,
+                department_process__department="Production",
+            )
 
-        if self.instance.pk:
-            # Editing existing indent
+        # 🔑 HANDLE EDIT
+        elif self.instance.pk:
             po = self.instance.purchase_order
             self.fields["po_process"].queryset = POProcess.objects.filter(
                 purchase_order=po,
@@ -81,7 +88,9 @@ class IndentItemForm(forms.ModelForm):
             "remarks",
         ]
         widgets = {
-            "purchase_order_item": forms.Select(attrs={"class": "form-control"}),
+            "purchase_order_item": forms.Select(
+                attrs={"class": "form-control po-item-select"}
+            ),
             "required_quantity": forms.NumberInput(
                 attrs={"step": "0.001", "class": "form-control"}
             ),
@@ -93,17 +102,23 @@ class IndentItemForm(forms.ModelForm):
         self.purchase_order = kwargs.pop("purchase_order", None)
         super().__init__(*args, **kwargs)
 
-        if self.purchase_order:
-            qs = PurchaseOrderItem.objects.filter(purchase_order=self.purchase_order)
-            self.fields["purchase_order_item"].queryset = qs
+        # 🔑 HANDLE POST (CREATE + UPDATE)
+        if self.data.get("purchase_order"):
+            po_id = self.data.get("purchase_order")
+            qs = PurchaseOrderItem.objects.filter(purchase_order_id=po_id)
 
-            self.fields["purchase_order_item"].label_from_instance = (
-                lambda obj: obj.material_description
-            )
+        # 🔑 HANDLE EDIT (initial load)
+        elif self.purchase_order:
+            qs = PurchaseOrderItem.objects.filter(purchase_order=self.purchase_order)
+
         else:
-            self.fields["purchase_order_item"].queryset = (
-                PurchaseOrderItem.objects.none()
-            )
+            qs = PurchaseOrderItem.objects.none()
+
+        self.fields["purchase_order_item"].queryset = qs
+        self.fields["purchase_order_item"].label_from_instance = (
+            lambda obj: obj.material_description
+        )
+
 
     def clean_required_quantity(self):
         qty = self.cleaned_data.get("required_quantity")
@@ -133,6 +148,6 @@ IndentItemFormSet = inlineformset_factory(
     IndentItem,
     form=IndentItemForm,
     formset=BaseIndentItemFormSet,
-    extra=0,
+    extra=1,
     can_delete=True,
 )

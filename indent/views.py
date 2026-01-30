@@ -62,6 +62,9 @@ def indent_create(request):
             request.POST,
             form_kwargs={"purchase_order": purchase_order},
         )
+        print("FORM ERRORS:", form.errors)
+        print("FORMSET ERRORS:", formset.errors)
+        print("FORMSET NON FORM ERRORS:", formset.non_form_errors())
 
         if form.is_valid() and formset.is_valid():
             try:
@@ -110,6 +113,10 @@ def indent_update(request, pk):
             instance=indent,
             form_kwargs={"purchase_order": indent.purchase_order},
         )
+
+        print(form.errors)
+        print(formset.errors)
+        print(formset.non_form_errors())
 
         if form.is_valid() and formset.is_valid():
             try:
@@ -215,3 +222,4 @@ def ajax_load_po_items(request):
     ]
 
     return JsonResponse(data, safe=False)
+

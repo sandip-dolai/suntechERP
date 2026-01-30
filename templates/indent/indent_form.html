@@ -67,8 +67,13 @@
 
         <!-- ================= ITEMS ================= -->
         <div class="card mb-3">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>Indent Items</strong>
+                <button type="button"
+                        class="btn btn-sm btn-outline-primary"
+                        id="add-row">
+                    + Add Item
+                </button>
             </div>
 
             <div class="card-body p-0">
@@ -88,42 +93,46 @@
                             <th style="width: 140px;">Required Qty</th>
                             <th style="width: 100px;">UOM</th>
                             <th>Remarks</th>
-                            <th style="width: 80px;">Delete</th>
+                            <th style="width: 80px;">Remove</th>
                         </tr>
                     </thead>
-                    <tbody>
+
+                    <tbody id="formset-body">
                         {% for form in formset %}
-                            <tr>
-                                <td>{{ forloop.counter }}</td>
+                        <tr>
+                            <td class="row-index">{{ forloop.counter }}</td>
 
-                                <td>
-                                    {{ form.purchase_order_item }}
-                                    {{ form.purchase_order_item.errors }}
-                                </td>
+                            <td>
+                                {{ form.purchase_order_item }}
+                                {{ form.purchase_order_item.errors }}
+                            </td>
 
-                                <td>
-                                    {{ form.required_quantity }}
-                                    {{ form.required_quantity.errors }}
-                                </td>
+                            <td>
+                                {{ form.required_quantity }}
+                                {{ form.required_quantity.errors }}
+                            </td>
 
-                                <td>
-                                    {{ form.uom }}
-                                    {{ form.uom.errors }}
-                                </td>
+                            <td>
+                                {{ form.uom }}
+                                {{ form.uom.errors }}
+                            </td>
 
-                                <td>
-                                    {{ form.remarks }}
-                                    {{ form.remarks.errors }}
-                                </td>
+                            <td>
+                                {{ form.remarks }}
+                                {{ form.remarks.errors }}
+                            </td>
 
-                                <td class="text-center">
-                                    {% if form.instance.pk %}
-                                        {{ form.DELETE }}
-                                    {% else %}
-                                        {{ form.DELETE }}
-                                    {% endif %}
-                                </td>
-                            </tr>
+                            <td class="text-center">
+                                {{ form.id }}
+                                {{ form.DELETE }}
+
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger remove-row"
+                                        title="Remove">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -142,48 +151,167 @@
         </div>
 
     </form>
-
 </div>
+
+<!-- ================= STYLES ================= -->
+<style>
+input[type="checkbox"][name$="-DELETE"] {
+    display: none;
+}
+</style>
+
 <script src="{% static 'assets/vendors/jquery/dist/jquery.min.js' %}"></script>
 
+<!-- ================= FORMSET + AJAX JS ================= -->
 <script>
 $(document).ready(function () {
 
-    $("#id_purchase_order").change(function () {
-        var poId = $(this).val();
+    const prefix = "items";
+    let poItemsCache = [];
+
+    function updateRowIndexes() {
+        $("#formset-body tr:visible").each(function (i) {
+            $(this).find(".row-index").text(i + 1);
+        });
+    }
+
+    // ================= GET SELECTED ITEMS =================
+    function getSelectedItemIds() {
+        let selected = [];
+        $(".po-item-select").each(function () {
+            let val = $(this).val();
+            if (val) selected.push(val);
+        });
+        return selected;
+    }
+
+    // ================= REFRESH DROPDOWNS =================
+    function refreshPoItemDropdowns() {
+        let selectedIds = getSelectedItemIds();
+
+        $(".po-item-select").each(function () {
+            let select = $(this);
+            let currentVal = select.val();
+
+            select.empty();
+            select.append('<option value="">---------</option>');
+
+            $.each(poItemsCache, function (_, item) {
+                if (
+                    !selectedIds.includes(item.id.toString()) ||
+                    item.id.toString() === currentVal
+                ) {
+                    select.append(
+                        `<option value="${item.id}">${item.name}</option>`
+                    );
+                }
+            });
+
+            select.val(currentVal);
+        });
+    }
+
+    // ================= LOAD PO ITEMS =================
+    $("#id_purchase_order").on("change", function () {
+        let poId = $(this).val();
+        poItemsCache = [];
 
         if (!poId) {
-            $("#id_po_process").html('<option value="">---------</option>');
             $(".po-item-select").html('<option value="">---------</option>');
             return;
         }
 
         $.ajax({
+            url: "{% url 'indent:ajax_po_items' %}",
+            data: { po_id: poId },
+            success: function (data) {
+                poItemsCache = data;
+                refreshPoItemDropdowns();
+            }
+        });
+    });
+
+
+
+
+    $("#id_purchase_order").on("change", function () {
+        let poId = $(this).val();
+
+        $("#id_po_process").html('<option value="">---------</option>');
+
+        if (!poId) return;
+
+        $.ajax({
             url: "{% url 'indent:ajax_po_processes' %}",
             data: { po_id: poId },
             success: function (data) {
-                var options = '<option value="">---------</option>';
-                $.each(data, function (index, item) {
-                    options += '<option value="' + item.id + '">' + item.name + '</option>';
+                let options = '<option value="">---------</option>';
+                $.each(data, function (_, p) {
+                    options += `<option value="${p.id}">${p.name}</option>`;
                 });
                 $("#id_po_process").html(options);
             }
         });
+    });
 
-        $.ajax({
-            url: "{% url 'indent:ajax_po_items' %}",
-            data: { po_id: poId },
-            success: function (data) {
-                var options = '<option value="">---------</option>';
-                $.each(data, function (index, item) {
-                    options += '<option value="' + item.id + '">' + item.name + '</option>';
-                });
 
-                $(".po-item-select").each(function () {
-                    $(this).html(options);
-                });
+    // ================= ADD ROW =================
+    $("#add-row").on("click", function () {
+
+        let totalForms = parseInt($("#id_" + prefix + "-TOTAL_FORMS").val());
+        let newRow = $("#formset-body tr:last").clone(true);
+
+        newRow.find("input, select, textarea").each(function () {
+            let name = $(this).attr("name");
+            let id = $(this).attr("id");
+
+            if (!name) return;
+
+            if (name.endsWith("-id")) {
+                $(this).remove();
+                return;
             }
+
+            name = name.replace(/\d+/, totalForms);
+            id = id.replace(/\d+/, totalForms);
+
+            $(this).attr({ name: name, id: id }).val("");
         });
+
+        newRow.find('input[type="checkbox"]').prop("checked", false);
+        newRow.show();
+
+        $("#formset-body").append(newRow);
+        $("#id_" + prefix + "-TOTAL_FORMS").val(totalForms + 1);
+
+        refreshPoItemDropdowns();
+        updateRowIndexes();
+    });
+
+    // ================= REMOVE ROW =================
+    
+
+    $(document).on("click", ".remove-row", function () {
+        let row = $(this).closest("tr");
+        let deleteField = row.find('input[type="checkbox"][name$="-DELETE"]');
+        let idField = row.find('input[type="hidden"][name$="-id"]');
+
+        if (idField.length) {
+            deleteField.prop("checked", true);
+            row.hide();
+        } else {
+            row.remove();
+            let totalForms = parseInt($("#id_items-TOTAL_FORMS").val());
+            $("#id_items-TOTAL_FORMS").val(totalForms - 1);
+        }
+
+        updateRowIndexes();
+    });
+
+
+    // ================= ITEM CHANGE =================
+    $(document).on("change", ".po-item-select", function () {
+        refreshPoItemDropdowns();
     });
 
 });

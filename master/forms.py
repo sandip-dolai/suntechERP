@@ -1,19 +1,10 @@
 from django import forms
 from .models import (
-    ItemMaster,
+    # ItemMaster,
     CompanyMaster,
     ProcessStatusMaster,
     DepartmentProcessMaster,
 )
-
-
-class ItemMasterForm(forms.ModelForm):
-    class Meta:
-        model = ItemMaster
-        fields = "__all__"
-        widgets = {
-            "description": forms.Textarea(attrs={"rows": 3}),
-        }
 
 
 class CompanyMasterForm(forms.ModelForm):

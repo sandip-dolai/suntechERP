@@ -47,7 +47,7 @@
 
 
           <!-- Bill of Materials -->
-          {% if user.department == "Admin" %}
+          {% comment %} {% if user.department == "Admin" %}
           <li class="{% if current_url in 'bom_list bom_create bom_edit bom_delete bom_report' %}active{% endif %}">
             <a href="javascript:;">
               <i class="sidebar-item-icon fa fa-file-text"></i>
@@ -63,7 +63,7 @@
               </li>
             </ul>
           </li>
-          {% endif %}
+          {% endif %} {% endcomment %}
           <!-- Indent -->
           {% if user.department == "Admin" %}
 
@@ -109,10 +109,6 @@
 
                   <li class="{% if current_url in 'company_list company_create company_edit company_delete' %}active{% endif %}">
                       <a href="{% url 'master:company_list' %}"><i class="fa fa-circle{% if current_url not in 'company_list company_create company_edit company_delete' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;Company Master</a>
-                  </li>
-
-                  <li class="{% if current_url in 'item_list item_create item_edit item_delete' %}active{% endif %}">
-                      <a href="{% url 'master:item_list' %}"><i class="fa fa-circle{% if current_url not in 'item_list item_create item_edit item_delete' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;Item Master</a>
                   </li>
 
                   <li class="{% if current_url in 'process_status_list process_status_create process_status_edit' %}active{% endif %}">
