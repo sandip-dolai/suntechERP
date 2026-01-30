@@ -50,7 +50,7 @@
             <form method="post">
                 {% csrf_token %}
                 <div class="d-flex justify-content-end">
-                    <a href="{% url 'indent:detail' indent.id %}"
+                    <a href="{% url 'indent:indent_detail' indent.id %}"
                        class="btn btn-secondary me-2">
                         Cancel
                     </a>

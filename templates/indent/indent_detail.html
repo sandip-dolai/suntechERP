@@ -11,17 +11,17 @@
         </h4>
 
         <div>
-            <a href="{% url 'indent:list' %}" class="btn btn-secondary btn-sm">
+            <a href="{% url 'indent:indent_list' %}" class="btn btn-secondary btn-sm">
                 Back to List
             </a>
 
             {% if indent.status == "OPEN" %}
-                <a href="{% url 'indent:update' indent.id %}"
+                <a href="{% url 'indent:indent_update' indent.id %}"
                    class="btn btn-primary btn-sm">
                     Edit
                 </a>
 
-                <a href="{% url 'indent:close' indent.id %}"
+                <a href="{% url 'indent:indent_close' indent.id %}"
                    class="btn btn-warning btn-sm"
                    onclick="return confirm('Are you sure you want to close this indent?');">
                     Close

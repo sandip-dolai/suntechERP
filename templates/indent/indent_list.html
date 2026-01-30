@@ -7,7 +7,7 @@
     <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0">Indent List</h4>
-        <a href="{% url 'indent:create' %}" class="btn btn-primary">
+        <a href="{% url 'indent:indent_create' %}" class="btn btn-primary">
             + Create Indent
         </a>
     </div>
@@ -41,13 +41,13 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                <a href="{% url 'indent:detail' indent.id %}"
+                                <a href="{% url 'indent:indent_detail' indent.id %}"
                                 class="btn btn-sm btn-info">
                                     <i class="fa fa-eye"></i>
                                 </a>
 
                                 {% if indent.status == "OPEN" %}
-                                    <a href="{% url 'indent:delete' indent.id %}"
+                                    <a href="{% url 'indent:indent_delete' indent.id %}"
                                     class="btn btn-sm btn-danger ms-1">
                                         <i class="fa fa-trash"></i>
                                     </a>

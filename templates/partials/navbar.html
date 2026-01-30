@@ -23,11 +23,10 @@
         </li>
 
         {% with current_url=request.resolver_match.url_name %}
-
           <!-- Purchase Orders -->
           <li class="{% if current_url in 'po_list po_create po_edit po_report po_process_list po_process_update po_process_history' %}active{% endif %}">
             <a href="javascript:;">
-              <i class="sidebar-item-icon fa fa-file-text"></i>
+              <i class="sidebar-item-icon fa fa-file-text-o"></i>
               <span class="nav-label">Purchase Orders</span>
               <i class="fa fa-angle-left arrow"></i>
             </a>
@@ -44,63 +43,27 @@
 
             </ul>
           </li>
-
-
-          <!-- Bill of Materials -->
-          {% comment %} {% if user.department == "Admin" %}
-          <li class="{% if current_url in 'bom_list bom_create bom_edit bom_delete bom_report' %}active{% endif %}">
+          <li class="{% if current_url in 'indent_list indent_create indent_update indent_detail' %}active{% endif %}">
             <a href="javascript:;">
-              <i class="sidebar-item-icon fa fa-file-text"></i>
-              <span class="nav-label">Bill of Materials</span>
-              <i class="fa fa-angle-left arrow"></i>
-            </a>
-            <ul class="nav-1-level collapse">
-              <li class="{% if current_url in 'bom_list bom_create bom_edit bom_delete' %}active{% endif %}">
-                <a href="{% url 'bom:bom_list' %}"><i class="fa fa-circle{% if current_url not in 'bom_list bom_create bom_edit bom_delete' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;BOM Operation</a>
-              </li>
-              <li class="{% if current_url == 'bom_report' %}active{% endif %}">
-                <a href="{% url 'bom:bom_report' %}"><i class="fa fa-circle{% if current_url != 'bom_report' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;BOM Report</a>
-              </li>
-            </ul>
-          </li>
-          {% endif %} {% endcomment %}
-          <!-- Indent -->
-          {% if user.department == "Admin" %}
-
-          {% comment %} <li class="{% if current_url in 'indent list create update detail' %}active{% endif %}">
-            <a href="javascript:;">
-              <i class="sidebar-item-icon fa fa-file-text"></i>
+              <i class="sidebar-item-icon fa fa-pencil-square-o"></i>
               <span class="nav-label">Indent</span>
               <i class="fa fa-angle-left arrow"></i>
             </a>
 
             <ul class="nav-1-level collapse">
-              <li class="{% if current_url in 'indent list create update detail' %}active{% endif %}">
-                <a href="{% url 'indent:list' %}">
-                  <i class="fa fa-circle{% if current_url not in 'indent list create update detail' %}-thin{% endif %}"></i>
+              <li class="{% if current_url in 'indent_list indent_create indent_update indent_detail' %}active{% endif %}">
+                <a href="{% url 'indent:indent_list' %}">
+                  <i class="fa fa-circle{% if current_url not in 'indent_list indent_create indent_update indent_detail' %}-thin{% endif %}"></i>
                   &nbsp;&nbsp;&nbsp;Indent Operation
                 </a>
-              </li>  {% endcomment %}
-
-              <!-- Disable until implemented -->
-              {% comment %} {# 
-              <li class="{% if current_url == 'indent_report' %}active{% endif %}">
-                <a href="{% url 'indent:indent_report' %}">
-                  <i class="fa fa-circle{% if current_url != 'indent_report' %}-thin{% endif %}"></i>
-                  &nbsp;&nbsp;&nbsp;Indent Report
-                </a>
               </li>
-              #} {% endcomment %}
-            {% comment %} </ul>
-          </li> {% endcomment %}
-          {% endif %}
-
-
+            </ul>
+          </li>
           <!-- Masters -->
           {% if user.department == "Admin" %}
-          <li class="{% if current_url in 'company_list company_create company_edit company_delete item_list item_create item_edit item_delete process_status_list process_status_create process_status_edit department_process_list department_process_create department_process_edit' %}active{% endif %}">
+          <li class="{% if current_url in 'company_list company_create company_edit company_delete process_status_list process_status_create process_status_edit department_process_list department_process_create department_process_edit' %}active{% endif %}">
               <a href="javascript:;">
-                  <i class="sidebar-item-icon fa fa-cog"></i>
+                  <i class="sidebar-item-icon fa fa-database"></i>
                   <span class="nav-label">Masters</span>
                   <i class="fa fa-angle-left arrow"></i>
               </a>
@@ -112,7 +75,7 @@
                   </li>
 
                   <li class="{% if current_url in 'process_status_list process_status_create process_status_edit' %}active{% endif %}">
-                      <a href="{% url 'master:process_status_list' %}"><i class="fa fa-circle{% if current_url not in 'process_status_list process_status_create process_status_edit' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;PO Status Master</a>
+                      <a href="{% url 'master:process_status_list' %}"><i class="fa fa-circle{% if current_url not in 'process_status_list process_status_create process_status_edit' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;PROCESS Status Master</a>
                   </li>
 
                   <li class="{% if current_url in 'department_process_list department_process_create department_process_edit' %}active{% endif %}">
