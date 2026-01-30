@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- ========================= -->
+    <!-- HEADER -->
+    <!-- ========================= -->
+    <div class="row mb-3 align-items-center">
+        <div class="col-md-6">
+            <h4>BOM Details</h4>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="{% url 'bom:bom_list' %}" class="btn btn-secondary">
+                Back
+            </a>
+        </div>
+    </div>
+
+    <!-- ========================= -->
+    <!-- BOM HEADER -->
+    <!-- ========================= -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>BOM No</strong><br>
+                    {{ bom.bom_no }}
+                </div>
+                <div class="col-md-3">
+                    <strong>PO No</strong><br>
+                    {{ bom.po.po_number }}
+                </div>
+                <div class="col-md-3">
+                    <strong>BOM Date</strong><br>
+                    {{ bom.bom_date }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Created By</strong><br>
+                    {{ bom.created_by }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================= -->
+    <!-- BOM ITEMS -->
+    <!-- ========================= -->
+    <div class="card">
+        <div class="card-body">
+            <h6 class="mb-3">BOM Items</h6>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Item</th>
+                            <th>PO Qty</th>
+                            <th>UOM</th>
+                            <th>BOM Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if items %}
+                            {% for item in items %}
+                                <tr>
+                                    <td>
+                                        {{ item.po_item.material_description }}
+                                    </td>
+                                    <td>
+                                        {{ item.po_item.quantity_value }}
+                                    </td>
+                                    <td>
+                                        {{ item.po_item.uom }}
+                                    </td>
+                                    <td>
+                                        {{ item.quantity }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">
+                                    No items found
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}
