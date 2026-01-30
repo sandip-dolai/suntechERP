@@ -6,6 +6,7 @@ from .models import (
     POProcessHistory,
 )
 
+
 # ======================================================
 # PURCHASE ORDER ITEM INLINE
 # ======================================================
@@ -90,25 +91,29 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     ]
 
     fieldsets = (
-        ("PO Details", {
-            "fields": (
-                "po_number",
-                "oa_number",
-                "company",
-                "po_date",
-                "delivery_date",
-            )
-        }),
-        ("Status", {
-            "fields": ("po_status",)
-        }),
-        ("Audit Info", {
-            "fields": (
-                "created_by",
-                "created_at",
-                "updated_at",
-            )
-        }),
+        (
+            "PO Details",
+            {
+                "fields": (
+                    "po_number",
+                    "oa_number",
+                    "company",
+                    "po_date",
+                    "delivery_date",
+                )
+            },
+        ),
+        ("Status", {"fields": ("po_status",)}),
+        (
+            "Audit Info",
+            {
+                "fields": (
+                    "created_by",
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
     )
 
     inlines = [
@@ -227,6 +232,37 @@ class POProcessHistoryAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(PurchaseOrderItem)
+class PurchaseOrderItemAdmin(admin.ModelAdmin):
+    search_fields = (
+        "purchase_order__po_number",
+        "material_code",
+        "material_description",
+    )
+
+    list_display = (
+        "purchase_order",
+        "material_code",
+        "material_description",
+        "quantity_value",
+        "uom",
+        "status",
+    )
+
+    list_filter = (
+        "status",
+        "uom",
+    )
+
+    readonly_fields = ("purchase_order",)
+
+    def has_add_permission(self, request):
+        return False  # created via PO only
 
     def has_delete_permission(self, request, obj=None):
         return False
