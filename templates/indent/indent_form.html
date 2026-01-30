@@ -222,7 +222,7 @@ $(document).ready(function () {
         }
 
         $.ajax({
-            url: "{% url 'indent:indent_ajax_po_items' %}",
+            url: "{% url 'indent:ajax_po_items' %}",
             data: { po_id: poId },
             success: function (data) {
                 poItemsCache = data;
@@ -242,7 +242,7 @@ $(document).ready(function () {
         if (!poId) return;
 
         $.ajax({
-            url: "{% url 'indent:indent_ajax_po_processes' %}",
+            url: "{% url 'indent:ajax_po_processes' %}",
             data: { po_id: poId },
             success: function (data) {
                 let options = '<option value="">---------</option>';

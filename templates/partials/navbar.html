@@ -10,10 +10,8 @@
         <small>{{ user.department|default:"User" }}</small>
       </div>
     </div>
-
     <ul class="side-menu metismenu">
       {% if user.is_authenticated %}
-
         <!-- Dashboard -->
         <li class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
           <a href="{% url 'dashboard' %}">
@@ -21,7 +19,6 @@
             <span class="nav-label">Dashboard</span>
           </a>
         </li>
-
         {% with current_url=request.resolver_match.url_name %}
           <!-- Purchase Orders -->
           <li class="{% if current_url in 'po_list po_create po_edit po_report po_process_list po_process_update po_process_history' %}active{% endif %}">
@@ -30,17 +27,13 @@
               <span class="nav-label">Purchase Orders</span>
               <i class="fa fa-angle-left arrow"></i>
             </a>
-
             <ul class="nav-1-level collapse">
-
               <li class="{% if current_url in 'po_list po_create po_edit' %}active{% endif %}">
                 <a href="{% url 'po:po_list' %}"><i class="fa fa-circle{% if current_url not in 'po_list po_create po_edit' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;PO Operation</a>
               </li>
-
               <li class="{% if current_url == 'po_report' %}active{% endif %}">
                 <a href="{% url 'po:po_report' %}"><i class="fa fa-circle{% if current_url != 'po_report' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;PO Report</a>
               </li>
-
             </ul>
           </li>
           <li class="{% if current_url in 'indent_list indent_create indent_update indent_detail' %}active{% endif %}">
@@ -49,7 +42,6 @@
               <span class="nav-label">Indent</span>
               <i class="fa fa-angle-left arrow"></i>
             </a>
-
             <ul class="nav-1-level collapse">
               <li class="{% if current_url in 'indent_list indent_create indent_update indent_detail' %}active{% endif %}">
                 <a href="{% url 'indent:indent_list' %}">
@@ -67,28 +59,21 @@
                   <span class="nav-label">Masters</span>
                   <i class="fa fa-angle-left arrow"></i>
               </a>
-
               <ul class="nav-1-level collapse">
-
                   <li class="{% if current_url in 'company_list company_create company_edit company_delete' %}active{% endif %}">
                       <a href="{% url 'master:company_list' %}"><i class="fa fa-circle{% if current_url not in 'company_list company_create company_edit company_delete' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;Company Master</a>
                   </li>
-
-                  
-
                   <li class="{% if current_url in 'department_process_list department_process_create department_process_edit' %}active{% endif %}">
                       <a href="{% url 'master:department_process_list' %}">
                           <i class="fa fa-circle{% if current_url not in 'department_process_list department_process_create department_process_edit' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;Process Master
                       </a>
                   </li>
-
                   <li class="{% if current_url in 'process_status_list process_status_create process_status_edit' %}active{% endif %}">
                       <a href="{% url 'master:process_status_list' %}"><i class="fa fa-circle{% if current_url not in 'process_status_list process_status_create process_status_edit' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;Process Status Master</a>
                   </li>
               </ul>
           </li>
           {% endif %}
-
           <!-- User Management -->
           {% if user.department == "Admin" %}
           <li class="{% if current_url in 'user_list user_create user_edit' %}active{% endif %}">
@@ -105,7 +90,6 @@
           </li>
           {% endif %}
         {% endwith %}
-
         <!-- Logout -->
         <li>
           <a href="javascript:;" onclick="confirmLogout(event);">
@@ -113,12 +97,10 @@
             <span class="nav-label">Logout</span>
           </a>
         </li>
-
       {% endif %}
     </ul>
   </div>
 </nav>
-
 <form id="logout-form" action="{% url 'users:logout' %}" method="post" style="display: none;">
   {% csrf_token %}
 </form>

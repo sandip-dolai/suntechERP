@@ -77,7 +77,7 @@ def indent_create(request):
                     formset.save()
 
                 messages.success(request, "Indent created successfully.")
-                return redirect("indent:list")
+                return redirect("indent:indent_list")
 
             except Exception as e:
                 messages.error(request, str(e))
@@ -179,7 +179,7 @@ def indent_delete(request, pk):
     if request.method == "POST":
         indent.delete()
         messages.success(request, "Indent deleted successfully.")
-        return redirect("indent:list")
+        return redirect("indent:indent_list")
 
     return render(
         request,
