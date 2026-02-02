@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "po.apps.PoConfig",
     "bom.apps.BomConfig",
     "indent.apps.IndentConfig",
+    "notifications.apps.NotificationsConfig",
 ]
 
 MIDDLEWARE = [
