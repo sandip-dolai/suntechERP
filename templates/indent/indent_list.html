@@ -4,18 +4,51 @@
 {% block content %}
 <div class="container-fluid">
 
-    <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0">Indent List</h4>
+    <!-- ================= HEADER ================= -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <h4 class="mb-0">Indent List</h4>
+            <small class="text-muted">
+                Total Indents: {{ page_obj.paginator.count }}
+            </small>
+        </div>
+
         <a href="{% url 'indent:indent_create' %}" class="btn btn-primary">
             + Create Indent
         </a>
     </div>
 
-    <!-- Indent Table -->
+    <!-- ================= SEARCH ================= -->
+    <form method="get" class="mb-3">
+        <div class="row g-2">
+            <div class="col-md-4">
+                <input
+                    type="text"
+                    name="q"
+                    value="{{ q }}"
+                    class="form-control"
+                    placeholder="Search indent / PO / process / status"
+                >
+            </div>
+            <div class="col-md-auto">
+                <button type="submit" class="btn btn-primary">
+                    Search
+                </button>
+            </div>
+            {% if q %}
+            <div class="col-md-auto">
+                <a href="{% url 'indent:indent_list' %}" class="btn btn-outline-secondary">
+                    Clear
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- ================= TABLE ================= -->
     <div class="card">
-        <div class="card-body">
-            <table class="table table-bordered table-striped table-sm">
+        <div class="card-body p-0">
+            <table class="table table-bordered table-striped table-sm mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>Indent No</th>
@@ -27,45 +60,49 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for indent in indents %}
-                        <tr>
-                            <td>{{ indent.indent_number }}</td>
-                            <td>{{ indent.indent_date }}</td>
-                            <td>{{ indent.purchase_order.po_number }}</td>
-                            <td>{{ indent.po_process.department_process.name }}</td>
-                            <td>
-                                {% if indent.status == "OPEN" %}
-                                    <span class="badge bg-warning text-dark">OPEN</span>
-                                {% else %}
-                                    <span class="badge bg-success">CLOSED</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                <a href="{% url 'indent:indent_detail' indent.id %}"
-                                class="btn btn-sm btn-info">
-                                    <i class="fa fa-eye"></i>
+
+                    {% for indent in page_obj %}
+                    <tr>
+                        <td>{{ indent.indent_number }}</td>
+                        <td>{{ indent.indent_date }}</td>
+                        <td>{{ indent.purchase_order.po_number }}</td>
+                        <td>{{ indent.po_process.department_process.name }}</td>
+                        <td>
+                            {% if indent.status == "OPEN" %}
+                                <span class="badge bg-warning text-dark">OPEN</span>
+                            {% else %}
+                                <span class="badge bg-success">CLOSED</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'indent:indent_detail' indent.id %}"
+                               class="btn btn-sm btn-info">
+                                <i class="fa fa-eye"></i>
+                            </a>
+
+                            {% if indent.status == "OPEN" %}
+                                <a href="{% url 'indent:indent_delete' indent.id %}"
+                                   class="btn btn-sm btn-danger ms-1">
+                                    <i class="fa fa-trash"></i>
                                 </a>
-
-                                {% if indent.status == "OPEN" %}
-                                    <a href="{% url 'indent:indent_delete' indent.id %}"
-                                    class="btn btn-sm btn-danger ms-1">
-                                        <i class="fa fa-trash"></i>
-                                    </a>
-                                {% endif %}
-                            </td>
-
-                        </tr>
+                            {% endif %}
+                        </td>
+                    </tr>
                     {% empty %}
-                        <tr>
-                            <td colspan="6" class="text-center text-muted">
-                                No indents found.
-                            </td>
-                        </tr>
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">
+                            No indents found.
+                        </td>
+                    </tr>
                     {% endfor %}
+
                 </tbody>
             </table>
         </div>
     </div>
+
+    <!-- ================= PAGINATION ================= -->
+    {% include "components/pagination.html" %}
 
 </div>
 {% endblock %}
