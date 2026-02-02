@@ -15,19 +15,25 @@ from .forms import (
     ProcessStatusMasterForm,
     DepartmentProcessMasterForm,
 )
-
+from .utils import apply_master_search_pagination
 
 # ======================  COMPANY MASTER  ======================
 @admin_required
 def company_list(request):
-    queryset = CompanyMaster.objects.all()
-    paginator = Paginator(queryset, 25)
-    page = request.GET.get("page")
-    companies = paginator.get_page(page)
-    return render(
-        request, "master/company_master/company_list.html", {"companies": companies}
+    queryset = CompanyMaster.objects.all().order_by("code")
+
+    context = apply_master_search_pagination(
+        request,
+        queryset,
+        search_fields=["code", "code2", "name"],
+        page_size=20,
     )
 
+    return render(
+        request,
+        "master/company_master/company_list.html",
+        context,
+    )
 
 @admin_required
 def company_create(request):
