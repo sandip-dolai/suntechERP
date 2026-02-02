@@ -7,7 +7,10 @@ from django.contrib import messages
 from .models import BOM, BOMItem
 from po.models import PurchaseOrder, PurchaseOrderItem
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Count
+from datetime import datetime
+from django.template.loader import render_to_string
+from django.http import HttpResponse
 
 # ======================================================
 # BOM LIST
@@ -45,7 +48,6 @@ def bom_list(request):
         "bom/bom_list.html",
         context,
     )
-
 
 
 # ======================================================
@@ -200,3 +202,86 @@ def ajax_load_po_items(request):
     ]
 
     return JsonResponse(data, safe=False)
+
+
+@login_required
+def bom_report(request):
+    today = datetime.today().date()
+
+    date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
+    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
+    po_id = request.GET.get("po", "")
+
+    filters = {
+        "bom_date__range": [date_from, date_to],
+    }
+
+    if po_id:
+        filters["po_id"] = po_id
+
+    qs = (
+        BOM.objects.select_related("po", "created_by").filter(**filters).order_by("-id")
+    )
+
+    # ---------- SUMMARY ----------
+    summary = qs.aggregate(
+        total_boms=Count("id"),
+    )
+
+    # ---------- PAGINATION ----------
+    paginator = Paginator(qs, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        "page_obj": page_obj,
+        "summary": summary,
+        "filters": {
+            "date_from": date_from,
+            "date_to": date_to,
+            "po": po_id,
+        },
+        "purchase_orders": PurchaseOrder.objects.order_by("-id"),
+        "q": "",  # keeps pagination component happy
+    }
+
+    return render(
+        request,
+        "bom/bom_report.html",
+        context,
+    )
+
+
+@login_required
+def bom_report_excel(request):
+    today = datetime.today().date()
+
+    date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
+    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
+    po_id = request.GET.get("po", "")
+
+    filters = {
+        "bom_date__range": [date_from, date_to],
+    }
+
+    if po_id:
+        filters["po_id"] = po_id
+
+    boms = (
+        BOM.objects.select_related("po", "created_by").filter(**filters).order_by("-id")
+    )
+
+    html = render_to_string(
+        "bom/bom_report_excel.html",
+        {
+            "boms": boms,
+        },
+    )
+
+    response = HttpResponse(html)
+    response["Content-Type"] = "application/vnd.ms-excel"
+    response["Content-Disposition"] = (
+        f'attachment; filename="BOM_Report_{date_from}_to_{date_to}.xls"'
+    )
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    return response
