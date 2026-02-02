@@ -52,7 +52,7 @@
     </thead>
 
     <tbody>
-        {% for po in pos %}
+        {% for po in page_obj %}
         <tr>
             <td class="text-center fw-bold">{{ po.po_number }}</td>
 
@@ -162,20 +162,6 @@
         {% endfor %}
     </tbody>
 </table>
-
-<!-- LIVE SEARCH SCRIPT (NO AJAX) -->
-<script>
-function filterPOTable() {
-    const input = document.getElementById("poSearchInput");
-    const filter = input.value.toLowerCase();
-    const table = document.getElementById("poTable");
-    const rows = table.querySelectorAll("tbody tr");
-
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(filter) ? "" : "none";
-    });
-}
-</script>
+{% include "components/pagination.html" %}
 
 {% endblock %}

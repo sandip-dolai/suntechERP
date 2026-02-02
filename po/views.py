@@ -21,7 +21,7 @@ from datetime import datetime
 from django.http import HttpResponseForbidden, HttpResponse
 from django.template.loader import render_to_string
 import json
-
+from django.core.paginator import Paginator
 from notifications.models import Notification
 from django.contrib.auth import get_user_model
 User = get_user_model()
@@ -563,12 +563,12 @@ def po_report_item_excel(request):
 def po_list(request):
     query = request.GET.get("q", "").strip()
 
-    pos = PurchaseOrder.objects.select_related(
+    qs = PurchaseOrder.objects.select_related(
         "created_by", "company"
     ).prefetch_related("items")
 
     if query:
-        pos = pos.filter(
+        qs = qs.filter(
             Q(po_number__icontains=query)
             | Q(oa_number__icontains=query)
             | Q(company__name__icontains=query)
@@ -576,8 +576,8 @@ def po_list(request):
             | Q(items__material_description__icontains=query)
         )
 
-    pos = (
-        pos.annotate(
+    qs = (
+        qs.annotate(
             creator_name=Coalesce(
                 Concat(
                     F("created_by__first_name"),
@@ -603,10 +603,14 @@ def po_list(request):
         .order_by("-id")
     )
 
+    paginator = Paginator(qs, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
     context = {
-        "pos": pos,
-        "search_query": query,
+        "page_obj": page_obj,
+        "q": query,
         "can_view_value": can_view_value(request.user),
     }
 
     return render(request, "po/po_list.html", context)
+
