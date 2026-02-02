@@ -204,41 +204,6 @@ def po_report(request):
 
     if request.GET.get("po_status"):
         base_filters["po_status"] = request.GET["po_status"]
-
-    # ------------------------------
-    # CHART DATA (FILTERED)
-    # ------------------------------
-    chart_data = []
-
-    if filter_used:
-        chart_qs = (
-            PurchaseOrder.objects.filter(**base_filters)
-            .annotate(month=TruncMonth("po_date"))
-            .values("month")
-            .annotate(
-                total_quantity=Coalesce(
-                    Sum("items__quantity_value"),
-                    Value(0),
-                    output_field=DecimalField(max_digits=12, decimal_places=3),
-                ),
-                total_value=Coalesce(
-                    Sum("items__material_value"),
-                    Value(0),
-                    output_field=DecimalField(max_digits=12, decimal_places=2),
-                ),
-            )
-            .order_by("month")
-        )
-
-        for row in chart_qs:
-            chart_data.append(
-                {
-                    "month": row["month"].strftime("%b %Y"),
-                    "quantity": float(row["total_quantity"]),
-                    "value": float(row["total_value"]),
-                }
-            )
-
     # ------------------------------
     # PO LIST (FILTERED)
     # ------------------------------
@@ -320,8 +285,6 @@ def po_report(request):
         },
         # Permissions
         "can_view_value": can_view_value(request.user),
-        # Chart
-        "chart_data": json.dumps(chart_data),
     }
 
     return render(request, "po/po_report.html", context)
