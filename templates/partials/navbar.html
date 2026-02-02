@@ -1,6 +1,8 @@
 {% load static %}
 <nav class="page-sidebar" id="sidebar" style="position: fixed;">
   <div id="sidebar-collapse">
+
+    <!-- ================= USER INFO ================= -->
     <div class="admin-block d-flex">
       <div>
         <img src="{% static 'assets/img/admin-avatar.png' %}" width="45px" />
@@ -10,143 +12,158 @@
         <small>{{ user.department|default:"User" }}</small>
       </div>
     </div>
+
     <ul class="side-menu metismenu">
+
       {% if user.is_authenticated %}
-        <!-- Dashboard -->
-        <li class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
-          <a href="{% url 'dashboard' %}">
-            <i class="sidebar-item-icon fa fa-bar-chart"></i>
-            <span class="nav-label">Dashboard</span>
-          </a>
-        </li>
-        {% with current_url=request.resolver_match.url_name %}
-          <!-- Purchase Orders -->
-          <li class="{% if current_url in 'po_list po_create po_edit po_report po_process_list po_process_update po_process_history' %}active{% endif %}">
-            <a href="javascript:;">
-              <i class="sidebar-item-icon fa fa-file-text-o"></i>
-              <span class="nav-label">Purchase Orders</span>
-              <i class="fa fa-angle-left arrow"></i>
+      {% with current_url=request.resolver_match.url_name %}
+
+      <!-- ================= DASHBOARD ================= -->
+      <li class="{% if current_url == 'dashboard' %}active{% endif %}">
+        <a href="{% url 'dashboard' %}">
+          <i class="sidebar-item-icon fa fa-bar-chart"></i>
+          <span class="nav-label">Dashboard</span>
+        </a>
+      </li>
+
+      <!-- ================= PURCHASE ORDER ================= -->
+      <li class="{% if current_url in 'po_list po_create po_edit po_report po_process_list po_process_update po_process_history' %}active{% endif %}">
+        <a href="javascript:;">
+          <i class="sidebar-item-icon fa fa-file-text-o"></i>
+          <span class="nav-label">Purchase Orders</span>
+          <i class="fa fa-angle-left arrow"></i>
+        </a>
+        <ul class="nav-1-level collapse">
+          <li class="{% if current_url in 'po_list po_create po_edit' %}active{% endif %}">
+            <a href="{% url 'po:po_list' %}">
+              <i class="fa fa-circle{% if current_url not in 'po_list po_create po_edit' %}-thin{% endif %}"></i>
+              &nbsp;&nbsp;&nbsp;PO Operation
             </a>
-            <ul class="nav-1-level collapse">
-              <li class="{% if current_url in 'po_list po_create po_edit' %}active{% endif %}">
-                <a href="{% url 'po:po_list' %}"><i class="fa fa-circle{% if current_url not in 'po_list po_create po_edit' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;PO Operation</a>
-              </li>
-              <li class="{% if current_url == 'po_report' %}active{% endif %}">
-                <a href="{% url 'po:po_report' %}"><i class="fa fa-circle{% if current_url != 'po_report' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;PO Report</a>
-              </li>
-            </ul>
           </li>
-
-          <!-- Indent -->
-          <li class="{% if current_url in 'indent_list indent_create indent_update indent_detail indent_report indent_report_excel' %}active{% endif %}">
-            <a href="javascript:;">
-              <i class="sidebar-item-icon fa fa-pencil-square-o"></i>
-              <span class="nav-label">Indent</span>
-              <i class="fa fa-angle-left arrow"></i>
+          <li class="{% if current_url == 'po_report' %}active{% endif %}">
+            <a href="{% url 'po:po_report' %}">
+              <i class="fa fa-circle{% if current_url != 'po_report' %}-thin{% endif %}"></i>
+              &nbsp;&nbsp;&nbsp;PO Report
             </a>
-
-            <ul class="nav-1-level collapse">
-
-              <!-- INDENT OPERATIONS -->
-              <li class="{% if current_url in 'indent_list indent_create indent_update indent_detail' %}active{% endif %}">
-                <a href="{% url 'indent:indent_list' %}">
-                  <i class="fa fa-circle{% if current_url not in 'indent_list indent_create indent_update indent_detail' %}-thin{% endif %}"></i>
-                  &nbsp;&nbsp;&nbsp;Indent Operation
-                </a>
-              </li>
-
-              <!-- INDENT REPORT -->
-              <li class="{% if current_url in 'indent_report indent_report_excel' %}active{% endif %}">
-                <a href="{% url 'indent:indent_report' %}">
-                  <i class="fa fa-circle{% if current_url not in 'indent_report indent_report_excel' %}-thin{% endif %}"></i>
-                  &nbsp;&nbsp;&nbsp;Indent Report
-                </a>
-              </li>
-
-            </ul>
           </li>
+        </ul>
+      </li>
 
-
-          <!-- BOM -->
-          <li class="{% if current_url in 'bom_list bom_create bom_edit bom_detail bom_delete bom_report' %}active{% endif %}">
-            <a href="javascript:;">
-              <i class="sidebar-item-icon fa fa-clipboard"></i>
-              <span class="nav-label">BOM</span>
-              <i class="fa fa-angle-left arrow"></i>
+      <!-- ================= INDENT (PRODUCTION + ADMIN) ================= -->
+      {% if user.department in "Production Admin" %}
+      <li class="{% if current_url in 'indent_list indent_create indent_update indent_detail indent_report indent_report_excel' %}active{% endif %}">
+        <a href="javascript:;">
+          <i class="sidebar-item-icon fa fa-pencil-square-o"></i>
+          <span class="nav-label">Indent</span>
+          <i class="fa fa-angle-left arrow"></i>
+        </a>
+        <ul class="nav-1-level collapse">
+          <li class="{% if current_url in 'indent_list indent_create indent_update indent_detail' %}active{% endif %}">
+            <a href="{% url 'indent:indent_list' %}">
+              <i class="fa fa-circle{% if current_url not in 'indent_list indent_create indent_update indent_detail' %}-thin{% endif %}"></i>
+              &nbsp;&nbsp;&nbsp;Indent Operation
             </a>
-
-            <ul class="nav-1-level collapse">
-
-              <!-- BOM OPERATIONS -->
-              <li class="{% if current_url in 'bom_list bom_create bom_edit bom_detail bom_delete' %}active{% endif %}">
-                <a href="{% url 'bom:bom_list' %}">
-                  <i class="fa fa-circle{% if current_url not in 'bom_list bom_create bom_edit bom_detail bom_delete' %}-thin{% endif %}"></i>
-                  &nbsp;&nbsp;&nbsp;BOM Operation
-                </a>
-              </li>
-
-              <!-- BOM REPORT -->
-              <li class="{% if current_url == 'bom_report' %}active{% endif %}">
-                <a href="{% url 'bom:bom_report' %}">
-                  <i class="fa fa-circle{% if current_url != 'bom_report' %}-thin{% endif %}"></i>
-                  &nbsp;&nbsp;&nbsp;BOM Report
-                </a>
-              </li>
-
-            </ul>
           </li>
-
-
-          <!-- Masters -->
-          {% if user.department == "Admin" %}
-          <li class="{% if current_url in 'company_list company_create company_edit company_delete process_status_list process_status_create process_status_edit department_process_list department_process_create department_process_edit' %}active{% endif %}">
-              <a href="javascript:;">
-                  <i class="sidebar-item-icon fa fa-database"></i>
-                  <span class="nav-label">Masters</span>
-                  <i class="fa fa-angle-left arrow"></i>
-              </a>
-              <ul class="nav-1-level collapse">
-                  <li class="{% if current_url in 'company_list company_create company_edit company_delete' %}active{% endif %}">
-                      <a href="{% url 'master:company_list' %}"><i class="fa fa-circle{% if current_url not in 'company_list company_create company_edit company_delete' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;Company Master</a>
-                  </li>
-                  <li class="{% if current_url in 'department_process_list department_process_create department_process_edit' %}active{% endif %}">
-                      <a href="{% url 'master:department_process_list' %}">
-                          <i class="fa fa-circle{% if current_url not in 'department_process_list department_process_create department_process_edit' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;Process Master
-                      </a>
-                  </li>
-                  <li class="{% if current_url in 'process_status_list process_status_create process_status_edit' %}active{% endif %}">
-                      <a href="{% url 'master:process_status_list' %}"><i class="fa fa-circle{% if current_url not in 'process_status_list process_status_create process_status_edit' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;Process Status Master</a>
-                  </li>
-              </ul>
+          <li class="{% if current_url in 'indent_report indent_report_excel' %}active{% endif %}">
+            <a href="{% url 'indent:indent_report' %}">
+              <i class="fa fa-circle{% if current_url not in 'indent_report indent_report_excel' %}-thin{% endif %}"></i>
+              &nbsp;&nbsp;&nbsp;Indent Report
+            </a>
           </li>
-          {% endif %}
-          <!-- User Management -->
-          {% if user.department == "Admin" %}
+        </ul>
+      </li>
+      {% endif %}
+
+      <!-- ================= BOM (DESIGN + ADMIN) ================= -->
+      {% if user.department in "Design Admin" %}
+      <li class="{% if current_url in 'bom_list bom_create bom_edit bom_detail bom_delete bom_report' %}active{% endif %}">
+        <a href="javascript:;">
+          <i class="sidebar-item-icon fa fa-clipboard"></i>
+          <span class="nav-label">BOM</span>
+          <i class="fa fa-angle-left arrow"></i>
+        </a>
+        <ul class="nav-1-level collapse">
+          <li class="{% if current_url in 'bom_list bom_create bom_edit bom_detail bom_delete' %}active{% endif %}">
+            <a href="{% url 'bom:bom_list' %}">
+              <i class="fa fa-circle{% if current_url not in 'bom_list bom_create bom_edit bom_detail bom_delete' %}-thin{% endif %}"></i>
+              &nbsp;&nbsp;&nbsp;BOM Operation
+            </a>
+          </li>
+          <li class="{% if current_url == 'bom_report' %}active{% endif %}">
+            <a href="{% url 'bom:bom_report' %}">
+              <i class="fa fa-circle{% if current_url != 'bom_report' %}-thin{% endif %}"></i>
+              &nbsp;&nbsp;&nbsp;BOM Report
+            </a>
+          </li>
+        </ul>
+      </li>
+      {% endif %}
+
+      <!-- ================= MASTERS (ADMIN ONLY) ================= -->
+      {% if user.department == "Admin" %}
+      <li class="{% if current_url in 'company_list company_create company_edit company_delete process_status_list process_status_create process_status_edit department_process_list department_process_create department_process_edit' %}active{% endif %}">
+        <a href="javascript:;">
+          <i class="sidebar-item-icon fa fa-database"></i>
+          <span class="nav-label">Masters</span>
+          <i class="fa fa-angle-left arrow"></i>
+        </a>
+        <ul class="nav-1-level collapse">
+          <li class="{% if current_url in 'company_list company_create company_edit company_delete' %}active{% endif %}">
+            <a href="{% url 'master:company_list' %}">
+              <i class="fa fa-circle{% if current_url not in 'company_list company_create company_edit company_delete' %}-thin{% endif %}"></i>
+              &nbsp;&nbsp;&nbsp;Company Master
+            </a>
+          </li>
+          <li class="{% if current_url in 'department_process_list department_process_create department_process_edit' %}active{% endif %}">
+            <a href="{% url 'master:department_process_list' %}">
+              <i class="fa fa-circle{% if current_url not in 'department_process_list department_process_create department_process_edit' %}-thin{% endif %}"></i>
+              &nbsp;&nbsp;&nbsp;Process Master
+            </a>
+          </li>
+          <li class="{% if current_url in 'process_status_list process_status_create process_status_edit' %}active{% endif %}">
+            <a href="{% url 'master:process_status_list' %}">
+              <i class="fa fa-circle{% if current_url not in 'process_status_list process_status_create process_status_edit' %}-thin{% endif %}"></i>
+              &nbsp;&nbsp;&nbsp;Process Status Master
+            </a>
+          </li>
+        </ul>
+      </li>
+      {% endif %}
+
+      <!-- ================= USER MANAGEMENT (ADMIN ONLY) ================= -->
+      {% if user.department == "Admin" %}
+      <li class="{% if current_url in 'user_list user_create user_edit' %}active{% endif %}">
+        <a href="javascript:;">
+          <i class="sidebar-item-icon fa fa-users"></i>
+          <span class="nav-label">User Management</span>
+          <i class="fa fa-angle-left arrow"></i>
+        </a>
+        <ul class="nav-1-level collapse">
           <li class="{% if current_url in 'user_list user_create user_edit' %}active{% endif %}">
-              <a href="javascript:;">
-                  <i class="sidebar-item-icon fa fa-users"></i>
-                  <span class="nav-label">User Management</span>
-                  <i class="fa fa-angle-left arrow"></i>
-              </a>
-              <ul class="nav-1-level collapse">
-                  <li class="{% if current_url in 'user_list user_create user_edit' %}active{% endif %}">
-                      <a href="{% url 'users:user_list' %}"><i class="fa fa-circle{% if current_url not in 'user_list user_create user_edit' %}-thin{% endif %}" aria-hidden="true"></i>&nbsp;&nbsp;&nbsp;User List</a>
-                  </li>
-              </ul>
+            <a href="{% url 'users:user_list' %}">
+              <i class="fa fa-circle{% if current_url not in 'user_list user_create user_edit' %}-thin{% endif %}"></i>
+              &nbsp;&nbsp;&nbsp;User List
+            </a>
           </li>
-          {% endif %}
-        {% endwith %}
-        <!-- Logout -->
-        <li>
-          <a href="javascript:;" onclick="confirmLogout(event);">
-            <i class="sidebar-item-icon fa fa-sign-out"></i>
-            <span class="nav-label">Logout</span>
-          </a>
-        </li>
+        </ul>
+      </li>
+      {% endif %}
+
+      {% endwith %}
+
+      <!-- ================= LOGOUT ================= -->
+      <li>
+        <a href="javascript:;" onclick="confirmLogout(event);">
+          <i class="sidebar-item-icon fa fa-sign-out"></i>
+          <span class="nav-label">Logout</span>
+        </a>
+      </li>
+
       {% endif %}
     </ul>
   </div>
 </nav>
-<form id="logout-form" action="{% url 'users:logout' %}" method="post" style="display: none;">
+
+<form id="logout-form" action="{% url 'users:logout' %}" method="post" style="display:none;">
   {% csrf_token %}
 </form>
