@@ -1,0 +1,17 @@
+<table border="1">
+    <tr>
+        <th>BOM No</th>
+        <th>BOM Date</th>
+        <th>PO No</th>
+        <th>Created By</th>
+    </tr>
+
+    {% for bom in boms %}
+    <tr>
+        <td>{{ bom.bom_no }}</td>
+        <td>{{ bom.bom_date }}</td>
+        <td>{{ bom.po.po_number }}</td>
+        <td>{{ bom.created_by }}</td>
+    </tr>
+    {% endfor %}
+</table>
