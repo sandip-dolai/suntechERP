@@ -1,0 +1,84 @@
+{% extends "base/base.html" %}
+{% block content %}
+
+<div class="container-fluid">
+
+    <h4 class="mb-3">BOM Report</h4>
+
+    <!-- ================= FILTERS ================= -->
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-2">
+            <input type="date" name="date_from" value="{{ filters.date_from }}" class="form-control">
+        </div>
+        <div class="col-md-2">
+            <input type="date" name="date_to" value="{{ filters.date_to }}" class="form-control">
+        </div>
+        <div class="col-md-3">
+            <select name="po" class="form-control">
+                <option value="">All POs</option>
+                {% for po in purchase_orders %}
+                    <option value="{{ po.id }}"
+                        {% if filters.po|stringformat:"s" == po.id|stringformat:"s" %}selected{% endif %}>
+                        {{ po.po_number }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-auto">
+            <button class="btn btn-primary">Apply</button>
+        </div>
+        <div class="col-md-auto">
+            <a href="{% url 'bom:bom_report' %}" class="btn btn-secondary">Reset</a>
+        </div>
+        <div class="col-md-auto">
+            <a href="{% url 'bom:bom_report_excel' %}?{{ request.GET.urlencode }}"
+               class="btn btn-success">
+                Export Excel
+            </a>
+        </div>
+    </form>
+
+    <!-- ================= SUMMARY ================= -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <small>Total BOMs</small>
+                    <h5>{{ summary.total_boms }}</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= TABLE ================= -->
+    <table class="table table-bordered table-sm">
+        <thead class="table-light">
+            <tr>
+                <th>BOM No</th>
+                <th>BOM Date</th>
+                <th>PO No</th>
+                <th>Created By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bom in page_obj %}
+            <tr>
+                <td>{{ bom.bom_no }}</td>
+                <td>{{ bom.bom_date }}</td>
+                <td>{{ bom.po.po_number }}</td>
+                <td>{{ bom.created_by }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-center text-muted">
+                    No BOMs found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% include "components/pagination.html" %}
+
+</div>
+{% endblock %}
