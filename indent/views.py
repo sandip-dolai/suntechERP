@@ -8,7 +8,9 @@ from .forms import IndentForm, IndentItemFormSet
 from django.http import JsonResponse
 from po.models import POProcess, PurchaseOrderItem
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Count
+
+from datetime import datetime
 
 INDENT_PROCESS_IDS = [13, 18, 23]
 
@@ -246,3 +248,64 @@ def ajax_load_po_items(request):
     ]
 
     return JsonResponse(data, safe=False)
+
+
+@login_required
+def indent_report(request):
+    today = datetime.today().date()
+
+    date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
+    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
+    status = request.GET.get("status", "")
+    po_id = request.GET.get("purchase_order", "")
+
+    filters = {
+        "indent_date__range": [date_from, date_to],
+    }
+
+    if status:
+        filters["status"] = status
+
+    if po_id:
+        filters["purchase_order_id"] = po_id
+
+    qs = (
+        Indent.objects.select_related(
+            "purchase_order",
+            "po_process",
+            "po_process__department_process",
+            "created_by",
+        )
+        .filter(**filters)
+        .order_by("-id")
+    )
+
+    # -------- SUMMARY --------
+    summary = qs.aggregate(
+        total=Count("id"),
+        open_count=Count("id", filter=Q(status="OPEN")),
+        closed_count=Count("id", filter=Q(status="CLOSED")),
+    )
+
+    # -------- PAGINATION --------
+    paginator = Paginator(qs, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        "page_obj": page_obj,
+        "summary": summary,
+        "filters": {
+            "date_from": date_from,
+            "date_to": date_to,
+            "status": status,
+            "purchase_order": po_id,
+        },
+        "q": "",  # keep pagination component happy
+        "purchase_orders": PurchaseOrder.objects.order_by("-id"),
+    }
+
+    return render(
+        request,
+        "indent/indent_report.html",
+        context,
+    )
