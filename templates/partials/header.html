@@ -8,26 +8,72 @@
       <span class="brand-mini">SUN</span>
     </a>
   </div>
+
   <div class="flexbox flex-1">
+
     <!-- START TOP-LEFT TOOLBAR -->
     <ul class="nav navbar-toolbar">
       <li>
-        <a class="nav-link sidebar-toggler js-sidebar-toggler"><i class="ti-menu"></i></a>
+        <a class="nav-link sidebar-toggler js-sidebar-toggler">
+          <i class="ti-menu"></i>
+        </a>
       </li>
       <li>
         {{ header_content|default:"" }}
       </li>
     </ul>
     <!-- END TOP-LEFT TOOLBAR -->
+
     <!-- START TOP-RIGHT TOOLBAR -->
     <ul class="nav navbar-toolbar">
+
+      <!-- 🔔 NOTIFICATION DROPDOWN (ADD HERE) -->
+      <li class="dropdown dropdown-notification">
+        <a class="nav-link dropdown-toggle link" data-toggle="dropdown">
+          <i class="fa fa-bell"></i>
+          {% if unread_notification_count %}
+            <span class="badge badge-danger">{{ unread_notification_count }}</span>
+          {% endif %}
+        </a>
+
+        <ul class="dropdown-menu dropdown-menu-right" style="width: 320px;">
+          {% for n in request.user.notifications.all|slice:":5" %}
+            <li class="dropdown-item {% if not n.is_read %}font-weight-bold{% endif %}">
+              <a href="{% url 'notifications:mark_read' n.id %}">
+                {{ n.message }}
+                <br>
+                <small class="text-muted">
+                  {{ n.created_at|timesince }} ago
+                </small>
+              </a>
+            </li>
+          {% empty %}
+            <li class="dropdown-item text-muted">
+              No notifications
+            </li>
+          {% endfor %}
+
+          <li class="dropdown-divider"></li>
+
+          <li class="text-center">
+            <a href="{% url 'notifications:notification_list' %}">
+              View All Notifications
+            </a>
+          </li>
+        </ul>
+      </li>
+      <!-- 🔔 END NOTIFICATION -->
+
+      <!-- 👤 USER DROPDOWN (UNCHANGED) -->
       <li class="dropdown dropdown-user">
         <a class="nav-link dropdown-toggle link" data-toggle="dropdown">
           <img src="{% static 'assets/img/admin-avatar.png' %}" />
-          <span style="">{{ user.username }}</span>
+          <span>{{ user.username }}</span>
         </a>
       </li>
+
     </ul>
     <!-- END TOP-RIGHT TOOLBAR -->
+
   </div>
 </header>

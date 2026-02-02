@@ -19,10 +19,10 @@ def mark_as_read(request, pk):
     )
     notification.is_read = True
     notification.save()
-    return redirect(notification.url or "notifications:list")
+    return redirect(notification.url or "notifications:notification_list")
 
 
 @login_required
 def mark_all_as_read(request):
     request.user.notifications.filter(is_read=False).update(is_read=True)
-    return redirect("notifications:list")
+    return redirect("notifications:notification_list")
