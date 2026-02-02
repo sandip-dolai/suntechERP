@@ -6,22 +6,46 @@ from django.contrib import messages
 
 from .models import BOM, BOMItem
 from po.models import PurchaseOrder, PurchaseOrderItem
-
+from django.core.paginator import Paginator
+from django.db.models import Q
 
 # ======================================================
 # BOM LIST
 # ======================================================
+
+
 @login_required
 def bom_list(request):
-    boms = BOM.objects.select_related("po", "created_by").all()
+    q = request.GET.get("q", "").strip()
+
+    qs = BOM.objects.select_related(
+        "po",
+        "created_by",
+    )
+
+    if q:
+        qs = qs.filter(
+            Q(bom_no__icontains=q)
+            | Q(po__po_number__icontains=q)
+            | Q(created_by__username__icontains=q)
+        )
+
+    qs = qs.order_by("-id")
+
+    paginator = Paginator(qs, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        "page_obj": page_obj,
+        "q": q,
+    }
 
     return render(
         request,
         "bom/bom_list.html",
-        {
-            "boms": boms,
-        },
+        context,
     )
+
 
 
 # ======================================================
