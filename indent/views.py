@@ -7,6 +7,8 @@ from .models import Indent, PurchaseOrder
 from .forms import IndentForm, IndentItemFormSet
 from django.http import JsonResponse
 from po.models import POProcess, PurchaseOrderItem
+from django.core.paginator import Paginator
+from django.db.models import Q
 
 INDENT_PROCESS_IDS = [13, 18, 23]
 
@@ -14,16 +16,38 @@ INDENT_PROCESS_IDS = [13, 18, 23]
 # INDENT LIST VIEW
 @login_required
 def indent_list(request):
-    indents = Indent.objects.select_related(
+    q = request.GET.get("q", "").strip()
+
+    qs = Indent.objects.select_related(
         "purchase_order",
         "po_process",
+        "po_process__department_process",
         "created_by",
-    ).order_by("-id")
+    )
+
+    if q:
+        qs = qs.filter(
+            Q(indent_number__icontains=q)
+            | Q(purchase_order__po_number__icontains=q)
+            | Q(po_process__department_process__name__icontains=q)
+            | Q(created_by__username__icontains=q)
+            | Q(status__icontains=q)
+        )
+
+    qs = qs.order_by("-id")
+
+    paginator = Paginator(qs, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        "page_obj": page_obj,
+        "q": q,
+    }
 
     return render(
         request,
         "indent/indent_list.html",
-        {"indents": indents},
+        context,
     )
 
 
@@ -222,4 +246,3 @@ def ajax_load_po_items(request):
     ]
 
     return JsonResponse(data, safe=False)
-
