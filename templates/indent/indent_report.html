@@ -32,23 +32,19 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-auto">
+        <div class="col-md-3">
             <button class="btn btn-primary">Apply</button>
-        </div>
-        <div class="col-md-auto">
             <a href="{% url 'indent:indent_report' %}" class="btn btn-secondary">Reset</a>
-        </div>
-        <div class="col-md-auto">
             <a href="{% url 'indent:indent_report_excel' %}?{{ request.GET.urlencode }}"
                class="btn btn-success">
-                Export Excel
+                Excel
             </a>
         </div>
     </form>
 
     <!-- ================= SUMMARY ================= -->
     <div class="row mb-3">
-        <div class="col-md-3">
+        <div class="col-sm-2">
             <div class="card text-center">
                 <div class="card-body">
                     <small>Total</small>
@@ -56,7 +52,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-sm-2">
             <div class="card text-center">
                 <div class="card-body">
                     <small>Open</small>
@@ -64,7 +60,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-sm-2">
             <div class="card text-center">
                 <div class="card-body">
                     <small>Closed</small>

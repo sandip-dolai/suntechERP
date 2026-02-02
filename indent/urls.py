@@ -11,6 +11,9 @@ urlpatterns = [
     path("<int:pk>/close/", views.indent_close, name="indent_close"),
     path("<int:pk>/delete/", views.indent_delete, name="indent_delete"),
     
+    path("report/", views.indent_report, name="indent_report"),
+    path("report/excel/", views.indent_report_excel, name="indent_report_excel"),
+    
     path("ajax/load-po-processes/", views.ajax_load_po_processes, name="ajax_po_processes"),
     path("ajax/ajax_load_po_items/", views.ajax_load_po_items, name="ajax_po_items"),
 ]
