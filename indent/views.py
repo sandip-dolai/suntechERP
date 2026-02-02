@@ -11,7 +11,8 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Count
 
 from datetime import datetime
-
+from django.template.loader import render_to_string
+from django.http import HttpResponse
 INDENT_PROCESS_IDS = [13, 18, 23]
 
 
@@ -309,3 +310,49 @@ def indent_report(request):
         "indent/indent_report.html",
         context,
     )
+
+
+@login_required
+def indent_report_excel(request):
+    today = datetime.today().date()
+
+    date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
+    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
+    status = request.GET.get("status", "")
+    po_id = request.GET.get("purchase_order", "")
+
+    filters = {
+        "indent_date__range": [date_from, date_to],
+    }
+
+    if status:
+        filters["status"] = status
+    if po_id:
+        filters["purchase_order_id"] = po_id
+
+    indents = (
+        Indent.objects.select_related(
+            "purchase_order",
+            "po_process",
+            "po_process__department_process",
+            "created_by",
+        )
+        .filter(**filters)
+        .order_by("-id")
+    )
+
+    html = render_to_string(
+        "indent/indent_report_excel.html",
+        {
+            "indents": indents,
+        },
+    )
+
+    response = HttpResponse(html)
+    response["Content-Type"] = "application/vnd.ms-excel"
+    response["Content-Disposition"] = (
+        f'attachment; filename="Indent_Report_{date_from}_to_{date_to}.xls"'
+    )
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    return response

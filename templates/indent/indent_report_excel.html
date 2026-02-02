@@ -1,0 +1,19 @@
+<table border="1">
+    <tr>
+        <th>Indent No</th>
+        <th>Date</th>
+        <th>PO</th>
+        <th>Process</th>
+        <th>Status</th>
+    </tr>
+
+    {% for indent in indents %}
+    <tr>
+        <td>{{ indent.indent_number }}</td>
+        <td>{{ indent.indent_date }}</td>
+        <td>{{ indent.purchase_order.po_number }}</td>
+        <td>{{ indent.po_process.department_process.name }}</td>
+        <td>{{ indent.status }}</td>
+    </tr>
+    {% endfor %}
+</table>
