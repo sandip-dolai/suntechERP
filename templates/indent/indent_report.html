@@ -1,0 +1,108 @@
+{% extends "base/base.html" %}
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- ================= HEADER ================= -->
+    <h4 class="mb-3">Indent Report</h4>
+
+    <!-- ================= FILTERS ================= -->
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-2">
+            <input type="date" name="date_from" value="{{ filters.date_from }}" class="form-control">
+        </div>
+        <div class="col-md-2">
+            <input type="date" name="date_to" value="{{ filters.date_to }}" class="form-control">
+        </div>
+        <div class="col-md-2">
+            <select name="status" class="form-control">
+                <option value="">All Status</option>
+                <option value="OPEN" {% if filters.status == "OPEN" %}selected{% endif %}>OPEN</option>
+                <option value="CLOSED" {% if filters.status == "CLOSED" %}selected{% endif %}>CLOSED</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="purchase_order" class="form-control">
+                <option value="">All POs</option>
+                {% for po in purchase_orders %}
+                    <option value="{{ po.id }}"
+                        {% if filters.purchase_order|stringformat:"s" == po.id|stringformat:"s" %}selected{% endif %}>
+                        {{ po.po_number }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-auto">
+            <button class="btn btn-primary">Apply</button>
+        </div>
+        <div class="col-md-auto">
+            <a href="{% url 'indent:indent_report' %}" class="btn btn-secondary">Reset</a>
+        </div>
+        <div class="col-md-auto">
+            <a href="{% url 'indent:indent_report_excel' %}?{{ request.GET.urlencode }}"
+               class="btn btn-success">
+                Export Excel
+            </a>
+        </div>
+    </form>
+
+    <!-- ================= SUMMARY ================= -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <small>Total</small>
+                    <h5>{{ summary.total }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <small>Open</small>
+                    <h5>{{ summary.open_count }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <small>Closed</small>
+                    <h5>{{ summary.closed_count }}</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= TABLE ================= -->
+    <table class="table table-bordered table-sm">
+        <thead class="table-light">
+            <tr>
+                <th>Indent No</th>
+                <th>Date</th>
+                <th>PO</th>
+                <th>Process</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for indent in page_obj %}
+            <tr>
+                <td>{{ indent.indent_number }}</td>
+                <td>{{ indent.indent_date }}</td>
+                <td>{{ indent.purchase_order.po_number }}</td>
+                <td>{{ indent.po_process.department_process.name }}</td>
+                <td>{{ indent.status }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center text-muted">No data</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% include "components/pagination.html" %}
+
+</div>
+{% endblock %}
