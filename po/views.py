@@ -49,7 +49,7 @@ def po_create(request):
                     formset.instance = po
                     formset.save()
                 messages.success(request, "Purchase Order created successfully.")
-                users = User.objects.filter(is_active=True)
+                users = User.objects.filter(is_active=True).exclude(id=request.user.id)
 
                 Notification.objects.bulk_create([
                     Notification(
