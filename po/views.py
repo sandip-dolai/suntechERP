@@ -22,6 +22,10 @@ from django.http import HttpResponseForbidden, HttpResponse
 from django.template.loader import render_to_string
 import json
 
+from notifications.models import Notification
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
 
 def can_view_value(user):
     return user.is_superuser or getattr(user, "department", None) == "Admin"
@@ -45,6 +49,17 @@ def po_create(request):
                     formset.instance = po
                     formset.save()
                 messages.success(request, "Purchase Order created successfully.")
+                users = User.objects.filter(is_active=True)
+
+                Notification.objects.bulk_create([
+                    Notification(
+                        user=user,
+                        title="New Purchase Order Created",
+                        message=f"PO {po.po_number} has been created.",
+                        url=f"/po/{po.id}/processes/"
+                    )
+                    for user in users
+                ])
                 return redirect("po:po_list")
             except IntegrityError:
                 form.add_error(None, "Database error: possible duplicate PO/OA number.")
@@ -103,7 +118,7 @@ def po_delete(request, pk):
     po = get_object_or_404(PurchaseOrder, pk=pk)
 
     if request.method == "POST":
-        po.po_status = "CANCELLED"
+        po.po_status = "PENDING"
         po.save()
 
         messages.warning(request, "Purchase Order cancelled (not deleted).")
