@@ -6,6 +6,10 @@
 
 <h2 class="mb-3">Notifications</h2>
 
+<p class="text-muted small">
+    Showing latest 100 notifications
+</p>
+
 <!-- MARK ALL AS READ -->
 <div class="mb-3 text-end">
     <a href="{% url 'notifications:mark_all_read' %}"
@@ -57,5 +61,8 @@
         {% endfor %}
     </tbody>
 </table>
+
+<!-- ✅ REUSE EXISTING PAGINATION COMPONENT -->
+{% include "components/pagination.html" with page_obj=notifications %}
 
 {% endblock %}

@@ -62,5 +62,89 @@
         }
       }
     </script>
+<script>
+(function () {
+
+  console.log("🔔 Notification system initialized");
+
+  function fetchNotifications() {
+
+    const badge = document.getElementById("notification-badge");
+    const list  = document.getElementById("notification-list");
+
+    if (!badge || !list) {
+      console.warn("🔔 Notification DOM not found");
+      return;
+    }
+
+    fetch("/notifications/unread/", {
+      method: "GET",
+      credentials: "same-origin",
+      headers: {
+        "X-Requested-With": "XMLHttpRequest"
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status);
+      }
+      return response.json();
+    })
+    .then(data => {
+
+      /* 🔴 BADGE */
+      if (data.count > 0) {
+        badge.style.display = "inline-block";
+        badge.textContent = data.count;
+      } else {
+        badge.style.display = "none";
+        badge.textContent = "";
+      }
+
+      /* 📜 DROPDOWN LIST */
+      let html = "";
+
+      if (data.notifications.length > 0) {
+        data.notifications.forEach(n => {
+          html += `
+            <li class="dropdown-item font-weight-bold">
+              <a href="${n.url}">
+                ${n.message}<br>
+                <small class="text-muted">${n.created}</small>
+              </a>
+            </li>
+          `;
+        });
+      } else {
+        html = `
+          <li class="dropdown-item text-muted">
+            No notifications
+          </li>
+        `;
+      }
+
+      html += `
+        <li class="dropdown-divider"></li>
+        <li class="text-center">
+          <a href="/notifications/">View all notifications</a>
+        </li>
+      `;
+
+      list.innerHTML = html;
+    })
+    .catch(error => {
+      console.error("🔔 Notification fetch failed:", error);
+    });
+  }
+
+  /* 🚀 START POLLING */
+  document.addEventListener("DOMContentLoaded", function () {
+    fetchNotifications();
+    setInterval(fetchNotifications, 10000);
+  });
+
+})();
+</script>
+
   </body>
 </html>
