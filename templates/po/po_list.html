@@ -46,6 +46,7 @@
             <th class="text-center">Items</th>
             <th class="text-center">Created By</th>
             <th class="text-center">PO Date</th>
+            <th class="text-center">PO Status</th>
             <th class="text-center">Actions</th>
         </tr>
     </thead>
@@ -124,8 +125,16 @@
             <td class="text-center">{{ po.created_by|default:"—" }}</td>
 
             <td class="text-center">{{ po.po_date }}</td>
-
             <td class="text-center">
+                <span class="badge
+                    {% if po.po_status == 'COMPLETED' %} bg-success
+                    {% elif po.po_status == 'PENDING' %} bg-warning text-dark
+                    {% else %} bg-secondary
+                    {% endif %}">
+                    {{ po.get_po_status_display }}
+                </span>
+            </td>
+            <td class="text-center d-flex flex-column">
                 <!-- PROCESS BUTTON (ALL USERS) -->
                 <a href="{% url 'po:po_process_list' po.pk %}"
                    class="btn btn-info btn-sm"

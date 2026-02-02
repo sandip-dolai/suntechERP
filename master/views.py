@@ -1,14 +1,16 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from suntech_erp.permissions import admin_required
 from django.core.paginator import Paginator
+from django.http import JsonResponse, HttpResponseBadRequest
+from django.views.decorators.http import require_POST
+from django.db import transaction
 from .models import (
-    # ItemMaster,
     CompanyMaster,
     ProcessStatusMaster,
     DepartmentProcessMaster,
 )
+
 from .forms import (
-    # ItemMasterForm,
     CompanyMasterForm,
     ProcessStatusMasterForm,
     DepartmentProcessMasterForm,
@@ -123,7 +125,7 @@ def process_status_edit(request, pk):
 
 @admin_required
 def department_process_list(request):
-    queryset = DepartmentProcessMaster.objects.all()
+    queryset = DepartmentProcessMaster.objects.all().order_by("sequence")
     paginator = Paginator(queryset, 50)
     page = request.GET.get("page")
     processes = paginator.get_page(page)
@@ -148,7 +150,10 @@ def department_process_create(request):
     return render(
         request,
         "master/department_process_master/process_form.html",
-        {"form": form, "title": "Create Department Process"},
+        {
+            "form": form,
+            "title": "Create Department Process",
+        },
     )
 
 
@@ -167,5 +172,54 @@ def department_process_edit(request, pk):
     return render(
         request,
         "master/department_process_master/process_form.html",
-        {"form": form, "title": "Edit Department Process"},
+        {
+            "form": form,
+            "title": "Edit Department Process",
+        },
     )
+
+
+@admin_required
+def department_process_reorder(request):
+    """
+    Show all active department processes in execution order
+    for drag & drop reordering.
+    """
+    processes = DepartmentProcessMaster.objects.filter(is_active=True).order_by(
+        "sequence"
+    )
+
+    return render(
+        request,
+        "master/department_process_master/process_reorder.html",
+        {"processes": processes},
+    )
+
+
+@admin_required
+@require_POST
+@transaction.atomic
+def department_process_reorder_save(request):
+    """
+    Save reordered process sequence.
+    Expects POST data: order[] = [id1, id2, id3, ...]
+    """
+    order = request.POST.getlist("order[]")
+
+    if not order:
+        return HttpResponseBadRequest("Invalid order data")
+
+    processes = {
+        str(p.id): p for p in DepartmentProcessMaster.objects.filter(id__in=order)
+    }
+
+    if len(processes) != len(order):
+        return HttpResponseBadRequest("Process mismatch detected")
+
+    # Reassign sequence starting from 1
+    for index, process_id in enumerate(order, start=1):
+        process = processes[process_id]
+        process.sequence = index
+        process.save(update_fields=["sequence"])
+
+    return JsonResponse({"status": "success"})

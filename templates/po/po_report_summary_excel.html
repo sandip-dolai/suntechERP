@@ -1,3 +1,11 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>PO Summary Report</title>
+</head>
+<body>
+
 <table border="1">
     <thead>
         <tr>
@@ -6,12 +14,14 @@
             <th>Company</th>
             <th>PO Date</th>
             <th>Delivery Date</th>
+            <th>PO Status</th>
             <th>Total Quantity</th>
             {% if can_view_value %}
             <th>Total Value</th>
             {% endif %}
         </tr>
     </thead>
+
     <tbody>
         {% for po in pos %}
         <tr>
@@ -20,11 +30,21 @@
             <td>{{ po.company.name }}</td>
             <td>{{ po.po_date }}</td>
             <td>{{ po.delivery_date|default:"" }}</td>
+            <td>{{ po.get_po_status_display }}</td>
             <td>{{ po.total_quantity|floatformat:2 }}</td>
             {% if can_view_value %}
             <td>{{ po.total_value|floatformat:2 }}</td>
             {% endif %}
         </tr>
+        {% empty %}
+        <tr>
+            <td colspan="{% if can_view_value %}8{% else %}7{% endif %}">
+                No Purchase Orders Found
+            </td>
+        </tr>
         {% endfor %}
     </tbody>
 </table>
+
+</body>
+</html>

@@ -103,7 +103,7 @@ def po_delete(request, pk):
     po = get_object_or_404(PurchaseOrder, pk=pk)
 
     if request.method == "POST":
-        po.po_status = "CANCELLED" 
+        po.po_status = "CANCELLED"
         po.save()
 
         messages.warning(request, "Purchase Order cancelled (not deleted).")
@@ -114,8 +114,56 @@ def po_delete(request, pk):
 
 @login_required_view
 def po_report(request):
+    # ------------------------------
+    # VIEW MODE
+    # ------------------------------
     view_mode = request.GET.get("view", "summary").lower()
 
+    # ------------------------------
+    # 🔹 GLOBAL SUMMARY (NOT FILTERED)
+    # ------------------------------
+    all_pos = PurchaseOrder.objects.all()
+
+    total_po_count = all_pos.count()
+    completed_po_count = all_pos.filter(po_status="COMPLETED").count()
+    pending_po_count = total_po_count - completed_po_count
+
+    # Annotate PO total value
+    po_value_qs = all_pos.annotate(
+        total_value=Coalesce(
+            Sum("items__material_value"),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    )
+
+    # Total PO Value
+    total_po_value = po_value_qs.aggregate(
+        total=Coalesce(
+            Sum("total_value"),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    )["total"]
+
+    # Dispatched PO Value (COMPLETED POs)
+    dispatched_po_value = po_value_qs.filter(po_status="COMPLETED").aggregate(
+        total=Coalesce(
+            Sum("total_value"),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    )["total"]
+
+    pending_po_value = total_po_value - dispatched_po_value
+
+    dispatch_percentage = (
+        (dispatched_po_value / total_po_value) * 100 if total_po_value > 0 else 0
+    )
+
+    # ------------------------------
+    # FILTERS (FOR TABLE ONLY)
+    # ------------------------------
     today = datetime.today().date()
     date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
     date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
@@ -125,6 +173,7 @@ def po_report(request):
         or "oa_number" in request.GET
         or "company" in request.GET
         or "date_from" in request.GET
+        or "po_status" in request.GET
     )
 
     base_filters = {"po_date__range": [date_from, date_to]}
@@ -138,6 +187,12 @@ def po_report(request):
     if request.GET.get("company"):
         base_filters["company_id"] = request.GET["company"]
 
+    if request.GET.get("po_status"):
+        base_filters["po_status"] = request.GET["po_status"]
+
+    # ------------------------------
+    # CHART DATA (FILTERED)
+    # ------------------------------
     chart_data = []
 
     if filter_used:
@@ -169,6 +224,9 @@ def po_report(request):
                 }
             )
 
+    # ------------------------------
+    # PO LIST (FILTERED)
+    # ------------------------------
     po_qs = PurchaseOrder.objects.none()
 
     if filter_used:
@@ -189,6 +247,9 @@ def po_report(request):
             )
         )
 
+    # ------------------------------
+    # ITEM VIEW (FILTERED)
+    # ------------------------------
     items = None
     grand_totals = None
 
@@ -210,11 +271,27 @@ def po_report(request):
             ),
         )
 
+    # ------------------------------
+    # CONTEXT
+    # ------------------------------
     context = {
+        # View
         "view": view_mode,
+        # Summary (GLOBAL)
+        "summary": {
+            "total_po_count": total_po_count,
+            "completed_po_count": completed_po_count,
+            "pending_po_count": pending_po_count,
+            "total_po_value": total_po_value,
+            "dispatched_po_value": dispatched_po_value,
+            "pending_po_value": pending_po_value,
+            "dispatch_percentage": round(dispatch_percentage, 2),
+        },
+        # Table Data
         "pos": po_qs,
         "items": items,
         "grand_totals": grand_totals,
+        # Filters
         "filter_used": filter_used,
         "companies": CompanyMaster.objects.order_by("name"),
         "po_list": PurchaseOrder.objects.order_by("-id"),
@@ -222,10 +299,13 @@ def po_report(request):
             "po_number": request.GET.get("po_number", ""),
             "oa_number": request.GET.get("oa_number", ""),
             "company": request.GET.get("company", ""),
+            "po_status": request.GET.get("po_status", ""),
             "date_from": date_from,
             "date_to": date_to,
         },
+        # Permissions
         "can_view_value": can_view_value(request.user),
+        # Chart
         "chart_data": json.dumps(chart_data),
     }
 
@@ -252,10 +332,7 @@ def po_process_list(request, po_id):
             "last_updated_by",
         )
         .annotate(latest_remark=Subquery(latest_remark_subquery))
-        .order_by(
-            "department_process__department",
-            "department_process__name",
-        )
+        .order_by("department_process__sequence")
     )
 
     return render(
@@ -362,8 +439,7 @@ def po_process_excel(request, po_id):
         "current_status",
         "last_updated_by",
     ).order_by(
-        "department_process__department",
-        "department_process__name",
+        "department_process__sequence",
     )
 
     filename = f"PO_{po.po_number}_processes.xls"
@@ -393,30 +469,36 @@ def po_report_summary_excel(request):
     date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
     date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
 
-    pos = PurchaseOrder.objects.select_related("company").filter(
-        po_date__range=[date_from, date_to]
-    )
+    base_filters = {"po_date__range": [date_from, date_to]}
 
     if request.GET.get("po_number"):
-        pos = pos.filter(id=request.GET["po_number"])
+        base_filters["id"] = request.GET["po_number"]
 
     if request.GET.get("oa_number"):
-        pos = pos.filter(id=request.GET["oa_number"])
+        base_filters["id"] = request.GET["oa_number"]
 
     if request.GET.get("company"):
-        pos = pos.filter(company_id=request.GET["company"])
+        base_filters["company_id"] = request.GET["company"]
 
-    pos = pos.annotate(
-        total_quantity=Coalesce(
-            Sum("items__quantity_value"),
-            Value(0),
-            output_field=DecimalField(max_digits=12, decimal_places=3),
-        ),
-        total_value=Coalesce(
-            Sum("items__material_value"),
-            Value(0),
-            output_field=DecimalField(max_digits=12, decimal_places=2),
-        ),
+    if request.GET.get("po_status"):
+        base_filters["po_status"] = request.GET["po_status"]
+
+    pos = (
+        PurchaseOrder.objects.select_related("company", "created_by")
+        .filter(**base_filters)
+        .annotate(
+            total_quantity=Coalesce(
+                Sum("items__quantity_value"),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=3),
+            ),
+            total_value=Coalesce(
+                Sum("items__material_value"),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+        )
+        .order_by("-id")
     )
 
     html = render_to_string(
@@ -443,18 +525,29 @@ def po_report_item_excel(request):
     date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
     date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
 
-    items = PurchaseOrderItem.objects.select_related(
-        "purchase_order", "purchase_order__company"
-    ).filter(purchase_order__po_date__range=[date_from, date_to])
+    base_filters = {"purchase_order__po_date__range": [date_from, date_to]}
 
     if request.GET.get("po_number"):
-        items = items.filter(purchase_order_id=request.GET["po_number"])
+        base_filters["purchase_order_id"] = request.GET["po_number"]
 
     if request.GET.get("oa_number"):
-        items = items.filter(purchase_order_id=request.GET["oa_number"])
+        base_filters["purchase_order_id"] = request.GET["oa_number"]
 
     if request.GET.get("company"):
-        items = items.filter(purchase_order__company_id=request.GET["company"])
+        base_filters["purchase_order__company_id"] = request.GET["company"]
+
+    if request.GET.get("po_status"):
+        base_filters["purchase_order__po_status"] = request.GET["po_status"]
+
+    items = (
+        PurchaseOrderItem.objects.select_related(
+            "purchase_order",
+            "purchase_order__company",
+            "purchase_order__created_by",
+        )
+        .filter(**base_filters)
+        .order_by("purchase_order__id")
+    )
 
     grand_totals = items.aggregate(
         total_quantity=Coalesce(

@@ -7,6 +7,70 @@
 
 <h2 class="mb-3">Purchase Order Report</h2>
 
+<!-- ============================= -->
+<!--     PO SUMMARY (OVERALL)      -->
+<!-- ============================= -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="fw-bold">Total POs</div>
+                <h4>{{ summary.total_po_count }}</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="fw-bold">Completed POs</div>
+                <h4 class="text-success">{{ summary.completed_po_count }}</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="fw-bold">Pending POs</div>
+                <h4 class="text-warning">{{ summary.pending_po_count }}</h4>
+            </div>
+        </div>
+    </div>
+
+    {% if can_view_value %}
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="fw-bold">Total PO Value</div>
+                <h5>₹ {{ summary.total_po_value|floatformat:2 }}</h5>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="fw-bold">Dispatched Value</div>
+                <h5>₹ {{ summary.dispatched_po_value|floatformat:2 }}</h5>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="fw-bold">Pending Value</div>
+                <h5>₹ {{ summary.pending_po_value|floatformat:2 }}</h5>
+                <small class="text-muted">
+                    Dispatch %: {{ summary.dispatch_percentage }}%
+                </small>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
 <!-- VIEW MODE TOGGLE -->
 <div class="mb-3">
     <a href="?view=summary" class="btn btn-sm {% if view == 'summary' %}btn-primary{% else %}btn-outline-primary{% endif %}">
@@ -22,7 +86,6 @@
     <input type="hidden" name="view" value="{{ view }}">
 
     <div class="row g-3">
-        <!-- DATE RANGE -->
         <div class="col-md-2">
             <label class="form-label">From Date</label>
             <input type="date" name="date_from" class="form-control"
@@ -35,7 +98,6 @@
                    value="{{ filters.date_to }}" style="width:100% !important;">
         </div>
 
-        <!-- PO NUMBER -->
         <div class="col-md-3">
             <label class="form-label">PO Number</label>
             <select name="po_number" class="form-select select2" style="width:100% !important;">
@@ -49,7 +111,6 @@
             </select>
         </div>
 
-        <!-- OA NUMBER -->
         <div class="col-md-2">
             <label class="form-label">OA Number</label>
             <select name="oa_number" class="form-select select2" style="width:100% !important;">
@@ -63,7 +124,6 @@
             </select>
         </div>
 
-        <!-- COMPANY -->
         <div class="col-md-3">
             <label class="form-label">Company</label>
             <select name="company" class="form-select select2" style="width:100% !important;">
@@ -77,68 +137,31 @@
             </select>
         </div>
 
-        
-
         <div class="col-md-2">
             <label></label>
             <button type="submit" class="btn btn-primary w-100" style="width:100% !important;">
                 Filter
             </button>
         </div>
+
         <div class="col-md-2">
             <label></label>
             {% if view == "summary" %}
-                <div>
-                    <a href="{% url 'po:po_report_summary_excel' %}?{{ request.GET.urlencode }}"
-                    class="btn btn-success " style="width:100% !important;">
-                        <i class="fa fa-file-excel-o"></i>
-                    </a>
-                </div>
+                <a href="{% url 'po:po_report_summary_excel' %}?{{ request.GET.urlencode }}"
+                   class="btn btn-success w-100" style="width:100% !important;">
+                    <i class="fa fa-file-excel-o"></i>
+                </a>
             {% endif %}
 
             {% if view == "items" %}
-                <div>
-                    <a href="{% url 'po:po_report_item_excel' %}?{{ request.GET.urlencode }}"
-                    class="btn btn-success" style="width:100% !important;">
-                        <i class="fa fa-file-excel-o"></i>
-                    </a>
-                </div>
-                
+                <a href="{% url 'po:po_report_item_excel' %}?{{ request.GET.urlencode }}"
+                   class="btn btn-success w-100" style="width:100% !important;">
+                    <i class="fa fa-file-excel-o"></i>
+                </a>
             {% endif %}
         </div>
-
-        {% if can_view_value %}
-        <div class="col-md-2">
-            <label></label>
-            <button type="button"
-                    class="btn btn-dark w-100"
-                    onclick="toggleGraph()">
-                <i class="fa fa-bar-chart"></i> Graph
-            </button>
-        </div>
-        {% endif %}
-
-
     </div>
 </form>
-{% if can_view_value %}
-<div id="graphSection" style="display:none;">
-    <div class="card mb-4">
-        <div class="card-header">
-            <strong>
-                PO GRAPH
-                {% if filters.date_from and filters.date_to %}
-                    ({{ filters.date_from }} → {{ filters.date_to }})
-                {% endif %}
-            </strong>
-        </div>
-        <div class="card-body">
-            <canvas id="poComboChart" height="120"></canvas>
-        </div>
-    </div>
-</div>
-{% endif %}
-
 
 <!-- ============================= -->
 <!--      SUMMARY VIEW (PER PO)    -->
@@ -155,6 +178,7 @@
             <th class="text-center">PO Date</th>
             <th class="text-center">Delivery Date</th>
             <th class="text-center">Created By</th>
+            <th class="text-center">PO Status</th>
             <th class="text-center">Process</th>
         </tr>
     </thead>
@@ -167,86 +191,65 @@
             <td class="text-center">{{ po.oa_number }}</td>
             <td class="text-center">{{ po.company }}</td>
 
-            <!-- 🟦 Nested Items Table -->
             <td>
                 {% if po.items.exists %}
                 <table class="table table-sm table-bordered mb-0 bg-light">
                     <thead class="table-secondary">
                         <tr>
-                            <th >Code</th>
-                            <th >Material</th>
-                            <th >Qty</th>
-                            {% if can_view_value %}
-                            <th >Value</th>
-                            {% endif %}
-                            <th >Status</th>
+                            <th>Code</th>
+                            <th>Material</th>
+                            <th>Qty</th>
+                            {% if can_view_value %}<th>Value</th>{% endif %}
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in po.items.all %}
                         <tr>
-                            <td >
-                                {{ item.material_code|default:"—" }}
-                            </td>
-                            <td >
-                                {{ item.material_description|truncatewords:8 }}
-                            </td>
-                            <td class="text-right" >
-                                {{ item.quantity_value|floatformat:2 }}{{item.uom}}
-                            </td>
+                            <td>{{ item.material_code|default:"—" }}</td>
+                            <td>{{ item.material_description|truncatewords:8 }}</td>
+                            <td class="text-end">{{ item.quantity_value|floatformat:2 }}{{ item.uom }}</td>
                             {% if can_view_value %}
-                            <td class="text-right" >
-                                {{ item.material_value|default:0|floatformat:2 }}
-                            </td>
+                            <td class="text-end">{{ item.material_value|default:0|floatformat:2 }}</td>
                             {% endif %}
-                            <td class="text-center" style="font-size: 12px;">
-                                <span class="badge 
-                                    {% if item.status == 'COMPLETED' %} bg-primary
-                                    {% elif item.status == 'INPROCESS' %} bg-primary text-dark
-                                    {% else %} bg-secondary 
-                                    {% endif %}">
+                            <td class="text-center">
+                                <span class="badge
+                                    {% if item.status == 'COMPLETED' %}bg-primary
+                                    {% elif item.status == 'INPROCESS' %}bg-primary text-dark
+                                    {% else %}bg-secondary{% endif %}">
                                     {{ item.get_status_display }}
                                 </span>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
-                    <tfoot>
-                        <tr class="fw-bold bg-light">
-                            <td colspan="2" class="text-right">TOTAL</td>
-                            <td class="text-right">
-                                {{ po.total_quantity|floatformat:2 }}
-                            </td>
-                            {% if can_view_value %}
-                            <td class="text-right">
-                                {{ po.total_value|floatformat:2 }}
-                            </td>
-                            {% endif %}
-                            <td></td>
-                        </tr>
-                    </tfoot>
-
                 </table>
-                {% else %}
-                <span class="text-muted small">No items</span>
                 {% endif %}
             </td>
 
             <td class="text-center">{{ po.po_date }}</td>
             <td class="text-center">{{ po.delivery_date|default:"—" }}</td>
             <td class="text-center">{{ po.created_by|default:"—" }}</td>
+
+            <td class="text-center">
+                <span class="badge
+                    {% if po.po_status == 'COMPLETED' %}bg-success
+                    {% elif po.po_status == 'PENDING' %}bg-warning text-dark
+                    {% else %}bg-secondary{% endif %}">
+                    {{ po.get_po_status_display }}
+                </span>
+            </td>
+
             <td class="text-center">
                 <a href="{% url 'po:po_process_list' po.id %}"
-                class="btn btn-sm btn-info"
-                title="View PO Processes" target="_blank">
+                   class="btn btn-sm btn-info" target="_blank">
                     <i class="fa fa-tasks"></i> Process
                 </a>
             </td>
-
         </tr>
         {% empty %}
         <tr>
-            <td colspan="8" class="text-center text-muted">No POs found.</td>
+            <td colspan="10" class="text-center text-muted">No POs found.</td>
         </tr>
         {% endfor %}
     </tbody>
@@ -254,7 +257,7 @@
 {% endif %}
 
 <!-- ============================= -->
-<!--     ITEM VIEW (PER ITEM)      -->
+<!--     ITEM VIEW (UNCHANGED)     -->
 <!-- ============================= -->
 {% if view == "items" %}
 <table class="table table-bordered table-hover">
@@ -287,131 +290,50 @@
             <td class="text-center">{{ item.purchase_order.company }}</td>
             <td class="text-center">{{ item.material_code|default:"—" }}</td>
             <td>{{ item.material_description }}</td>
-            <td class="text-right">{{ item.quantity_value |default:0|floatformat:2 }}{{ item.uom }}</td>
+            <td class="text-end">{{ item.quantity_value|default:0|floatformat:2 }}{{ item.uom }}</td>
             {% if can_view_value %}
-            <td class="text-right">{{ item.material_value|default:0|floatformat:2 }}</td>
+            <td class="text-end">{{ item.material_value|default:0|floatformat:2 }}</td>
             {% endif %}
-            <td class="text-center">{{ item.get_status_display }}</td>
+           <td class="text-center">
+                <span class="badge
+                    {% if item.status == 'COMPLETED' %} bg-success
+                    {% elif item.status == 'PENDING' %} bg-warning text-dark
+                    {% else %} bg-secondary
+                    {% endif %}
+                ">
+                    {{ item.get_status_display }}
+                </span>
+            </td>
+
             <td class="text-center">{{ item.purchase_order.po_date }}</td>
             <td class="text-center">{{ item.purchase_order.delivery_date|default:"—" }}</td>
             <td class="text-center">{{ item.purchase_order.created_by|default:"—" }}</td>
             <td class="text-center">
                 <a href="{% url 'po:po_process_list' item.purchase_order.id %}"
-                    class="btn btn-sm btn-info"
-                    title="View PO Processes" target="_blank">
-                        <i class="fa fa-tasks"></i> Process
+                   class="btn btn-sm btn-info" target="_blank">
+                    <i class="fa fa-tasks"></i> Process
                 </a>
             </td>
-            
         </tr>
-        
 
         {% empty %}
         <tr>
-            <td colspan="10" class="text-center text-muted">No items found.</td>
+            <td colspan="13" class="text-center text-muted">No items found.</td>
         </tr>
         {% endfor %}
+
         {% if grand_totals %}
         <tr class="fw-bold bg-light">
-            <td colspan="6" class="text-right">GRAND TOTAL</td>
-            <td class="text-right">
-                {{ grand_totals.total_quantity|floatformat:2 }}
-            </td>
+            <td colspan="6" class="text-end">GRAND TOTAL</td>
+            <td class="text-end">{{ grand_totals.total_quantity|floatformat:2 }}</td>
             {% if can_view_value %}
-            <td class="text-right">
-                {{ grand_totals.total_value|floatformat:2 }}
-            </td>
+            <td class="text-end">{{ grand_totals.total_value|floatformat:2 }}</td>
             {% endif %}
             <td colspan="5"></td>
         </tr>
         {% endif %}
     </tbody>
 </table>
-{% endif %}
-
-{% if can_view_value %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-
-<script>
-let poChart = null;
-
-function toggleGraph() {
-    const section = document.getElementById("graphSection");
-
-    if (section.style.display === "none") {
-        section.style.display = "block";
-        if (!poChart) {
-            renderPOChart();
-        }
-    } else {
-        section.style.display = "none";
-    }
-}
-
-function renderPOChart() {
-    const chartData = {{ chart_data|safe }};
-    console.log("Chart Data:", chartData);
-
-    if (!chartData || chartData.length === 0) {
-        console.warn("No chart data");
-        return;
-    }
-
-    const labels = chartData.map(d => d.month);
-    const quantityData = chartData.map(d => d.quantity);
-    const valueData = chartData.map(d => d.value);
-
-    const canvas = document.getElementById("poComboChart");
-    if (!canvas) {
-        console.error("Canvas not found");
-        return;
-    }
-
-    const ctx = canvas.getContext("2d");
-
-    poChart = new Chart(ctx, {
-        type: "line",
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: "Quantity",
-                    data: quantityData,
-                    borderColor: "#e74c3c",
-                    borderWidth: 2,
-                    tension: 0.3
-                },
-                {
-                    label: "Value",
-                    data: valueData,
-                    borderColor: "#3498db",
-                    borderWidth: 2,
-                    tension: 0.3
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { position: "top" }
-            },
-            scales: {
-                y: {
-                    type: "linear",
-                    title: {
-                        display: true,
-                        text: "Quantity / Value"
-                    }
-                }
-            }
-        }
-    });
-}
-</script>
-
-
-
 {% endif %}
 
 {% endblock %}

@@ -79,10 +79,11 @@ DEPARTMENT_CHOICES = [
 ]
 
 
+# Department Process Master
 class DepartmentProcessMaster(models.Model):
     """
-    Master list of department-wise processes.
-    These processes apply to ALL POs.
+    Master list of processes executed step-by-step.
+    Sequence defines GLOBAL execution order.
     Department is IMMUTABLE after creation.
     """
 
@@ -92,40 +93,53 @@ class DepartmentProcessMaster(models.Model):
         help_text="Owning department (cannot be changed later)",
     )
 
-    name = models.CharField(max_length=200, help_text="Process name as per Excel")
+    name = models.CharField(
+        max_length=200,
+        help_text="Process name as per Excel",
+    )
+
+    sequence = models.PositiveIntegerField(
+        unique=True,  # ✅ GLOBAL ORDER
+        help_text="Global execution order (1, 2, 3...)",
+    )
 
     is_active = models.BooleanField(
-        default=True, help_text="Disable instead of deleting or changing department"
+        default=True,
+        help_text="Disable instead of deleting or changing department",
     )
 
     class Meta:
-        unique_together = ("department", "name")
-        ordering = ["department", "name"]
+        ordering = ["sequence"]
         verbose_name = "Department Process"
         verbose_name_plural = "Department Processes"
         indexes = [
-            models.Index(fields=["department"]),
+            models.Index(fields=["sequence"]),
         ]
 
     def __str__(self):
-        return f"{self.department} - {self.name}"
+        return f"[{self.sequence}] {self.department} - {self.name}"
 
     def clean(self):
-        """
-        Prevent department change after creation.
-        """
+        # Enforce valid sequence
+        if self.sequence <= 0:
+            raise ValidationError(
+                {"sequence": "Sequence must be a positive number starting from 1."}
+            )
+
+        # Prevent department change
         if self.pk:
             old = DepartmentProcessMaster.objects.get(pk=self.pk)
             if old.department != self.department:
                 raise ValidationError(
                     {
-                        "department": "Department cannot be changed. "
-                        "Deactivate this process and create a new one."
+                        "department": (
+                            "Department cannot be changed. "
+                            "Deactivate this process and create a new one."
+                        )
                     }
                 )
 
     def save(self, *args, **kwargs):
-        # Keep Excel consistency
         self.name = self.name.strip().upper()
-        self.full_clean()  # enforces clean()
+        self.full_clean()
         super().save(*args, **kwargs)

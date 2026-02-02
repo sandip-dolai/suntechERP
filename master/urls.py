@@ -36,4 +36,15 @@ urlpatterns = [
         views.department_process_edit,
         name="department_process_edit",
     ),
+    # ----- Department Process Order Management -----
+    path(
+        "department-processes/reorder/",
+        views.department_process_reorder,
+        name="department_process_reorder",
+    ),
+    path(
+        "department-processes/reorder/save/",
+        views.department_process_reorder_save,
+        name="department_process_reorder_save",
+    ),
 ]

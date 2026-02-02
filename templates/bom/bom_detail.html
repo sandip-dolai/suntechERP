@@ -1,95 +1,67 @@
-{% extends "base.html" %}
+{% extends "base/base.html" %}
 {% load static %}
 
 {% block content %}
 <div class="container-fluid">
 
-    <!-- ========================= -->
-    <!-- HEADER -->
-    <!-- ========================= -->
-    <div class="row mb-3 align-items-center">
-        <div class="col-md-6">
-            <h4>BOM Details</h4>
-        </div>
-        <div class="col-md-6 text-end">
-            <a href="{% url 'bom:bom_list' %}" class="btn btn-secondary">
-                Back
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">BOM Details — {{ bom.bom_no }}</h4>
+
+        <div>
+            <a href="{% url 'bom:bom_list' %}" class="btn btn-secondary btn-sm">
+                Back to List
+            </a>
+            <a href="{% url 'bom:bom_edit' bom.id %}" class="btn btn-primary btn-sm">
+                Edit
             </a>
         </div>
     </div>
 
-    <!-- ========================= -->
-    <!-- BOM HEADER -->
-    <!-- ========================= -->
+    <!-- BOM Header -->
     <div class="card mb-3">
         <div class="card-body">
             <div class="row">
-                <div class="col-md-3">
-                    <strong>BOM No</strong><br>
-                    {{ bom.bom_no }}
-                </div>
-                <div class="col-md-3">
-                    <strong>PO No</strong><br>
-                    {{ bom.po.po_number }}
-                </div>
-                <div class="col-md-3">
-                    <strong>BOM Date</strong><br>
-                    {{ bom.bom_date }}
-                </div>
-                <div class="col-md-3">
-                    <strong>Created By</strong><br>
-                    {{ bom.created_by }}
-                </div>
+                <div class="col-md-3"><strong>BOM No</strong><br>{{ bom.bom_no }}</div>
+                <div class="col-md-3"><strong>BOM Date</strong><br>{{ bom.bom_date }}</div>
+                <div class="col-md-3"><strong>PO No</strong><br>{{ bom.po.po_number }}</div>
+                <div class="col-md-3"><strong>Created By</strong><br>{{ bom.created_by }}</div>
             </div>
         </div>
     </div>
 
-    <!-- ========================= -->
-    <!-- BOM ITEMS -->
-    <!-- ========================= -->
+    <!-- BOM Items -->
     <div class="card">
-        <div class="card-body">
-            <h6 class="mb-3">BOM Items</h6>
-
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped">
-                    <thead class="table-light">
+        <div class="card-header"><strong>BOM Items</strong></div>
+        <div class="card-body p-0">
+            <table class="table table-bordered table-striped table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Item</th>
+                        <th>PO Qty</th>
+                        <th>UOM</th>
+                        <th>BOM Qty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
                         <tr>
-                            <th>Item</th>
-                            <th>PO Qty</th>
-                            <th>UOM</th>
-                            <th>BOM Qty</th>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ item.po_item.material_description }}</td>
+                            <td>{{ item.po_item.quantity_value }}</td>
+                            <td>{{ item.po_item.uom }}</td>
+                            <td>{{ item.quantity }}</td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% if items %}
-                            {% for item in items %}
-                                <tr>
-                                    <td>
-                                        {{ item.po_item.material_description }}
-                                    </td>
-                                    <td>
-                                        {{ item.po_item.quantity_value }}
-                                    </td>
-                                    <td>
-                                        {{ item.po_item.uom }}
-                                    </td>
-                                    <td>
-                                        {{ item.quantity }}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="4" class="text-center text-muted">
-                                    No items found
-                                </td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">
+                                No BOM items found.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 

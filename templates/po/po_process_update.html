@@ -33,6 +33,21 @@
                                 </div>
                             {% endif %}
                         </div>
+                        <!-- ✅ CONDITIONAL PO STATUS (ONLY FOR DISPATCH) -->
+                        {% if form.po_status %}
+                        <div class="mb-3">
+                            <label class="form-label">
+                                PO Status
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.po_status|add_class:"form-select" }}
+                            {% if form.po_status.errors %}
+                                <div class="text-danger small">
+                                    {{ form.po_status.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
 
                         <div class="mb-3">
                             <label class="form-label">Remark</label>

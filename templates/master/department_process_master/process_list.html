@@ -5,17 +5,33 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Department Process Master</h2>
-    {% if perms.master.add_departmentprocessmaster %}
-    <a href="{% url 'master:department_process_create' %}" class="btn btn-primary">
-        <i class="fa fa-plus"></i> Add Process
-    </a>
-    {% endif %}
+    <h2 class="mb-0">Department Process Master</h2>
+
+    <div class="d-flex align-items-center gap-2">
+        {% if perms.master.add_departmentprocessmaster %}
+        <a href="{% url 'master:department_process_create' %}"
+           class="btn btn-primary">
+            <i class="fa fa-plus"></i> Add Process
+        </a>
+        {% endif %}
+
+        {% if perms.master.change_departmentprocessmaster %}
+        <a href="{% url 'master:department_process_reorder' %}"
+           class="btn btn-outline-secondary">
+            <i class="fa fa-sort"></i> Arrange Order
+        </a>
+        {% endif %}
+    </div>
 </div>
+
+
 
 <table class="table table-hover table-bordered">
     <thead class="table-primary">
         <tr>
+            <!-- ✅ ADDED -->
+            <th style="width: 80px;">Seq</th>
+
             <th>Department</th>
             <th>Process Name</th>
             <th class="text-center">Status</th>
@@ -25,6 +41,11 @@
     <tbody>
         {% for process in processes %}
         <tr>
+            <!-- ✅ ADDED -->
+            <td class="text-center">
+                <strong>{{ process.sequence }}</strong>
+            </td>
+
             <td><strong>{{ process.department }}</strong></td>
             <td>{{ process.name }}</td>
             <td class="text-center">
@@ -45,7 +66,8 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="4" class="text-center text-muted">
+            <!-- ✅ UPDATED colspan -->
+            <td colspan="5" class="text-center text-muted">
                 No department processes found.
             </td>
         </tr>

@@ -1,0 +1,275 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- ================= PAGE HEADER ================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">
+            {% if mode == "edit" %}
+                Edit BOM — {{ bom.bom_no }}
+            {% else %}
+                Create BOM
+            {% endif %}
+        </h4>
+
+        <a href="{% url 'bom:bom_list' %}" class="btn btn-secondary btn-sm">
+            Back to List
+        </a>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <!-- ================= HEADER ================= -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <strong>BOM Header</strong>
+            </div>
+
+            <div class="card-body">
+                <div class="row mb-3">
+
+                    <div class="col-md-4">
+                        <label class="form-label">Purchase Order</label>
+                        <select name="purchase_order"
+                                id="id_purchase_order"
+                                class="form-control"
+                                {% if mode == "edit" %}disabled{% endif %}
+                                required>
+                            <option value="">---------</option>
+                            {% for po in purchase_orders %}
+                                <option value="{{ po.id }}"
+                                    {% if bom and bom.po.id == po.id %}selected{% endif %}>
+                                    {{ po.po_number }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">BOM Date</label>
+                        <input type="date"
+                               name="bom_date"
+                               class="form-control"
+                               value="{{ bom.bom_date|date:'Y-m-d' }}"
+                               required>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= ITEMS ================= -->
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>BOM Items</strong>
+
+                {% if mode != "edit" %}
+                <button type="button"
+                        class="btn btn-sm btn-outline-primary"
+                        id="add-row">
+                    + Add Item
+                </button>
+                {% endif %}
+            </div>
+
+            <div class="card-body p-0">
+                <table class="table table-bordered table-striped table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:40px;">#</th>
+                            <th>PO Item</th>
+                            <th>PO Qty</th>
+                            <th>UOM</th>
+                            <th>BOM Qty</th>
+                            <th style="width:80px;">Remove</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="bom-items-body">
+                        {% if mode == "edit" %}
+                            {% for item in items %}
+                                <tr>
+                                    <td class="row-index">{{ forloop.counter }}</td>
+                                    <td>{{ item.po_item.material_description }}</td>
+                                    <td>{{ item.po_item.quantity_value }}</td>
+                                    <td>{{ item.po_item.uom }}</td>
+                                    <td>
+                                        <input type="number"
+                                               step="0.01"
+                                               name="quantity_{{ item.po_item.id }}"
+                                               value="{{ item.quantity }}"
+                                               class="form-control"
+                                               required>
+                                    </td>
+                                    <td class="text-center">—</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr class="empty-row">
+                                <td colspan="6" class="text-center text-muted">
+                                    Select PO and add items
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ================= ACTIONS ================= -->
+        <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-success">
+                {% if mode == "edit" %}Update BOM{% else %}Create BOM{% endif %}
+            </button>
+        </div>
+
+    </form>
+</div>
+
+<!-- ================= JS ================= -->
+<script src="{% static 'assets/vendors/jquery/dist/jquery.min.js' %}"></script>
+
+<script>
+$(document).ready(function () {
+
+    let poItemsCache = [];
+
+    function updateRowIndexes() {
+        $("#bom-items-body tr:visible").each(function (i) {
+            $(this).find(".row-index").text(i + 1);
+        });
+    }
+
+    function getSelectedItemIds() {
+        let ids = [];
+        $(".po-item-select").each(function () {
+            if ($(this).val()) ids.push($(this).val());
+        });
+        return ids;
+    }
+
+    function refreshItemDropdowns() {
+        let selectedIds = getSelectedItemIds();
+
+        $(".po-item-select").each(function () {
+            let select = $(this);
+            let current = select.val();
+
+            select.empty();
+            select.append('<option value="">---------</option>');
+
+            $.each(poItemsCache, function (_, item) {
+                if (
+                    !selectedIds.includes(item.id.toString()) ||
+                    item.id.toString() === current
+                ) {
+                    select.append(
+                        `<option value="${item.id}"
+                                 data-qty="${item.quantity}"
+                                 data-uom="${item.uom}">
+                            ${item.name}
+                         </option>`
+                    );
+                }
+            });
+
+            select.val(current);
+        });
+    }
+
+    // ================= LOAD PO ITEMS =================
+    $("#id_purchase_order").on("change", function () {
+        let poId = $(this).val();
+        poItemsCache = [];
+        $("#bom-items-body").html("");
+
+        if (!poId) return;
+
+        $.ajax({
+            url: "{% url 'bom:ajax_load_po_items' %}",
+            data: { po_id: poId },
+            success: function (data) {
+                poItemsCache = data;
+                $("#bom-items-body").html(`
+                    <tr class="empty-row">
+                        <td colspan="6" class="text-center text-muted">
+                            Click "Add Item" to add BOM items
+                        </td>
+                    </tr>
+                `);
+            }
+        });
+    });
+
+    // ================= ADD ROW =================
+    $("#add-row").on("click", function () {
+        if (poItemsCache.length === 0) return;
+
+        $(".empty-row").remove();
+
+        let row = `
+            <tr>
+                <td class="row-index"></td>
+                <td>
+                    <select class="form-control po-item-select">
+                        <option value="">---------</option>
+                    </select>
+                </td>
+                <td class="po-qty"></td>
+                <td class="po-uom"></td>
+                <td>
+                    <input type="number"
+                           step="0.01"
+                           class="form-control bom-qty"
+                           disabled required>
+                </td>
+                <td class="text-center">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger remove-row">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+
+        $("#bom-items-body").append(row);
+        refreshItemDropdowns();
+        updateRowIndexes();
+    });
+
+    // ================= REMOVE ROW =================
+    $(document).on("click", ".remove-row", function () {
+        $(this).closest("tr").remove();
+        updateRowIndexes();
+        refreshItemDropdowns();
+    });
+
+    // ================= ITEM CHANGE =================
+    $(document).on("change", ".po-item-select", function () {
+        let option = $(this).find(":selected");
+        let row = $(this).closest("tr");
+
+        let qty = option.data("qty") || "";
+        let uom = option.data("uom") || "";
+        let id = $(this).val();
+
+        row.find(".po-qty").text(qty);
+        row.find(".po-uom").text(uom);
+
+        let input = row.find(".bom-qty");
+        input.prop("disabled", !id);
+
+        if (id) {
+            input.attr("name", `quantity_${id}`);
+            input.val(qty);
+        }
+
+        refreshItemDropdowns();
+    });
+
+});
+</script>
+{% endblock %}

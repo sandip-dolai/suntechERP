@@ -1,67 +1,58 @@
-{% extends "base.html" %}
+{% extends "base/base.html" %}
 {% load static %}
 
 {% block content %}
 <div class="container-fluid">
 
-    <!-- ========================= -->
-    <!-- HEADER -->
-    <!-- ========================= -->
-    <div class="row mb-3 align-items-center">
-        <div class="col-md-6">
-            <h4>BOM List</h4>
-        </div>
-        <div class="col-md-6 text-end">
-            <a href="{% url 'bom:bom_create' %}" class="btn btn-primary">
-                Create BOM
-            </a>
-        </div>
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">BOM List</h4>
+        <a href="{% url 'bom:bom_create' %}" class="btn btn-primary">
+            + Create BOM
+        </a>
     </div>
 
-    <!-- ========================= -->
-    <!-- BOM TABLE -->
-    <!-- ========================= -->
+    <!-- BOM Table -->
     <div class="card">
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped">
-                    <thead class="table-light">
+            <table class="table table-bordered table-striped table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>BOM No</th>
+                        <th>BOM Date</th>
+                        <th>PO No</th>
+                        <th>Created By</th>
+                        <th style="width: 120px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bom in boms %}
                         <tr>
-                            <th>BOM No</th>
-                            <th>PO No</th>
-                            <th>BOM Date</th>
-                            <th>Created By</th>
-                            <th width="120">Action</th>
+                            <td>{{ bom.bom_no }}</td>
+                            <td>{{ bom.bom_date }}</td>
+                            <td>{{ bom.po.po_number }}</td>
+                            <td>{{ bom.created_by|default:"—" }}</td>
+                            <td class="text-center">
+                                <a href="{% url 'bom:bom_detail' bom.id %}"
+                                   class="btn btn-sm btn-info">
+                                    <i class="fa fa-eye"></i>
+                                </a>
+
+                                <a href="{% url 'bom:bom_delete' bom.id %}"
+                                   class="btn btn-sm btn-danger ms-1">
+                                    <i class="fa fa-trash"></i>
+                                </a>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% if boms %}
-                            {% for bom in boms %}
-                                <tr>
-                                    <td>{{ bom.bom_no }}</td>
-                                    <td>{{ bom.po.po_number }}</td>
-                                    <td>{{ bom.bom_date }}</td>
-                                    <td>{{ bom.created_by }}</td>
-                                    <td>
-                                        <a
-                                            href="{% url 'bom:bom_detail' bom.id %}"
-                                            class="btn btn-sm btn-info"
-                                        >
-                                            View
-                                        </a>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted">
-                                    No BOMs found
-                                </td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">
+                                No BOMs found.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 

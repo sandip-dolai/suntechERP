@@ -1,6 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.forms import inlineformset_factory
 from django.http import JsonResponse
 from django.db import transaction
 from django.contrib import messages
@@ -9,7 +8,9 @@ from .models import BOM, BOMItem
 from po.models import PurchaseOrder, PurchaseOrderItem
 
 
-# BOM LIST VIEW
+# ======================================================
+# BOM LIST
+# ======================================================
 @login_required
 def bom_list(request):
     boms = BOM.objects.select_related("po", "created_by").all()
@@ -23,11 +24,13 @@ def bom_list(request):
     )
 
 
-# BOM CREATE VIEW
+# ======================================================
+# BOM CREATE
+# ======================================================
 @login_required
 @transaction.atomic
 def bom_create(request):
-    pos = PurchaseOrder.objects.all()
+    purchase_orders = PurchaseOrder.objects.all()
 
     if request.method == "POST":
         po_id = request.POST.get("purchase_order")
@@ -39,12 +42,12 @@ def bom_create(request):
 
         po = get_object_or_404(PurchaseOrder, id=po_id)
 
-        # ❌ Prevent duplicate BOM for same PO
+        # Prevent duplicate BOM per PO
         if BOM.objects.filter(po=po).exists():
             messages.error(request, "BOM already exists for this PO.")
             return redirect("bom:bom_create")
 
-        # ✅ Create BOM
+        # Create BOM header
         bom = BOM.objects.create(
             po=po,
             bom_no=BOM.generate_bom_no(po),
@@ -52,9 +55,8 @@ def bom_create(request):
             created_by=request.user,
         )
 
-        # ✅ Create BOM items from PO items
+        # Create BOM items from PO items
         po_items = PurchaseOrderItem.objects.filter(purchase_order=po)
-
         for item in po_items:
             qty = request.POST.get(f"quantity_{item.id}")
             if qty:
@@ -69,17 +71,25 @@ def bom_create(request):
 
     return render(
         request,
-        "bom/bom_create.html",
+        "bom/bom_form.html",
         {
-            "purchase_orders": pos,
+            "mode": "create",
+            "bom": None,
+            "items": [],
+            "purchase_orders": purchase_orders,
         },
     )
 
 
-# BOM DETAIL VIEW
+# ======================================================
+# BOM DETAIL
+# ======================================================
 @login_required
 def bom_detail(request, pk):
-    bom = get_object_or_404(BOM.objects.select_related("po", "created_by"), pk=pk)
+    bom = get_object_or_404(
+        BOM.objects.select_related("po", "created_by"),
+        pk=pk,
+    )
 
     items = BOMItem.objects.select_related("po_item").filter(bom=bom)
 
@@ -93,7 +103,62 @@ def bom_detail(request, pk):
     )
 
 
+# ======================================================
+# BOM EDIT
+# ======================================================
+@login_required
+@transaction.atomic
+def bom_edit(request, pk):
+    bom = get_object_or_404(BOM, pk=pk)
+    items = BOMItem.objects.select_related("po_item").filter(bom=bom)
+
+    if request.method == "POST":
+        for item in items:
+            qty = request.POST.get(f"quantity_{item.id}")
+            if qty is not None:
+                item.quantity = qty
+                item.save()
+
+        messages.success(request, "BOM updated successfully.")
+        return redirect("bom:bom_detail", pk=bom.id)
+
+    return render(
+        request,
+        "bom/bom_form.html",
+        {
+            "mode": "edit",
+            "bom": bom,
+            "items": items,
+            # Pass only the BOM's PO (dropdown disabled anyway)
+            "purchase_orders": PurchaseOrder.objects.filter(id=bom.po.id),
+        },
+    )
+
+
+# ======================================================
+# BOM DELETE
+# ======================================================
+@login_required
+def bom_delete(request, pk):
+    bom = get_object_or_404(BOM, pk=pk)
+
+    if request.method == "POST":
+        bom.delete()
+        messages.success(request, "BOM deleted successfully.")
+        return redirect("bom:bom_list")
+
+    return render(
+        request,
+        "bom/bom_confirm_delete.html",
+        {
+            "bom": bom,
+        },
+    )
+
+
+# ======================================================
 # AJAX: LOAD PO ITEMS
+# ======================================================
 @login_required
 def ajax_load_po_items(request):
     po_id = request.GET.get("po_id")

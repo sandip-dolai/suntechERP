@@ -36,6 +36,8 @@
               </li>
             </ul>
           </li>
+
+          <!-- Indent -->
           <li class="{% if current_url in 'indent_list indent_create indent_update indent_detail' %}active{% endif %}">
             <a href="javascript:;">
               <i class="sidebar-item-icon fa fa-pencil-square-o"></i>
@@ -51,6 +53,24 @@
               </li>
             </ul>
           </li>
+
+          <!-- BOM -->
+          <li class="{% if current_url in 'bom_list bom_create bom_edit bom_detail bom_delete' %}active{% endif %}">
+            <a href="javascript:;">
+              <i class="sidebar-item-icon fa fa-clipboard"></i>
+              <span class="nav-label">BOM</span>
+              <i class="fa fa-angle-left arrow"></i>
+            </a>
+            <ul class="nav-1-level collapse">
+              <li class="{% if current_url in 'bom_list bom_create bom_edit bom_detail' %}active{% endif %}">
+                <a href="{% url 'bom:bom_list' %}">
+                  <i class="fa fa-circle{% if current_url not in 'bom_list bom_create bom_edit bom_detail' %}-thin{% endif %}"></i>
+                  &nbsp;&nbsp;&nbsp;BOM Operation
+                </a>
+              </li>
+            </ul>
+          </li>
+
           <!-- Masters -->
           {% if user.department == "Admin" %}
           <li class="{% if current_url in 'company_list company_create company_edit company_delete process_status_list process_status_create process_status_edit department_process_list department_process_create department_process_edit' %}active{% endif %}">

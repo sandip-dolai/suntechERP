@@ -117,9 +117,15 @@ class POProcessUpdateForm(forms.ModelForm):
         label="Remark",
     )
 
+    po_status = forms.ChoiceField(
+        required=False,
+        label="PO Status",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+
     class Meta:
         model = POProcess
-        fields = ["current_status"]
+        fields = ["current_status"]  # po_status injected dynamically
         widgets = {
             "current_status": forms.Select(attrs={"class": "form-select"}),
         }
@@ -135,6 +141,23 @@ class POProcessUpdateForm(forms.ModelForm):
         if self.instance.pk:
             self.fields["current_status"].initial = self.instance.current_status
 
+        # 🔑 CONDITIONAL LOGIC
+        if (
+            self.instance.pk
+            and self.instance.department_process_id == 25
+            and self.instance.department_process.department == "Production"
+        ):
+            po = self.instance.purchase_order
+
+            self.fields["po_status"].choices = PurchaseOrder._meta.get_field(
+                "po_status"
+            ).choices
+
+            self.fields["po_status"].initial = po.po_status
+        else:
+            # ❌ Remove field for all other processes
+            self.fields.pop("po_status", None)
+
     def save(self, commit=True):
         if not self.user:
             raise ValueError("POProcessUpdateForm requires a user")
@@ -144,6 +167,12 @@ class POProcessUpdateForm(forms.ModelForm):
         if commit:
             po_process.last_updated_by = self.user
             po_process.save()
+
+            # Save PO status ONLY if field exists
+            if "po_status" in self.cleaned_data:
+                po = po_process.purchase_order
+                po.po_status = self.cleaned_data["po_status"]
+                po.save(update_fields=["po_status"])
 
             POProcessHistory.objects.create(
                 po_process=po_process,
