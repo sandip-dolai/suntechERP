@@ -9,18 +9,19 @@ admin.site.index_title = "Admin Dashboard"
 urlpatterns = [
     # Admin
     path("admin/", admin.site.urls),
-
     # Dashboard (single view → no namespace)
     path("", dashboard_view, name="dashboard"),
-
     # Users (auth & management)
     path("users/", include(("users.urls", "users"), namespace="users")),
-
     # ERP Core Modules (NAMESPACED)
     path("po/", include(("po.urls", "po"), namespace="po")),
     path("bom/", include(("bom.urls", "bom"), namespace="bom")),
     path("indent/", include(("indent.urls", "indent"), namespace="indent")),
     path("master/", include(("master.urls", "master"), namespace="master")),
+    path(
+        "notifications/",
+        include(("notifications.urls", "notifications"), namespace="notifications"),
+    ),
 ]
 
 # Custom error pages
