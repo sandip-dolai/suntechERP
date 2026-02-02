@@ -84,13 +84,21 @@ def company_delete(request, pk):
 # ======================  PROCESS STATUS MASTER  ======================
 @admin_required
 def process_status_list(request):
-    queryset = ProcessStatusMaster.objects.all()
-    paginator = Paginator(queryset, 25)
-    page = request.GET.get("page")
-    statuses = paginator.get_page(page)
-    return render(
-        request, "master/process_status_master/status_list.html", {"statuses": statuses}
+    queryset = ProcessStatusMaster.objects.all().order_by("name")
+
+    context = apply_master_search_pagination(
+        request,
+        queryset,
+        search_fields=["name"],
+        page_size=20,
     )
+
+    return render(
+        request,
+        "master/process_status_master/status_list.html",
+        context,
+    )
+
 
 
 @admin_required
@@ -130,16 +138,21 @@ def process_status_edit(request, pk):
 
 
 @admin_required
+@admin_required
 def department_process_list(request):
     queryset = DepartmentProcessMaster.objects.all().order_by("sequence")
-    paginator = Paginator(queryset, 50)
-    page = request.GET.get("page")
-    processes = paginator.get_page(page)
+
+    context = apply_master_search_pagination(
+        request,
+        queryset,
+        search_fields=["name", "department"],
+        page_size=20,
+    )
 
     return render(
         request,
         "master/department_process_master/process_list.html",
-        {"processes": processes},
+        context,
     )
 
 

@@ -4,8 +4,16 @@
 {% block title %}Process Status Master - Suntech ERP{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Process Status Master</h2>
+
+<!-- ================= HEADER ================= -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+        <h2 class="mb-0">Process Status Master</h2>
+        <small class="text-muted">
+            Total Statuses: {{ page_obj.paginator.count }}
+        </small>
+    </div>
+
     {% if perms.master.add_processstatusmaster %}
     <a href="{% url 'master:process_status_create' %}" class="btn btn-primary">
         <i class="fa fa-plus"></i> Add Status
@@ -13,6 +21,7 @@
     {% endif %}
 </div>
 
+<!-- ================= MESSAGES ================= -->
 {% if messages %}
     {% for message in messages %}
     <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
@@ -22,6 +31,10 @@
     {% endfor %}
 {% endif %}
 
+<!-- ================= SEARCH ================= -->
+{% include "components/search_box.html" %}
+
+<!-- ================= TABLE ================= -->
 <table class="table table-hover table-bordered">
     <thead class="table-primary">
         <tr>
@@ -32,12 +45,13 @@
         </tr>
     </thead>
     <tbody>
-        {% for status in statuses %}
+
+        {% for status in page_obj %}
         <tr>
             <td><strong>{{ status.name }}</strong></td>
             <td class="text-center">
                 <span class="badge"
-                    style="background-color: {{ status.color_code }};">
+                      style="background-color: {{ status.color_code }};">
                     {{ status.color_code }}
                 </span>
             </td>
@@ -50,7 +64,8 @@
             </td>
             <td class="text-center">
                 {% if perms.master.change_processstatusmaster %}
-                <a href="{% url 'master:process_status_edit' status.pk %}" class="btn btn-sm btn-primary">
+                <a href="{% url 'master:process_status_edit' status.pk %}"
+                   class="btn btn-sm btn-primary">
                     <i class="fa fa-edit"></i>
                 </a>
                 {% endif %}
@@ -58,42 +73,16 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="3" class="text-center text-muted">No statuses found.</td>
+            <td colspan="4" class="text-center text-muted">
+                No statuses found.
+            </td>
         </tr>
         {% endfor %}
+
     </tbody>
 </table>
 
-<!-- Pagination -->
-{% if statuses.has_other_pages %}
-<nav>
-    <ul class="pagination justify-content-center">
-        {% if statuses.has_previous %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ statuses.previous_page_number }}">Previous</a>
-        </li>
-        {% else %}
-        <li class="page-item disabled"><span class="page-link">Previous</span></li>
-        {% endif %}
+<!-- ================= PAGINATION ================= -->
+{% include "components/pagination.html" %}
 
-        {% for num in statuses.paginator.page_range %}
-            {% if statuses.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% else %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-        {% endfor %}
-
-        {% if statuses.has_next %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ statuses.next_page_number }}">Next</a>
-        </li>
-        {% else %}
-        <li class="page-item disabled"><span class="page-link">Next</span></li>
-        {% endif %}
-    </ul>
-</nav>
-{% endif %}
 {% endblock %}

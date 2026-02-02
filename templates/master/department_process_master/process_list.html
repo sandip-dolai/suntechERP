@@ -4,8 +4,15 @@
 {% block title %}Department Process Master - Suntech ERP{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">Department Process Master</h2>
+
+<!-- ================= HEADER ================= -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+        <h2 class="mb-0">Department Process Master</h2>
+        <small class="text-muted">
+            Total Processes: {{ page_obj.paginator.count }}
+        </small>
+    </div>
 
     <div class="d-flex align-items-center gap-2">
         {% if perms.master.add_departmentprocessmaster %}
@@ -24,14 +31,14 @@
     </div>
 </div>
 
+<!-- ================= SEARCH ================= -->
+{% include "components/search_box.html" %}
 
-
+<!-- ================= TABLE ================= -->
 <table class="table table-hover table-bordered">
     <thead class="table-primary">
         <tr>
-            <!-- ✅ ADDED -->
             <th style="width: 80px;">Seq</th>
-
             <th>Department</th>
             <th>Process Name</th>
             <th class="text-center">Status</th>
@@ -39,9 +46,9 @@
         </tr>
     </thead>
     <tbody>
-        {% for process in processes %}
+
+        {% for process in page_obj %}
         <tr>
-            <!-- ✅ ADDED -->
             <td class="text-center">
                 <strong>{{ process.sequence }}</strong>
             </td>
@@ -66,44 +73,16 @@
         </tr>
         {% empty %}
         <tr>
-            <!-- ✅ UPDATED colspan -->
             <td colspan="5" class="text-center text-muted">
                 No department processes found.
             </td>
         </tr>
         {% endfor %}
+
     </tbody>
 </table>
 
-{% if processes.has_other_pages %}
-<nav>
-    <ul class="pagination justify-content-center">
-        {% if processes.has_previous %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ processes.previous_page_number }}">Previous</a>
-        </li>
-        {% else %}
-        <li class="page-item disabled"><span class="page-link">Previous</span></li>
-        {% endif %}
+<!-- ================= PAGINATION ================= -->
+{% include "components/pagination.html" %}
 
-        {% for num in processes.paginator.page_range %}
-            {% if processes.number == num %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-            {% else %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-            </li>
-            {% endif %}
-        {% endfor %}
-
-        {% if processes.has_next %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ processes.next_page_number }}">Next</a>
-        </li>
-        {% else %}
-        <li class="page-item disabled"><span class="page-link">Next</span></li>
-        {% endif %}
-    </ul>
-</nav>
-{% endif %}
 {% endblock %}
