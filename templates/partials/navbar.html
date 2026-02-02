@@ -68,21 +68,34 @@
 
 
           <!-- BOM -->
-          <li class="{% if current_url in 'bom_list bom_create bom_edit bom_detail bom_delete' %}active{% endif %}">
+          <li class="{% if current_url in 'bom_list bom_create bom_edit bom_detail bom_delete bom_report' %}active{% endif %}">
             <a href="javascript:;">
               <i class="sidebar-item-icon fa fa-clipboard"></i>
               <span class="nav-label">BOM</span>
               <i class="fa fa-angle-left arrow"></i>
             </a>
+
             <ul class="nav-1-level collapse">
-              <li class="{% if current_url in 'bom_list bom_create bom_edit bom_detail' %}active{% endif %}">
+
+              <!-- BOM OPERATIONS -->
+              <li class="{% if current_url in 'bom_list bom_create bom_edit bom_detail bom_delete' %}active{% endif %}">
                 <a href="{% url 'bom:bom_list' %}">
-                  <i class="fa fa-circle{% if current_url not in 'bom_list bom_create bom_edit bom_detail' %}-thin{% endif %}"></i>
+                  <i class="fa fa-circle{% if current_url not in 'bom_list bom_create bom_edit bom_detail bom_delete' %}-thin{% endif %}"></i>
                   &nbsp;&nbsp;&nbsp;BOM Operation
                 </a>
               </li>
+
+              <!-- BOM REPORT -->
+              <li class="{% if current_url == 'bom_report' %}active{% endif %}">
+                <a href="{% url 'bom:bom_report' %}">
+                  <i class="fa fa-circle{% if current_url != 'bom_report' %}-thin{% endif %}"></i>
+                  &nbsp;&nbsp;&nbsp;BOM Report
+                </a>
+              </li>
+
             </ul>
           </li>
+
 
           <!-- Masters -->
           {% if user.department == "Admin" %}
