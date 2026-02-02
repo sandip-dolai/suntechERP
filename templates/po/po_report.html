@@ -10,66 +10,94 @@
 <!-- ============================= -->
 <!--     PO SUMMARY (OVERALL)      -->
 <!-- ============================= -->
-<div class="row mb-4">
+<div class="row g-3 mb-4">
+
+    <!-- TOTAL PO -->
     <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <div class="fw-bold">Total POs</div>
-                <h4>{{ summary.total_po_count }}</h4>
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body text-center">
+                <div class="text-muted small mb-1">Total POs</div>
+                <h3 class="fw-bold mb-0">{{ summary.total_po_count }}</h3>
             </div>
         </div>
     </div>
 
+    <!-- COMPLETED PO -->
     <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <div class="fw-bold">Completed POs</div>
-                <h4 class="text-success">{{ summary.completed_po_count }}</h4>
+        <div class="card shadow-sm border-start border-success border-4 h-100">
+            <div class="card-body text-center">
+                <div class="text-success fw-semibold small mb-1">
+                    <i class="fa fa-check-circle me-1"></i> Completed
+                </div>
+                <h3 class="fw-bold text-success mb-0">
+                    {{ summary.completed_po_count }}
+                </h3>
             </div>
         </div>
     </div>
 
+    <!-- PENDING PO -->
     <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <div class="fw-bold">Pending POs</div>
-                <h4 class="text-warning">{{ summary.pending_po_count }}</h4>
+        <div class="card shadow-sm border-start border-warning border-4 h-100">
+            <div class="card-body text-center">
+                <div class="text-warning fw-semibold small mb-1">
+                    <i class="fa fa-clock-o me-1"></i> Pending
+                </div>
+                <h3 class="fw-bold text-warning mb-0">
+                    {{ summary.pending_po_count }}
+                </h3>
             </div>
         </div>
     </div>
 
     {% if can_view_value %}
+
+    <!-- TOTAL VALUE -->
     <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <div class="fw-bold">Total PO Value</div>
-                <h5>₹ {{ summary.total_po_value|floatformat:2 }}</h5>
+        <div class="card shadow-sm border-0 bg-light h-100">
+            <div class="card-body text-center">
+                <div class="text-muted small mb-1">Total PO Value</div>
+                <h5 class="fw-bold mb-0">
+                    ₹ {{ summary.total_po_value|floatformat:2 }}
+                </h5>
             </div>
         </div>
     </div>
 
+    <!-- DISPATCHED VALUE -->
     <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <div class="fw-bold">Dispatched Value</div>
-                <h5>₹ {{ summary.dispatched_po_value|floatformat:2 }}</h5>
+        <div class="card shadow-sm border-start border-primary border-4 h-100">
+            <div class="card-body text-center">
+                <div class="text-primary fw-semibold small mb-1">
+                    <i class="fa fa-truck me-1"></i> Dispatched
+                </div>
+                <h5 class="fw-bold text-primary mb-0">
+                    ₹ {{ summary.dispatched_po_value|floatformat:2 }}
+                </h5>
             </div>
         </div>
     </div>
 
+    <!-- PENDING VALUE + % -->
     <div class="col-md-2">
-        <div class="card text-center">
-            <div class="card-body">
-                <div class="fw-bold">Pending Value</div>
-                <h5>₹ {{ summary.pending_po_value|floatformat:2 }}</h5>
+        <div class="card shadow-sm border-start border-danger border-4 h-100">
+            <div class="card-body text-center">
+                <div class="text-danger fw-semibold small mb-1">
+                    <i class="fa fa-hourglass-half me-1"></i> Pending Value
+                </div>
+                <h5 class="fw-bold text-danger mb-1">
+                    ₹ {{ summary.pending_po_value|floatformat:2 }}
+                </h5>
                 <small class="text-muted">
                     Dispatch %: {{ summary.dispatch_percentage }}%
                 </small>
             </div>
         </div>
     </div>
+
     {% endif %}
 </div>
+
 
 <!-- VIEW MODE TOGGLE -->
 <div class="mb-3">
