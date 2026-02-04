@@ -138,7 +138,6 @@ def process_status_edit(request, pk):
 
 
 @admin_required
-@admin_required
 def department_process_list(request):
     queryset = DepartmentProcessMaster.objects.all().order_by("sequence")
 

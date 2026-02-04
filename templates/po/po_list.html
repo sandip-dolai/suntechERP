@@ -27,7 +27,7 @@
             </a>
         {% endif %}
 
-        {% if request.user.is_staff %}
+        {% if is_admin %}
         <a href="{% url 'po:po_create' %}" class="btn btn-success ml-2">
             <i class="bi bi-plus-lg"></i> Create PO
         </a>
@@ -86,7 +86,7 @@
                             <td class="text-end">
                                 {{ item.quantity_value|floatformat:3 }} {{ item.uom }}
                             </td>
-                            {% if can_view_value %}
+                            {% if is_admin %}
                             <td class="text-end">
                                 {{ item.material_value }}
                             </td>
@@ -143,7 +143,7 @@
                 </a>
 
                 <!-- ADMIN ONLY -->
-                {% if request.user.is_staff %}
+                {% if is_admin %}
                     <a href="{% url 'po:po_edit' po.pk %}" class="btn btn-primary btn-sm">
                         <i class="fa fa-pencil-square-o"></i>
                     </a>

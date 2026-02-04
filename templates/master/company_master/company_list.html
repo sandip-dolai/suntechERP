@@ -14,7 +14,7 @@
         </small>
     </div>
 
-    {% if perms.master.add_companymaster %}
+    {% if is_admin %}
     <a href="{% url 'master:company_create' %}" class="btn btn-primary">
         <i class="fa fa-plus"></i> Add Company
     </a>
@@ -58,12 +58,12 @@
             <td>{{ company.phone|default:"—" }}</td>
             <td>{{ company.email|default:"—" }}</td>
             <td class="text-center">
-                {% if perms.master.change_companymaster %}
+                {% if is_admin  %}
                 <a href="{% url 'master:company_edit' company.pk %}" class="btn btn-sm btn-primary">
                     <i class="fa fa-edit"></i>
                 </a>
                 {% endif %}
-                {% if perms.master.delete_companymaster %}
+                {% if is_admin  %}
                 <a href="{% url 'master:company_delete' company.pk %}" class="btn btn-sm btn-danger">
                     <i class="fa fa-trash"></i>
                 </a>

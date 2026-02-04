@@ -14,7 +14,7 @@
         </small>
     </div>
 
-    {% if perms.master.add_processstatusmaster %}
+    {% if is_admin %}
     <a href="{% url 'master:process_status_create' %}" class="btn btn-primary">
         <i class="fa fa-plus"></i> Add Status
     </a>
@@ -63,7 +63,7 @@
                 {% endif %}
             </td>
             <td class="text-center">
-                {% if perms.master.change_processstatusmaster %}
+                {% if is_admin %}
                 <a href="{% url 'master:process_status_edit' status.pk %}"
                    class="btn btn-sm btn-primary">
                     <i class="fa fa-edit"></i>

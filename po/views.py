@@ -10,7 +10,8 @@ from django.db.models import (
 )
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from suntech_erp.permissions import login_required_view, admin_required
+from suntech_erp.permissions import admin_required, can_view_value, is_admin
+from django.contrib.auth.decorators import login_required as login_required_view
 from django.db import transaction, IntegrityError
 
 from django.db.models.functions import Concat, Coalesce, TruncMonth
@@ -24,17 +25,13 @@ import json
 from django.core.paginator import Paginator
 from notifications.models import Notification
 from django.contrib.auth import get_user_model
+
 User = get_user_model()
-
-
-def can_view_value(user):
-    return user.is_superuser or getattr(user, "department", None) == "Admin"
 
 
 # ------------------------------
 # PO CREATE (header + items)
 # ------------------------------
-@login_required_view
 @admin_required
 def po_create(request):
     if request.method == "POST":
@@ -51,15 +48,17 @@ def po_create(request):
                 messages.success(request, "Purchase Order created successfully.")
                 users = User.objects.filter(is_active=True).exclude(id=request.user.id)
 
-                Notification.objects.bulk_create([
-                    Notification(
-                        user=user,
-                        title="New Purchase Order Created",
-                        message=f"PO {po.po_number} has been created.",
-                        url=f"/po/{po.id}/processes/"
-                    )
-                    for user in users
-                ])
+                Notification.objects.bulk_create(
+                    [
+                        Notification(
+                            user=user,
+                            title="New Purchase Order Created",
+                            message=f"PO {po.po_number} has been created.",
+                            url=f"/po/{po.id}/processes/",
+                        )
+                        for user in users
+                    ]
+                )
                 return redirect("po:po_list")
             except IntegrityError:
                 form.add_error(None, "Database error: possible duplicate PO/OA number.")
@@ -331,7 +330,7 @@ def can_edit_po_process(user, po_process):
     Admin can edit all.
     Department users can edit only their department processes.
     """
-    if user.is_superuser or user.is_staff:
+    if is_admin(user):
         return True
 
     return getattr(user, "department", None) == po_process.department_process.department
@@ -563,9 +562,9 @@ def po_report_item_excel(request):
 def po_list(request):
     query = request.GET.get("q", "").strip()
 
-    qs = PurchaseOrder.objects.select_related(
-        "created_by", "company"
-    ).prefetch_related("items")
+    qs = PurchaseOrder.objects.select_related("created_by", "company").prefetch_related(
+        "items"
+    )
 
     if query:
         qs = qs.filter(
@@ -613,4 +612,3 @@ def po_list(request):
     }
 
     return render(request, "po/po_list.html", context)
-

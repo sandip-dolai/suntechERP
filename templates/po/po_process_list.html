@@ -64,7 +64,7 @@
                     History
                 </a>
 
-                {% if request.user.is_staff or request.user.department == process.department_process.department %}
+                {% if request.user.is_staff or request.user.department == process.department_process.department or is_admin %}
                     <a href="{% url 'po:po_process_update' process.id %}"
                        class="btn btn-sm btn-outline-primary">
                         Update
