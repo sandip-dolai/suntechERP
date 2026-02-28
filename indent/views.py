@@ -130,7 +130,7 @@ def indent_update(request, pk):
 
     if indent.status != "OPEN":
         messages.error(request, "Closed indent cannot be edited.")
-        return redirect("indent:detail", pk=pk)
+        return redirect("indent:indent_detail", pk=pk)
 
     if request.method == "POST":
         form = IndentForm(request.POST, instance=indent)
@@ -152,7 +152,7 @@ def indent_update(request, pk):
                     formset.save()
 
                 messages.success(request, "Indent updated successfully.")
-                return redirect("indent:detail", pk=pk)
+                return redirect("indent:indent_detail", pk=pk)
 
             except Exception as e:
                 messages.error(request, str(e))
@@ -182,13 +182,13 @@ def indent_close(request, pk):
 
     if indent.status != "OPEN":
         messages.warning(request, "Indent already closed.")
-        return redirect("indent:detail", pk=pk)
+        return redirect("indent:indent_detail", pk=pk)
 
     indent.status = "CLOSED"
     indent.save(update_fields=["status"])
 
     messages.success(request, "Indent closed successfully.")
-    return redirect("indent:detail", pk=pk)
+    return redirect("indent:indent_detail", pk=pk)
 
 
 # INDENT DELETE (OPEN ONLY) VIEW
@@ -201,7 +201,7 @@ def indent_delete(request, pk):
             request,
             "Closed indent cannot be deleted.",
         )
-        return redirect("indent:detail", pk=pk)
+        return redirect("indent:indent_detail", pk=pk)
 
     if request.method == "POST":
         indent.delete()
