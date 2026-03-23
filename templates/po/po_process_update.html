@@ -1,12 +1,13 @@
 {% extends "base/base.html" %}
 {% load widget_tweaks %}
+{% load po_extras %}
 
 {% block title %}Update Process{% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-md-10">
 
             <div class="card shadow">
                 <div class="card-header bg-primary text-white">
@@ -16,31 +17,146 @@
                 </div>
 
                 <div class="card-body">
-                    <p class="mb-3">
-                        <strong>Department:</strong> {{ po_process.department_process.department }}<br>
-                        <strong>Process:</strong> {{ po_process.department_process.name }}
+
+                    <!-- PROCESS INFO -->
+                    <p class="mb-4">
+                        <strong>Department:</strong>
+                        {{ po_process.department_process.department }}
+                        &nbsp;|&nbsp;
+                        <strong>Process:</strong>
+                        {{ po_process.department_process.name }}
+                        &nbsp;|&nbsp;
+                        <strong>Current Status:</strong>
+                        <span class="badge"
+                              style="background-color: {{ po_process.current_status.color_code }}; color:#fff;">
+                            {{ po_process.current_status.name }}
+                        </span>
                     </p>
 
                     <form method="post">
                         {% csrf_token %}
 
-                        <div class="mb-3">
-                            <label class="form-label">Current Status</label>
-                            {{ form.current_status|add_class:"form-select" }}
-                            {% if form.current_status.errors %}
-                                <div class="text-danger small">
-                                    {{ form.current_status.errors }}
+                        {% if has_item_tracking %}
+                        <!-- ===== ITEM TRACKING MODE ===== -->
+
+                            <div class="row mb-3">
+                                <!-- STATUS DROPDOWN -->
+                                <div class="col-md-5">
+                                    <label class="form-label fw-bold">
+                                        Apply Status to Selected Items
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <select name="item_status"
+                                            class="form-control"
+                                            required>
+                                        <option value="">— Select Status —</option>
+                                        {% for status in status_choices %}
+                                            <option value="{{ status.id }}">
+                                                {{ status.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
-                            {% endif %}
-                        </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Remark</label>
-                            {{ form.remark|add_class:"form-control" }}
-                        </div>
+                                <!-- REMARK -->
+                                <div class="col-md-7">
+                                    <label class="form-label fw-bold">Remark</label>
+                                    {{ form.remark|add_class:"form-control" }}
+                                </div>
+                            </div>
 
+                            <!-- SELECT ALL -->
+                            <div class="mb-2">
+                                <div class="form-check">
+                                    <input type="checkbox"
+                                           id="select-all"
+                                           class="form-check-input">
+                                    <label class="form-check-label fw-bold"
+                                           for="select-all">
+                                        Select All Items
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- ITEMS TABLE -->
+                            <div class="table-responsive mb-3">
+                                <table class="table table-bordered table-sm">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width:40px;" class="text-center">
+                                                Select
+                                            </th>
+                                            <th>Material Code</th>
+                                            <th>Material Description</th>
+                                            <th class="text-center">Qty</th>
+                                            <th class="text-center">UOM</th>
+                                            <th class="text-center">Current Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in po_items %}
+                                        {% with item_status=existing_statuses|get_item:item.id %}
+                                        <tr>
+                                            <td class="text-center">
+                                                <input type="checkbox"
+                                                       name="selected_items"
+                                                       value="{{ item.id }}"
+                                                       class="form-check-input item-checkbox">
+                                            </td>
+                                            <td>{{ item.material_code|default:"—" }}</td>
+                                            <td>{{ item.material_description }}</td>
+                                            <td class="text-center">
+                                                {{ item.quantity_value|floatformat:2 }}
+                                            </td>
+                                            <td class="text-center">{{ item.uom }}</td>
+                                            <td class="text-center">
+                                                {% if item_status %}
+                                                    <span class="badge"
+                                                          style="background-color: {{ item_status.status.color_code }}; color:#fff;">
+                                                        {{ item_status.status.name }}
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">
+                                                        Not Set
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endwith %}
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">
+                                                No items found for this PO.
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                        {% else %}
+                        <!-- ===== NORMAL MODE ===== -->
+
+                            <div class="mb-3">
+                                <label class="form-label">Current Status</label>
+                                {{ form.current_status|add_class:"form-select" }}
+                                {% if form.current_status.errors %}
+                                    <div class="text-danger small">
+                                        {{ form.current_status.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Remark</label>
+                                {{ form.remark|add_class:"form-control" }}
+                            </div>
+
+                        {% endif %}
+
+                        <!-- ACTIONS -->
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary mr-2">
+                            <button type="submit" class="btn btn-primary">
                                 Save Update
                             </button>
                             <a href="{% url 'po:po_process_list' po.id %}"
@@ -48,11 +164,21 @@
                                 Cancel
                             </a>
                         </div>
+
                     </form>
                 </div>
             </div>
-
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById("select-all") && 
+document.getElementById("select-all").addEventListener("change", function () {
+    document.querySelectorAll(".item-checkbox").forEach(function (cb) {
+        cb.checked = document.getElementById("select-all").checked;
+    });
+});
+</script>
+
 {% endblock %}

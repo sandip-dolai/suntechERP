@@ -15,9 +15,9 @@ from django.contrib.auth.decorators import login_required as login_required_view
 from django.db import transaction, IntegrityError
 
 from django.db.models.functions import Concat, Coalesce, TruncMonth
-from .models import PurchaseOrder, PurchaseOrderItem, POProcess, POProcessHistory
+from .models import PurchaseOrder, PurchaseOrderItem, POProcess, POProcessHistory, POProcessItemStatus
 from .forms import PurchaseOrderForm, PurchaseOrderItemFormSet, POProcessUpdateForm
-from master.models import CompanyMaster
+from master.models import CompanyMaster, ProcessStatusMaster
 from datetime import datetime
 from django.http import HttpResponseForbidden, HttpResponse
 from django.template.loader import render_to_string
@@ -340,6 +340,7 @@ def can_edit_po_process(user, po_process):
 def po_process_update(request, process_id):
     po_process = get_object_or_404(POProcess, pk=process_id)
     po = po_process.purchase_order
+    has_item_tracking = po_process.department_process.has_item_tracking
 
     # 🔐 Permission check
     if not can_edit_po_process(request.user, po_process):
@@ -347,19 +348,91 @@ def po_process_update(request, process_id):
             "You do not have permission to update this process."
         )
 
+    # Get all PO items
+    po_items = po.items.all()
+
+    # Get existing item statuses for this process → dict {item_id: POProcessItemStatus}
+    existing_statuses = {
+        s.po_item_id: s
+        for s in POProcessItemStatus.objects.filter(
+            po_process=po_process
+        ).select_related("status")
+    }
+
+    # Get all active statuses for item dropdown
+    status_choices = ProcessStatusMaster.objects.filter(is_active=True)
+
     if request.method == "POST":
         form = POProcessUpdateForm(
             request.POST,
             instance=po_process,
             user=request.user,
         )
+
         if form.is_valid():
-            form.save()
-            messages.success(request, "Process status updated successfully.")
-            return redirect(
-                "po:po_process_list",
-                po_id=po.id,
-            )
+            if has_item_tracking:
+                # Get selected items and status from POST
+                selected_item_ids = request.POST.getlist("selected_items")
+                selected_status_id = request.POST.get("item_status")
+                remark = form.cleaned_data.get("remark", "")
+
+                if not selected_item_ids or not selected_status_id:
+                    messages.error(
+                        request,
+                        "Please select at least one item and a status."
+                    )
+                else:
+                    try:
+                        selected_status = ProcessStatusMaster.objects.get(
+                            id=selected_status_id
+                        )
+
+                        # Save or update POProcessItemStatus for each selected item
+                        for item_id in selected_item_ids:
+                            POProcessItemStatus.objects.update_or_create(
+                                po_process=po_process,
+                                po_item_id=item_id,
+                                defaults={
+                                    "status": selected_status,
+                                    "updated_by": request.user,
+                                },
+                            )
+
+                        # Save remark to history
+                        POProcessHistory.objects.create(
+                            po_process=po_process,
+                            status=selected_status,
+                            remark=remark,
+                            changed_by=request.user,
+                        )
+
+                        # Update last_updated_by
+                        po_process.last_updated_by = request.user
+                        po_process.save(update_fields=["last_updated_by"])
+
+                        # Auto set process status based on all item statuses
+                        from .forms import auto_set_process_status
+                        auto_set_process_status(po_process)
+
+                        # Auto check and update PO status
+                        from .forms import check_and_update_po_status
+                        check_and_update_po_status(po)
+
+                        messages.success(
+                            request,
+                            "Item statuses updated successfully."
+                        )
+                        return redirect("po:po_process_list", po_id=po.id)
+
+                    except ProcessStatusMaster.DoesNotExist:
+                        messages.error(request, "Invalid status selected.")
+
+            else:
+                # Normal process update
+                form.save()
+                messages.success(request, "Process status updated successfully.")
+                return redirect("po:po_process_list", po_id=po.id)
+
     else:
         form = POProcessUpdateForm(
             instance=po_process,
@@ -370,6 +443,10 @@ def po_process_update(request, process_id):
         "form": form,
         "po": po,
         "po_process": po_process,
+        "has_item_tracking": has_item_tracking,
+        "po_items": po_items,
+        "existing_statuses": existing_statuses,
+        "status_choices": status_choices,
     }
 
     return render(
@@ -377,7 +454,6 @@ def po_process_update(request, process_id):
         "po/po_process_update.html",
         context,
     )
-
 
 # ------------------------------
 # PO PROCESS HISTORY VIEW
