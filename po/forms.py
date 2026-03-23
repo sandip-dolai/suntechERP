@@ -29,7 +29,6 @@ class PurchaseOrderForm(forms.ModelForm):
 
         if not self.instance.pk:
             self.fields["po_date"].initial = datetime.date.today()
-
             self.fields["po_status"].required = False
             self.fields["po_status"].widget = forms.HiddenInput()
 
@@ -60,19 +59,10 @@ class PurchaseOrderItemForm(forms.ModelForm):
             "status": forms.Select(attrs={"class": "form-select"}),
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.fields["status"].queryset = ProcessStatusMaster.objects.filter(
-            is_active=True
-        )
-
 
 # ------------------------------
 # PURCHASE ORDER ITEM FORMSET
 # ------------------------------
-
-
 class BasePurchaseOrderItemFormSet(BaseInlineFormSet):
     def clean(self):
         super().clean()
@@ -98,11 +88,41 @@ PurchaseOrderItemFormSet = inlineformset_factory(
 
 
 # ------------------------------
+# PO COMPLETION LOGIC
+# ------------------------------
+def check_and_update_po_status(po):
+    """
+    Checks all processes for a PO (excluding excluded ones).
+    If all are completed → set PO to COMPLETED.
+    If any is not completed → set PO back to PENDING.
+    Saves silently with no messages.
+    """
+    # Get all processes that count towards completion
+    relevant_processes = po.processes.filter(
+        department_process__excludes_from_completion=False
+    )
+
+    # Check if any relevant process is NOT completed
+    all_completed = not relevant_processes.exclude(
+        current_status__is_completed=True
+    ).exists()
+
+    # Update PO status accordingly
+    new_status = "COMPLETED" if all_completed else "PENDING"
+
+    if po.po_status != new_status:
+        po.po_status = new_status
+        po.save(update_fields=["po_status"])
+
+
+# ------------------------------
 # PO PROCESS UPDATE FORM
 # ------------------------------
 class POProcessUpdateForm(forms.ModelForm):
     """
     Form used by department users to update process status.
+    Removed all hardcoded department_process_id logic.
+    PO completion is now handled automatically via check_and_update_po_status().
     """
 
     remark = forms.CharField(
@@ -117,15 +137,9 @@ class POProcessUpdateForm(forms.ModelForm):
         label="Remark",
     )
 
-    po_status = forms.ChoiceField(
-        required=False,
-        label="PO Status",
-        widget=forms.Select(attrs={"class": "form-select"}),
-    )
-
     class Meta:
         model = POProcess
-        fields = ["current_status"]  # po_status injected dynamically
+        fields = ["current_status"]
         widgets = {
             "current_status": forms.Select(attrs={"class": "form-select"}),
         }
@@ -141,23 +155,6 @@ class POProcessUpdateForm(forms.ModelForm):
         if self.instance.pk:
             self.fields["current_status"].initial = self.instance.current_status
 
-        # 🔑 CONDITIONAL LOGIC
-        if (
-            self.instance.pk
-            and self.instance.department_process_id == 25
-            and self.instance.department_process.department == "Production"
-        ):
-            po = self.instance.purchase_order
-
-            self.fields["po_status"].choices = PurchaseOrder._meta.get_field(
-                "po_status"
-            ).choices
-
-            self.fields["po_status"].initial = po.po_status
-        else:
-            # ❌ Remove field for all other processes
-            self.fields.pop("po_status", None)
-
     def save(self, commit=True):
         if not self.user:
             raise ValueError("POProcessUpdateForm requires a user")
@@ -168,18 +165,16 @@ class POProcessUpdateForm(forms.ModelForm):
             po_process.last_updated_by = self.user
             po_process.save()
 
-            # Save PO status ONLY if field exists
-            if "po_status" in self.cleaned_data:
-                po = po_process.purchase_order
-                po.po_status = self.cleaned_data["po_status"]
-                po.save(update_fields=["po_status"])
-
+            # Save history
             POProcessHistory.objects.create(
                 po_process=po_process,
                 status=po_process.current_status,
                 remark=self.cleaned_data.get("remark", ""),
                 changed_by=self.user,
             )
+
+            # 👈 Auto check and update PO status
+            check_and_update_po_status(po_process.purchase_order)
 
         return po_process
 
