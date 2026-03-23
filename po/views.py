@@ -15,7 +15,13 @@ from django.contrib.auth.decorators import login_required as login_required_view
 from django.db import transaction, IntegrityError
 
 from django.db.models.functions import Concat, Coalesce, TruncMonth
-from .models import PurchaseOrder, PurchaseOrderItem, POProcess, POProcessHistory, POProcessItemStatus
+from .models import (
+    PurchaseOrder,
+    PurchaseOrderItem,
+    POProcess,
+    POProcessHistory,
+    POProcessItemStatus,
+)
 from .forms import PurchaseOrderForm, PurchaseOrderItemFormSet, POProcessUpdateForm
 from master.models import CompanyMaster, ProcessStatusMaster
 from datetime import datetime
@@ -312,12 +318,28 @@ def po_process_list(request, po_id):
         .order_by("department_process__sequence")
     )
 
+    item_status_map = {}
+    for process in processes:
+        if process.department_process.has_item_tracking:
+            item_status_map[process.id] = {
+                s.po_item_id: s
+                for s in POProcessItemStatus.objects.filter(
+                    po_process=process
+                ).select_related("status")
+            }
+
+    # Total PO items count
+    total_items = po.items.count()
+
     return render(
         request,
         "po/po_process_list.html",
         {
             "po": po,
             "processes": processes,
+            "item_status_map": item_status_map,
+            "total_items": total_items,
+            "po_items": po.items.all(),
         },
     )
 
@@ -378,8 +400,7 @@ def po_process_update(request, process_id):
 
                 if not selected_item_ids or not selected_status_id:
                     messages.error(
-                        request,
-                        "Please select at least one item and a status."
+                        request, "Please select at least one item and a status."
                     )
                 else:
                     try:
@@ -412,16 +433,15 @@ def po_process_update(request, process_id):
 
                         # Auto set process status based on all item statuses
                         from .forms import auto_set_process_status
+
                         auto_set_process_status(po_process)
 
                         # Auto check and update PO status
                         from .forms import check_and_update_po_status
+
                         check_and_update_po_status(po)
 
-                        messages.success(
-                            request,
-                            "Item statuses updated successfully."
-                        )
+                        messages.success(request, "Item statuses updated successfully.")
                         return redirect("po:po_process_list", po_id=po.id)
 
                     except ProcessStatusMaster.DoesNotExist:
@@ -455,6 +475,7 @@ def po_process_update(request, process_id):
         context,
     )
 
+
 # ------------------------------
 # PO PROCESS HISTORY VIEW
 # ------------------------------
@@ -467,10 +488,20 @@ def po_process_history(request, process_id):
         "-changed_at"
     )
 
+    item_statuses = []
+    if po_process.department_process.has_item_tracking:
+        item_statuses = (
+            POProcessItemStatus.objects.filter(po_process=po_process)
+            .select_related("status", "po_item", "updated_by")
+            .order_by("po_item__id")
+        )
+
     context = {
         "po": po,
         "po_process": po_process,
         "history": history,
+        "item_statuses": item_statuses,
+        "has_item_tracking": po_process.department_process.has_item_tracking,
     }
 
     return render(

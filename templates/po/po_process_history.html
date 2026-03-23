@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load po_extras %}
 
 {% block title %}Process History{% endblock %}
 
@@ -12,7 +13,7 @@
     </a>
 </div>
 
-<div class="card">
+<div class="card mb-4">
     <div class="card-header bg-secondary text-white">
         <strong>
             {{ po_process.department_process.department }} –
@@ -32,6 +33,7 @@
             </thead>
             <tbody>
                 {% for h in history %}
+                <!-- HISTORY ROW -->
                 <tr>
                     <td>
                         <span class="badge"
@@ -44,6 +46,7 @@
                     <td>{{ h.changed_by|default:"—" }}</td>
                     <td>{{ h.changed_at|date:"d M Y, h:i A" }}</td>
                 </tr>
+
                 {% empty %}
                 <tr>
                     <td colspan="4" class="text-center text-muted">
@@ -55,4 +58,65 @@
         </table>
     </div>
 </div>
+
+<!-- 👇 ITEM STATUSES SECTION (only for has_item_tracking processes) -->
+{% if has_item_tracking %}
+<div class="card">
+    <div class="card-header bg-light">
+        <strong>Item Statuses</strong>
+        <small class="text-muted ms-2">
+            Current status of each PO item in this process
+        </small>
+    </div>
+
+    <div class="card-body p-0">
+        <table class="table table-bordered table-sm mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Material Code</th>
+                    <th>Material Description</th>
+                    <th class="text-center">Qty</th>
+                    <th class="text-center">UOM</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Updated By</th>
+                    <th class="text-center">Updated At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item_status in item_statuses %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ item_status.po_item.material_code|default:"—" }}</td>
+                    <td>{{ item_status.po_item.material_description }}</td>
+                    <td class="text-center">
+                        {{ item_status.po_item.quantity_value|floatformat:2 }}
+                    </td>
+                    <td class="text-center">{{ item_status.po_item.uom }}</td>
+                    <td class="text-center">
+                        <span class="badge"
+                              style="background-color: {{ item_status.status.color_code }}; color:#fff;">
+                            {{ item_status.status.name }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        {{ item_status.updated_by|default:"—" }}
+                    </td>
+                    <td class="text-center">
+                        {{ item_status.updated_at|date:"d M Y, h:i A" }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted">
+                        No item statuses recorded yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
