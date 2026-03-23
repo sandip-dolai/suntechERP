@@ -9,7 +9,7 @@ class PurchaseOrder(models.Model):
     """
     PO Header — one record per purchase order.
     """
-    
+
     STATUS_CHOICES = [
         ("PENDING", "Pending"),
         ("COMPLETED", "Completed"),
@@ -40,7 +40,7 @@ class PurchaseOrder(models.Model):
         null=True,
         related_name="created_purchase_orders",
     )
-    
+
     po_status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
@@ -207,3 +207,50 @@ class POProcessHistory(models.Model):
 
     def __str__(self):
         return f"{self.po_process.purchase_order.po_number} | " f"{self.status.name}"
+
+
+class POProcessItemStatus(models.Model):
+    """
+    Tracks status of each PO item within a specific PO process.
+    Only created for processes where has_item_tracking=True.
+    """
+
+    po_process = models.ForeignKey(
+        POProcess,
+        on_delete=models.CASCADE,
+        related_name="item_statuses",
+    )
+
+    po_item = models.ForeignKey(
+        PurchaseOrderItem,
+        on_delete=models.PROTECT,
+        related_name="process_item_statuses",
+    )
+
+    status = models.ForeignKey(
+        ProcessStatusMaster,
+        on_delete=models.PROTECT,
+        related_name="process_item_statuses",
+    )
+
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="po_process_item_status_updates",
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("po_process", "po_item")
+        ordering = ["po_item"]
+        verbose_name = "PO Process Item Status"
+        verbose_name_plural = "PO Process Item Statuses"
+
+    def __str__(self):
+        return (
+            f"{self.po_process.purchase_order.po_number} | "
+            f"{self.po_process.department_process.name} | "
+            f"{self.po_item.material_description[:30]}"
+        )
