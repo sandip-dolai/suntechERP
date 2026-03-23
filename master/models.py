@@ -59,6 +59,10 @@ class ProcessStatusMaster(models.Model):
         help_text="HEX color code (e.g. #28a745)",
     )
     is_active = models.BooleanField(default=True)
+    is_completed = models.BooleanField(
+        default=False,
+        help_text="If True, this status counts as process completed",
+    )
 
     class Meta:
         ordering = ["name"]
@@ -99,13 +103,21 @@ class DepartmentProcessMaster(models.Model):
     )
 
     sequence = models.PositiveIntegerField(
-        unique=True,  # ✅ GLOBAL ORDER
+        unique=True,
         help_text="Global execution order (1, 2, 3...)",
     )
 
     is_active = models.BooleanField(
         default=True,
         help_text="Disable instead of deleting or changing department",
+    )
+    has_item_tracking = models.BooleanField(
+        default=False,
+        help_text="If True, user can set status per PO item during process update",
+    )
+    excludes_from_completion = models.BooleanField(
+        default=False,
+        help_text="If True, this process is excluded from PO completion check",
     )
 
     class Meta:
