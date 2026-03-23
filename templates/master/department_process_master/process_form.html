@@ -33,9 +33,9 @@
                             <!-- Sequence -->
                             <div class="col-md-2 mb-3">
                                 <label class="form-label">
-                                    Sequence <span class="text-danger">*</span>
+                                    Sequence
                                 </label>
-                                {{ form.sequence|add_class:"form-control" }}
+                                {{ form.sequence|add_class:"form-control"}}
                                 {% if form.sequence.errors %}
                                     <div class="text-danger small">
                                         {{ form.sequence.errors }}
@@ -55,9 +55,9 @@
                                     </div>
                                 {% endif %}
                             </div>
-
-                            <!-- Active -->
-                            <div class="col-md-2 mb-3">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-2 ml-4">
                                 <label class="form-label">&nbsp;</label>
                                 <div class="form-check">
                                     {{ form.is_active|add_class:"form-check-input" }}
@@ -67,17 +67,49 @@
                                     </label>
                                 </div>
                             </div>
+                            <div class="col-md-4">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="form-check">
+                                    {{ form.has_item_tracking|add_class:"form-check-input" }}
+                                    <label class="form-check-label"
+                                           for="{{ form.has_item_tracking.id_for_label }}">
+                                        Item Tracking
+                                        <small class="text-muted d-block">
+                                            Allow per-item status update
+                                        </small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="form-check">
+                                    {{ form.excludes_from_completion|add_class:"form-check-input" }}
+                                    <label class="form-check-label"
+                                           for="{{ form.excludes_from_completion.id_for_label }}">
+                                        Exclude from PO Completion
+                                        <small class="text-muted d-block">
+                                            This process won't affect PO status
+                                        </small>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Actions -->
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                Save Process
-                            </button>
-                            <a href="{% url 'master:department_process_list' %}"
+                        <div class="d-flex justify-content-end mt-4">
+                            <div>
+                                <button type="submit" class="btn btn-primary">
+                                    Save Process
+                                </button>
+                            </div>
+                            &nbsp;&nbsp;&nbsp;
+                            <div>
+                                <a href="{% url 'master:department_process_list' %}"
                                class="btn btn-secondary">
-                                Cancel
-                            </a>
+                                    Cancel
+                                </a>
+                            </div>
+                            
                         </div>
                     </form>
                 </div>

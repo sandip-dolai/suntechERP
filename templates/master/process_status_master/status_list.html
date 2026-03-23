@@ -40,6 +40,7 @@
         <tr>
             <th>Status Name</th>
             <th class="text-center">Status Color</th>
+            <th class="text-center">Completed</th>
             <th class="text-center">Active</th>
             <th class="text-center">Actions</th>
         </tr>
@@ -54,6 +55,13 @@
                       style="background-color: {{ status.color_code }};">
                     {{ status.color_code }}
                 </span>
+            </td>
+            <td class="text-center">
+                {% if status.is_completed %}
+                    <span class="badge bg-success">Yes</span>
+                {% else %}
+                    <span class="badge bg-secondary">No</span>
+                {% endif %}
             </td>
             <td class="text-center">
                 {% if status.is_active %}

@@ -1,6 +1,5 @@
 from django import forms
 from .models import (
-    # ItemMaster,
     CompanyMaster,
     ProcessStatusMaster,
     DepartmentProcessMaster,
@@ -19,7 +18,7 @@ class CompanyMasterForm(forms.ModelForm):
 class ProcessStatusMasterForm(forms.ModelForm):
     class Meta:
         model = ProcessStatusMaster
-        fields = ["name", "color_code", "is_active"]
+        fields = ["name", "color_code", "is_active", "is_completed"]
         widgets = {
             "name": forms.TextInput(
                 attrs={
@@ -39,20 +38,32 @@ class ProcessStatusMasterForm(forms.ModelForm):
                     "class": "form-check-input",
                 }
             ),
+            "is_completed": forms.CheckboxInput(
+                attrs={
+                    "class": "form-check-input",
+                }
+            ),
         }
 
 
 class DepartmentProcessMasterForm(forms.ModelForm):
     class Meta:
         model = DepartmentProcessMaster
-        fields = ["department", "name", "sequence", "is_active"]
+        fields = ["department", "name", "sequence", "is_active", "has_item_tracking", "excludes_from_completion"]
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "Enter process name"}),
             "sequence": forms.NumberInput(
                 attrs={
                     "min": 1,
                     "placeholder": "Execution order (1, 2, 3...)",
+                    "readonly": True,
                 }
+            ),
+            "has_item_tracking": forms.CheckboxInput(
+                attrs={"class": "form-check-input"}
+            ),
+            "excludes_from_completion": forms.CheckboxInput(
+                attrs={"class": "form-check-input"}
             ),
         }
 

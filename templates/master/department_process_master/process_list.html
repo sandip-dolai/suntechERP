@@ -41,6 +41,8 @@
             <th style="width: 80px;">Seq</th>
             <th>Department</th>
             <th>Process Name</th>
+            <th class="text-center">Item Tracking</th>
+            <th class="text-center">Excludes Completion</th>
             <th class="text-center">Status</th>
             <th class="text-center">Actions</th>
         </tr>
@@ -55,6 +57,21 @@
 
             <td><strong>{{ process.department }}</strong></td>
             <td>{{ process.name }}</td>
+            <td class="text-center">
+                {% if process.has_item_tracking %}
+                    <span class="badge bg-primary">Yes</span>
+                {% else %}
+                    <span class="badge bg-secondary">No</span>
+                {% endif %}
+            </td>
+
+            <td class="text-center">
+                {% if process.excludes_from_completion %}
+                    <span class="badge bg-warning text-dark">Excluded</span>
+                {% else %}
+                    <span class="badge bg-secondary">No</span>
+                {% endif %}
+            </td>
             <td class="text-center">
                 {% if process.is_active %}
                     <span class="badge bg-success">Active</span>
