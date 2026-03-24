@@ -7,38 +7,38 @@
 
 <h2 class="mb-3">Purchase Order Report</h2>
 
-<!-- ============================= -->
-<!--     PO SUMMARY (GLOBAL)       -->
-<!-- ============================= -->
-<div class="row g-3 mb-4">
+{# ===================================================================== #}
+{#  SECTION 1: GLOBAL SUMMARY (Unfiltered — always visible)              #}
+{# ===================================================================== #}
+<div class="row mt-3 mb-4">
 
     <div class="col-md-2">
         <div class="card shadow-sm border-0 h-100">
             <div class="card-body text-center">
                 <div class="text-muted small mb-1">Total POs</div>
-                <h3 class="fw-bold mb-0">{{ summary.total_po_count }}</h3>
+                <h3 class="font-weight-bold mb-0">{{ summary.total_po_count }}</h3>
             </div>
         </div>
     </div>
 
     <div class="col-md-2">
-        <div class="card shadow-sm border-start border-success border-4 h-100">
+        <div class="card shadow-sm border-left border-success h-100">
             <div class="card-body text-center">
-                <div class="text-success fw-semibold small mb-1">
-                    <i class="fa fa-check-circle me-1"></i> Completed
+                <div class="text-success font-weight-bold small mb-1">
+                    <i class="fa fa-check-circle mr-1"></i> Completed
                 </div>
-                <h3 class="fw-bold text-success mb-0">{{ summary.completed_po_count }}</h3>
+                <h3 class="font-weight-bold text-success mb-0">{{ summary.completed_po_count }}</h3>
             </div>
         </div>
     </div>
 
     <div class="col-md-2">
-        <div class="card shadow-sm border-start border-warning border-4 h-100">
+        <div class="card shadow-sm border-left border-warning h-100">
             <div class="card-body text-center">
-                <div class="text-warning fw-semibold small mb-1">
-                    <i class="fa fa-clock-o me-1"></i> Pending
+                <div class="text-warning font-weight-bold small mb-1">
+                    <i class="fa fa-clock-o mr-1"></i> Pending
                 </div>
-                <h3 class="fw-bold text-warning mb-0">{{ summary.pending_po_count }}</h3>
+                <h3 class="font-weight-bold text-warning mb-0">{{ summary.pending_po_count }}</h3>
             </div>
         </div>
     </div>
@@ -48,29 +48,29 @@
         <div class="card shadow-sm border-0 bg-light h-100">
             <div class="card-body text-center">
                 <div class="text-muted small mb-1">Total PO Value</div>
-                <h5 class="fw-bold mb-0">₹ {{ summary.total_po_value|floatformat:2 }}</h5>
+                <h5 class="font-weight-bold mb-0">₹ {{ summary.total_po_value|floatformat:2 }}</h5>
             </div>
         </div>
     </div>
 
     <div class="col-md-2">
-        <div class="card shadow-sm border-start border-primary border-4 h-100">
+        <div class="card shadow-sm border-left border-primary h-100">
             <div class="card-body text-center">
-                <div class="text-primary fw-semibold small mb-1">
-                    <i class="fa fa-truck me-1"></i> Dispatched
+                <div class="text-primary font-weight-bold small mb-1">
+                    <i class="fa fa-truck mr-1"></i> Dispatched
                 </div>
-                <h5 class="fw-bold text-primary mb-0">₹ {{ summary.dispatched_po_value|floatformat:2 }}</h5>
+                <h5 class="font-weight-bold text-primary mb-0">₹ {{ summary.dispatched_po_value|floatformat:2 }}</h5>
             </div>
         </div>
     </div>
 
     <div class="col-md-2">
-        <div class="card shadow-sm border-start border-danger border-4 h-100">
+        <div class="card shadow-sm border-left border-danger h-100">
             <div class="card-body text-center">
-                <div class="text-danger fw-semibold small mb-1">
-                    <i class="fa fa-hourglass-half me-1"></i> Pending Value
+                <div class="text-danger font-weight-bold small mb-1">
+                    <i class="fa fa-hourglass-half mr-1"></i> Pending Value
                 </div>
-                <h5 class="fw-bold text-danger mb-1">₹ {{ summary.pending_po_value|floatformat:2 }}</h5>
+                <h5 class="font-weight-bold text-danger mb-1">₹ {{ summary.pending_po_value|floatformat:2 }}</h5>
                 <small class="text-muted">Dispatch %: {{ summary.dispatch_percentage }}%</small>
             </div>
         </div>
@@ -78,11 +78,12 @@
     {% endif %}
 </div>
 
-<!-- ============================= -->
-<!--       VIEW MODE TOGGLE        -->
-<!-- ============================= -->
+{# ===================================================================== #}
+{#  SECTION 2: FILTERS                                                   #}
+{# ===================================================================== #}
+
+{# --- View Mode Toggle --- #}
 <div class="mb-3">
-    {# Build base params without 'view' and 'page' to preserve all other filters #}
     {% with base_params=request.GET.urlencode %}
     <a href="?view=summary&{{ base_params|cut:'view=summary'|cut:'view=items'|cut:'&page='|cut:'page=' }}"
        class="btn btn-sm {% if view == 'summary' %}btn-primary{% else %}btn-outline-primary{% endif %}">
@@ -95,32 +96,30 @@
     {% endwith %}
 </div>
 
-<!-- ============================= -->
-<!--         FILTER FORM           -->
-<!-- ============================= -->
+{# --- Filter Form (Bootstrap 4 grid — col-md-3) --- #}
 <form method="get" class="mb-4">
     <input type="hidden" name="view" value="{{ view }}">
 
-    <div class="row g-2 align-items-end">
+    <div class="row mb-2">
 
-        <!-- Date From -->
-        <div class="col-md-2">
-            <label class="form-label mb-1 small fw-semibold">From Date</label>
+        {# From Date #}
+        <div class="col-md-3 mb-2">
+            <label class="small font-weight-bold mb-1">From Date</label>
             <input type="date" name="date_from" class="form-control form-control-sm"
                    value="{{ filters.date_from }}">
         </div>
 
-        <!-- Date To -->
-        <div class="col-md-2">
-            <label class="form-label mb-1 small fw-semibold">To Date</label>
+        {# To Date #}
+        <div class="col-md-3 mb-2">
+            <label class="small font-weight-bold mb-1">To Date</label>
             <input type="date" name="date_to" class="form-control form-control-sm"
                    value="{{ filters.date_to }}">
         </div>
 
-        <!-- PO Number -->
-        <div class="col-md-2">
-            <label class="form-label mb-1 small fw-semibold">PO Number</label>
-            <select name="po_number" class="form-select form-select-sm select2">
+        {# PO Number #}
+        <div class="col-md-3 mb-2">
+            <label class="small font-weight-bold mb-1">PO Number</label>
+            <select name="po_number" class="form-control form-control-sm select2">
                 <option value="">All POs</option>
                 {% for po in po_list %}
                     <option value="{{ po.po_number }}"
@@ -131,10 +130,28 @@
             </select>
         </div>
 
-        <!-- Company -->
-        <div class="col-md-2">
-            <label class="form-label mb-1 small fw-semibold">Company</label>
-            <select name="company" class="form-select form-select-sm select2">
+        {# OA Number #}
+        <div class="col-md-3 mb-2">
+            <label class="small font-weight-bold mb-1">OA Number</label>
+            <select name="oa_number" class="form-control form-control-sm select2">
+                <option value="">All OA Numbers</option>
+                {% for po in po_list %}
+                    <option value="{{ po.oa_number }}"
+                        {% if filters.oa_number == po.oa_number %}selected{% endif %}>
+                        {{ po.oa_number }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+    </div>
+
+    <div class="row mb-2">
+
+        {# Company #}
+        <div class="col-md-3 mb-2">
+            <label class="small font-weight-bold mb-1">Company</label>
+            <select name="company" class="form-control form-control-sm select2">
                 <option value="">All Companies</option>
                 {% for comp in companies %}
                     <option value="{{ comp.id }}"
@@ -145,20 +162,20 @@
             </select>
         </div>
 
-        <!-- PO Status -->
-        <div class="col-md-2">
-            <label class="form-label mb-1 small fw-semibold">PO Status</label>
-            <select name="po_status" class="form-select form-select-sm">
+        {# PO Status #}
+        <div class="col-md-3 mb-2">
+            <label class="small font-weight-bold mb-1">PO Status</label>
+            <select name="po_status" class="form-control form-control-sm">
                 <option value="">All PO Status</option>
                 <option value="PENDING"   {% if filters.po_status == "PENDING"   %}selected{% endif %}>Pending</option>
                 <option value="COMPLETED" {% if filters.po_status == "COMPLETED" %}selected{% endif %}>Completed</option>
             </select>
         </div>
 
-        <!-- Department -->
-        <div class="col-md-2">
-            <label class="form-label mb-1 small fw-semibold">Department</label>
-            <select name="department" class="form-select form-select-sm">
+        {# Department #}
+        <div class="col-md-3 mb-2">
+            <label class="small font-weight-bold mb-1">Department</label>
+            <select name="department" class="form-control form-control-sm">
                 <option value="">All Departments</option>
                 {% for dept in departments %}
                     <option value="{{ dept }}"
@@ -169,22 +186,15 @@
             </select>
         </div>
 
-        
-
-        <!-- Buttons -->
-        <div class="col-md-auto">
-            <label class="form-label mb-1 small d-block">&nbsp;</label>
+        {# Buttons #}
+        <div class="col-md-3 mb-2">
+            <label class="small d-block mb-1">&nbsp;</label>
             <button type="submit" class="btn btn-primary btn-sm">
                 <i class="fa fa-filter"></i> Filter
             </button>
             <a href="{% url 'po:po_report' %}?view={{ view }}" class="btn btn-secondary btn-sm">
                 Reset
             </a>
-        </div>
-
-        <!-- Excel Export -->
-        <div class="col-md-auto">
-            <label class="form-label mb-1 small d-block">&nbsp;</label>
             {% if view == "summary" %}
                 <a href="{% url 'po:po_report_summary_excel' %}?{{ request.GET.urlencode }}"
                    class="btn btn-success btn-sm">
@@ -200,48 +210,59 @@
 
     </div>
 
-    <!-- Active filter pills -->
-    {% if filters.po_status or filters.company or filters.po_number or filters.department %}
+    {# Active filter pills #}
+    {% if filters.po_status or filters.company or filters.po_number or filters.oa_number or filters.department %}
     <div class="mt-2">
-        <small class="text-muted me-1">Active filters:</small>
+        <small class="text-muted mr-1">Active filters:</small>
+        {% if filters.po_number %}
+            <span class="badge badge-secondary mr-1">PO: {{ filters.po_number }}</span>
+        {% endif %}
+        {% if filters.oa_number %}
+            <span class="badge badge-secondary mr-1">OA: {{ filters.oa_number }}</span>
+        {% endif %}
+        {% if filters.company %}
+            <span class="badge badge-info text-dark mr-1">Company: {{ filters.company }}</span>
+        {% endif %}
         {% if filters.po_status %}
-            <span class="badge bg-secondary me-1">PO Status: {{ filters.po_status }}</span>
+            <span class="badge badge-secondary mr-1">Status: {{ filters.po_status }}</span>
         {% endif %}
-        
         {% if filters.department %}
-            <span class="badge bg-secondary me-1">Department: {{ filters.department }}</span>
+            <span class="badge badge-secondary mr-1">Dept: {{ filters.department }}</span>
         {% endif %}
-        
     </div>
     {% endif %}
 
 </form>
-{% if filter_used %}
-<div class="row g-3 mb-3">
+
+{# ===================================================================== #}
+{#  SECTION 3: FILTER SUMMARY (Only when filters applied)               #}
+{# ===================================================================== #}
+{% if filter_used and filtered_summary %}
+<div class="row mt-3 mb-3">
 
     <div class="col-md-2">
         <div class="card border-0 shadow-sm text-center">
             <div class="card-body">
                 <small class="text-muted">Filtered Total</small>
-                <h5 class="fw-bold">{{ filtered_summary.total_count }}</h5>
+                <h5 class="font-weight-bold">{{ filtered_summary.total_count }}</h5>
             </div>
         </div>
     </div>
 
     <div class="col-md-2">
-        <div class="card border-start border-success border-4 shadow-sm text-center">
+        <div class="card border-left border-success shadow-sm text-center">
             <div class="card-body">
                 <small class="text-success">Completed</small>
-                <h5 class="fw-bold text-success">{{ filtered_summary.completed_count }}</h5>
+                <h5 class="font-weight-bold text-success">{{ filtered_summary.completed_count }}</h5>
             </div>
         </div>
     </div>
 
     <div class="col-md-2">
-        <div class="card border-start border-warning border-4 shadow-sm text-center">
+        <div class="card border-left border-warning shadow-sm text-center">
             <div class="card-body">
                 <small class="text-warning">Pending</small>
-                <h5 class="fw-bold text-warning">{{ filtered_summary.pending_count }}</h5>
+                <h5 class="font-weight-bold text-warning">{{ filtered_summary.pending_count }}</h5>
             </div>
         </div>
     </div>
@@ -257,7 +278,7 @@
     </div>
 
     <div class="col-md-2">
-        <div class="card border-start border-primary border-4 shadow-sm text-center">
+        <div class="card border-left border-primary shadow-sm text-center">
             <div class="card-body">
                 <small class="text-primary">Dispatched</small>
                 <h6>₹ {{ filtered_summary.dispatched_value|floatformat:2 }}</h6>
@@ -266,11 +287,11 @@
     </div>
 
     <div class="col-md-2">
-        <div class="card border-start border-danger border-4 shadow-sm text-center">
+        <div class="card border-left border-danger shadow-sm text-center">
             <div class="card-body">
                 <small class="text-danger">Pending</small>
                 <h6>₹ {{ filtered_summary.pending_value|floatformat:2 }}</h6>
-                <small>{{ filtered_summary.dispatch_percentage|floatformat:2 }}%</small>
+                <small>{{ filtered_summary.dispatch_percentage }}%</small>
             </div>
         </div>
     </div>
@@ -278,9 +299,13 @@
 
 </div>
 {% endif %}
-<!-- ============================= -->
-<!--     RESULT COUNT BADGE        -->
-<!-- ============================= -->
+
+{# ===================================================================== #}
+{#  SECTION 4: DATA                                                      #}
+{# ===================================================================== #}
+
+{# --- Result count badge --- #}
+{% if filter_used %}
 <div class="mb-2">
     <small class="text-muted">
         Showing <strong>{{ pos.count }}</strong> PO(s)
@@ -289,10 +314,11 @@
         {% endif %}
     </small>
 </div>
+{% endif %}
 
-<!-- ============================= -->
-<!--      SUMMARY VIEW (PER PO)    -->
-<!-- ============================= -->
+{# ========================================= #}
+{#  4A: SUMMARY VIEW (PO-level data)         #}
+{# ========================================= #}
 {% if view == "summary" %}
 <div class="table-responsive">
 <table class="table table-bordered table-hover table-sm">
@@ -313,42 +339,55 @@
     </thead>
 
     <tbody>
-        {% for po in pos %}
+        {% if page_obj %}
+        {% for po in page_obj %}
         <tr>
-            <td class="text-center">{{ forloop.counter }}</td>
-            <td class="text-center fw-bold">{{ po.po_number }}</td>
+            <td class="text-center">{{ forloop.counter0|add:page_obj.start_index }}</td>
+            <td class="text-center">{{ po.po_number }}</td>
             <td class="text-center">{{ po.oa_number }}</td>
             <td class="text-center">{{ po.company }}</td>
 
+            {# Nested items table #}
             <td>
-                {% if po.items.exists %}
-                <table class="table table-sm table-bordered mb-0 bg-light">
-                    <thead class="table-secondary">
-                        <tr>
-                            <th>Code</th>
+                {% with items=po.items.all %}
+                {% if items %}
+                <table class="table table-sm table-borderless mb-0">
+                    <thead>
+                        <tr class="small text-muted">
+                            <th>M. Code</th>
                             <th>Material</th>
-                            <th>Qty</th>
-                            {% if can_view_value %}<th>Value</th>{% endif %}
+                            <th class="text-right">Qty</th>
+                            {% if can_view_value %}
+                            <th class="text-right">Value</th>
+                            {% endif %}
+                            <th class="text-center">Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in po.items.all %}
+                        {% for item in items %}
                         <tr>
                             <td>{{ item.material_code|default:"—" }}</td>
-                            <td>{{ item.material_description|truncatewords:8 }}</td>
-                            <td class="text-end">{{ item.quantity_value|floatformat:2 }} {{ item.uom }}</td>
+                            <td>{{ item.material_description }}</td>
+                            <td class="text-right">{{ item.quantity_value|default:0|floatformat:2 }} {{ item.uom }}</td>
                             {% if can_view_value %}
-                            <td class="text-end">{{ item.material_value|default:0|floatformat:2 }}</td>
+                            <td class="text-right">{{ item.material_value|default:0|floatformat:2 }}</td>
                             {% endif %}
-                            
+                            <td class="text-center">
+                                <span class="badge
+                                    {% if item.status == 'COMPLETED' %}badge-success
+                                    {% elif item.status == 'INPROCESS' %}badge-warning text-dark
+                                    {% else %}badge-secondary{% endif %}">
+                                    {{ item.get_status_display }}
+                                </span>
+                            </td>
                         </tr>
                         {% endfor %}
-                        <!-- Totals row -->
-                        <tr class="fw-bold bg-white">
-                            <td colspan="2" class="text-end text-muted small">Total</td>
-                            <td class="text-end">{{ po.total_quantity|floatformat:2 }}</td>
+                        {# PO total row #}
+                        <tr class="font-weight-bold border-top">
+                            <td colspan="2" class="text-right">Total:</td>
+                            <td class="text-right">{{ po.total_quantity|floatformat:2 }}</td>
                             {% if can_view_value %}
-                            <td class="text-end">{{ po.total_value|floatformat:2 }}</td>
+                            <td class="text-right">{{ po.total_value|floatformat:2 }}</td>
                             {% endif %}
                             <td></td>
                         </tr>
@@ -357,6 +396,7 @@
                 {% else %}
                     <span class="text-muted small">No Items</span>
                 {% endif %}
+                {% endwith %}
             </td>
 
             <td class="text-center">{{ po.po_date }}</td>
@@ -365,9 +405,9 @@
 
             <td class="text-center">
                 <span class="badge
-                    {% if po.po_status == 'COMPLETED' %}bg-success
-                    {% elif po.po_status == 'PENDING' %}bg-warning text-dark
-                    {% else %}bg-secondary{% endif %}">
+                    {% if po.po_status == 'COMPLETED' %}badge-success
+                    {% elif po.po_status == 'PENDING' %}badge-warning text-dark
+                    {% else %}badge-secondary{% endif %}">
                     {{ po.get_po_status_display }}
                 </span>
             </td>
@@ -384,19 +424,28 @@
             <td colspan="11" class="text-center text-muted py-3">No POs found for the selected filters.</td>
         </tr>
         {% endfor %}
+        {% else %}
+        <tr>
+            <td colspan="11" class="text-center text-muted py-3">
+                Please apply filters to view PO data.
+            </td>
+        </tr>
+        {% endif %}
     </tbody>
 </table>
 </div>
 
-<!-- PAGINATION -->
+{# Pagination for Summary View #}
+{% if page_obj %}
 {% include "components/pagination.html" with page_obj=page_obj %}
+{% endif %}
 
 {% endif %}
 
 
-<!-- ============================= -->
-<!--        ITEM VIEW              -->
-<!-- ============================= -->
+{# ========================================= #}
+{#  4B: ITEM VIEW (Item-level data)           #}
+{# ========================================= #}
 {% if view == "items" %}
 <div class="table-responsive">
 <table class="table table-bordered table-hover table-sm">
@@ -421,23 +470,24 @@
     </thead>
 
     <tbody>
-        {% for item in items %}
+        {% if items_page_obj %}
+        {% for item in items_page_obj %}
         <tr>
-            <td class="text-center">{{ forloop.counter }}</td>
+            <td class="text-center">{{ forloop.counter0|add:items_page_obj.start_index }}</td>
             <td class="text-center">{{ item.purchase_order.po_number }}</td>
             <td class="text-center">{{ item.purchase_order.oa_number }}</td>
             <td class="text-center">{{ item.purchase_order.company }}</td>
             <td class="text-center">{{ item.material_code|default:"—" }}</td>
             <td>{{ item.material_description }}</td>
-            <td class="text-end">{{ item.quantity_value|default:0|floatformat:2 }} {{ item.uom }}</td>
+            <td class="text-right">{{ item.quantity_value|default:0|floatformat:2 }} {{ item.uom }}</td>
             {% if can_view_value %}
-            <td class="text-end">{{ item.material_value|default:0|floatformat:2 }}</td>
+            <td class="text-right">{{ item.material_value|default:0|floatformat:2 }}</td>
             {% endif %}
             <td class="text-center">
                 <span class="badge
-                    {% if item.status == 'COMPLETED' %}bg-success
-                    {% elif item.status == 'INPROCESS' %}bg-warning text-dark
-                    {% else %}bg-secondary{% endif %}">
+                    {% if item.status == 'COMPLETED' %}badge-success
+                    {% elif item.status == 'INPROCESS' %}badge-warning text-dark
+                    {% else %}badge-secondary{% endif %}">
                     {{ item.get_status_display }}
                 </span>
             </td>
@@ -460,23 +510,33 @@
         </tr>
         {% endfor %}
 
-        {% if grand_totals and items %}
-        <tr class="fw-bold bg-light">
-            <td colspan="6" class="text-end">GRAND TOTAL</td>
-            <td class="text-end">{{ grand_totals.total_quantity|floatformat:2 }}</td>
+        {# Grand totals row #}
+        {% if grand_totals %}
+        <tr class="table-secondary font-weight-bold">
+            <td colspan="6" class="text-right">Grand Total:</td>
+            <td class="text-right">{{ grand_totals.total_quantity|floatformat:2 }}</td>
             {% if can_view_value %}
-            <td class="text-end">{{ grand_totals.total_value|floatformat:2 }}</td>
+            <td class="text-right">{{ grand_totals.total_value|floatformat:2 }}</td>
             {% endif %}
-            <td colspan="5"></td>
+            <td colspan="{% if can_view_value %}5{% else %}4{% endif %}"></td>
+        </tr>
+        {% endif %}
+
+        {% else %}
+        <tr>
+            <td colspan="{% if can_view_value %}13{% else %}12{% endif %}"
+                class="text-center text-muted py-3">
+                Please apply filters to view item data.
+            </td>
         </tr>
         {% endif %}
     </tbody>
 </table>
 </div>
 
-<!-- PAGINATION for item view -->
-{% if items %}
-{% include "components/pagination.html" with page_obj=items %}
+{# Pagination for Item View #}
+{% if items_page_obj %}
+{% include "components/pagination.html" with page_obj=items_page_obj %}
 {% endif %}
 
 {% endif %}
