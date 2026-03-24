@@ -18,6 +18,7 @@ class PurchaseOrderForm(forms.ModelForm):
             "oa_number",
             "company",
             "delivery_date",
+            "department",
             "po_status",
         ]
 
@@ -45,7 +46,6 @@ class PurchaseOrderItemForm(forms.ModelForm):
             "quantity_value",
             "uom",
             "material_value",
-            "status",
         ]
         widgets = {
             "material_code": forms.TextInput(attrs={"class": "form-control"}),
@@ -56,7 +56,6 @@ class PurchaseOrderItemForm(forms.ModelForm):
             "material_value": forms.NumberInput(
                 attrs={"class": "form-control", "step": "0.01"}
             ),
-            "status": forms.Select(attrs={"class": "form-select"}),
         }
 
 

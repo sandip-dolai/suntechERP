@@ -123,8 +123,8 @@
             <select name="po_number" class="form-select form-select-sm select2">
                 <option value="">All POs</option>
                 {% for po in po_list %}
-                    <option value="{{ po.id }}"
-                        {% if filters.po_number == po.id|stringformat:"s" %}selected{% endif %}>
+                    <option value="{{ po.po_number }}"
+                        {% if filters.po_number == po.po_number %}selected{% endif %}>
                         {{ po.po_number }}
                     </option>
                 {% endfor %}
@@ -155,30 +155,21 @@
             </select>
         </div>
 
-        <!-- Process Status -->
+        <!-- Department -->
         <div class="col-md-2">
-            <label class="form-label mb-1 small fw-semibold">Process Status</label>
-            <select name="process_status" class="form-select form-select-sm select2">
-                <option value="">All Process Status</option>
-                {% for ps in process_statuses %}
-                    <option value="{{ ps.id }}"
-                        {% if filters.process_status == ps.id|stringformat:"s" %}selected{% endif %}>
-                        {{ ps.name }}
+            <label class="form-label mb-1 small fw-semibold">Department</label>
+            <select name="department" class="form-select form-select-sm">
+                <option value="">All Departments</option>
+                {% for dept in departments %}
+                    <option value="{{ dept }}"
+                        {% if filters.department == dept %}selected{% endif %}>
+                        {{ dept }}
                     </option>
                 {% endfor %}
             </select>
         </div>
 
-        <!-- PO Item Status -->
-        <div class="col-md-2">
-            <label class="form-label mb-1 small fw-semibold">Item Status</label>
-            <select name="item_status" class="form-select form-select-sm">
-                <option value="">All Item Status</option>
-                <option value="PENDING"   {% if filters.item_status == "PENDING"   %}selected{% endif %}>Pending</option>
-                <option value="INPROCESS" {% if filters.item_status == "INPROCESS" %}selected{% endif %}>In Process</option>
-                <option value="COMPLETED" {% if filters.item_status == "COMPLETED" %}selected{% endif %}>Completed</option>
-            </select>
-        </div>
+        
 
         <!-- Buttons -->
         <div class="col-md-auto">
@@ -210,33 +201,89 @@
     </div>
 
     <!-- Active filter pills -->
-    {% if filters.po_status or filters.process_status or filters.item_status or filters.company or filters.po_number %}
+    {% if filters.po_status or filters.company or filters.po_number or filters.department %}
     <div class="mt-2">
         <small class="text-muted me-1">Active filters:</small>
         {% if filters.po_status %}
             <span class="badge bg-secondary me-1">PO Status: {{ filters.po_status }}</span>
         {% endif %}
-        {% if filters.process_status %}
-            {% for ps in process_statuses %}
-                {% if ps.id|stringformat:"s" == filters.process_status %}
-                    <span class="badge bg-secondary me-1">Process Status: {{ ps.name }}</span>
-                {% endif %}
-            {% endfor %}
+        
+        {% if filters.department %}
+            <span class="badge bg-secondary me-1">Department: {{ filters.department }}</span>
         {% endif %}
-        {% if filters.item_status %}
-            <span class="badge bg-secondary me-1">Item Status: {{ filters.item_status }}</span>
-        {% endif %}
+        
     </div>
     {% endif %}
 
 </form>
+{% if filter_used %}
+<div class="row g-3 mb-3">
 
+    <div class="col-md-2">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body">
+                <small class="text-muted">Filtered Total</small>
+                <h5 class="fw-bold">{{ filtered_summary.total_count }}</h5>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card border-start border-success border-4 shadow-sm text-center">
+            <div class="card-body">
+                <small class="text-success">Completed</small>
+                <h5 class="fw-bold text-success">{{ filtered_summary.completed_count }}</h5>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card border-start border-warning border-4 shadow-sm text-center">
+            <div class="card-body">
+                <small class="text-warning">Pending</small>
+                <h5 class="fw-bold text-warning">{{ filtered_summary.pending_count }}</h5>
+            </div>
+        </div>
+    </div>
+
+    {% if can_view_value %}
+    <div class="col-md-2">
+        <div class="card bg-light shadow-sm text-center">
+            <div class="card-body">
+                <small>Total Value</small>
+                <h6>₹ {{ filtered_summary.total_value|floatformat:2 }}</h6>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card border-start border-primary border-4 shadow-sm text-center">
+            <div class="card-body">
+                <small class="text-primary">Dispatched</small>
+                <h6>₹ {{ filtered_summary.dispatched_value|floatformat:2 }}</h6>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-2">
+        <div class="card border-start border-danger border-4 shadow-sm text-center">
+            <div class="card-body">
+                <small class="text-danger">Pending</small>
+                <h6>₹ {{ filtered_summary.pending_value|floatformat:2 }}</h6>
+                <small>{{ filtered_summary.dispatch_percentage|floatformat:2 }}%</small>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endif %}
 <!-- ============================= -->
 <!--     RESULT COUNT BADGE        -->
 <!-- ============================= -->
 <div class="mb-2">
     <small class="text-muted">
-        Showing <strong>{{ page_obj.paginator.count }}</strong> PO(s)
+        Showing <strong>{{ pos.count }}</strong> PO(s)
         {% if filters.date_from and filters.date_to %}
             from <strong>{{ filters.date_from }}</strong> to <strong>{{ filters.date_to }}</strong>
         {% endif %}
@@ -260,6 +307,7 @@
             <th class="text-center">Delivery Date</th>
             <th class="text-center">Created By</th>
             <th class="text-center">PO Status</th>
+            <th class="text-center">Department</th>
             <th class="text-center">Process</th>
         </tr>
     </thead>
@@ -281,7 +329,6 @@
                             <th>Material</th>
                             <th>Qty</th>
                             {% if can_view_value %}<th>Value</th>{% endif %}
-                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -293,14 +340,7 @@
                             {% if can_view_value %}
                             <td class="text-end">{{ item.material_value|default:0|floatformat:2 }}</td>
                             {% endif %}
-                            <td class="text-center">
-                                <span class="badge
-                                    {% if item.status == 'COMPLETED' %}bg-success
-                                    {% elif item.status == 'INPROCESS' %}bg-warning text-dark
-                                    {% else %}bg-secondary{% endif %}">
-                                    {{ item.get_status_display }}
-                                </span>
-                            </td>
+                            
                         </tr>
                         {% endfor %}
                         <!-- Totals row -->
@@ -331,7 +371,7 @@
                     {{ po.get_po_status_display }}
                 </span>
             </td>
-
+            <td class="text-center">{{ po.department|default:"—" }}</td>
             <td class="text-center">
                 <a href="{% url 'po:po_process_list' po.id %}"
                    class="btn btn-sm btn-info" target="_blank">
@@ -341,7 +381,7 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="10" class="text-center text-muted py-3">No POs found for the selected filters.</td>
+            <td colspan="11" class="text-center text-muted py-3">No POs found for the selected filters.</td>
         </tr>
         {% endfor %}
     </tbody>

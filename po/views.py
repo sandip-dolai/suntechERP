@@ -1,6 +1,9 @@
+from urllib import request
+
 from django.db.models import (
     F,
     Q,
+    Count,
     Value,
     CharField,
     OuterRef,
@@ -194,21 +197,25 @@ def po_report(request):
         or "company" in request.GET
         or "date_from" in request.GET
         or "po_status" in request.GET
+        or "department" in request.GET
     )
 
     base_filters = {"po_date__range": [date_from, date_to]}
 
     if request.GET.get("po_number"):
-        base_filters["id"] = request.GET["po_number"]
+        base_filters["po_number"] = request.GET["po_number"]
 
     if request.GET.get("oa_number"):
-        base_filters["id"] = request.GET["oa_number"]
+        base_filters["oa_number"] = request.GET["oa_number"]
 
     if request.GET.get("company"):
         base_filters["company_id"] = request.GET["company"]
 
     if request.GET.get("po_status"):
         base_filters["po_status"] = request.GET["po_status"]
+
+    if request.GET.get("department"):
+        base_filters["department"] = request.GET["department"]
     # ------------------------------
     # PO LIST (FILTERED)
     # ------------------------------
@@ -231,7 +238,49 @@ def po_report(request):
                 ),
             )
         )
+    # ------------------------------
+    # 🔹 FILTERED SUMMARY (NEW)
+    # ------------------------------
+    filtered_summary = None
 
+    if filter_used:
+        total_count = po_qs.count()
+        completed_count = po_qs.filter(po_status="COMPLETED").count()
+        pending_count = total_count - completed_count
+
+        agg = po_qs.aggregate(
+            total_value=Coalesce(
+                Sum("items__material_value"),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+            dispatched_value=Coalesce(
+                Sum(
+                    "items__material_value",
+                    filter=Q(po_status="COMPLETED")
+                ),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            ),
+        )
+
+        total_value = agg["total_value"]
+        dispatched_value = agg["dispatched_value"]
+        pending_value = total_value - dispatched_value
+
+        dispatch_percentage = (
+            (dispatched_value / total_value) * 100 if total_value > 0 else 0
+        )
+
+        filtered_summary = {
+            "total_count": total_count,
+            "completed_count": completed_count,
+            "pending_count": pending_count,
+            "total_value": total_value,
+            "dispatched_value": dispatched_value,
+            "pending_value": pending_value,
+            "dispatch_percentage": round(dispatch_percentage, 2),
+        }
     # ------------------------------
     # ITEM VIEW (FILTERED)
     # ------------------------------
@@ -280,6 +329,14 @@ def po_report(request):
         "filter_used": filter_used,
         "companies": CompanyMaster.objects.order_by("name"),
         "po_list": PurchaseOrder.objects.order_by("-id"),
+        "departments": [
+            "Marketing",
+            "Design",
+            "Production",
+            "Quality",
+            "Admin",
+            "Logistics",
+        ],
         "filters": {
             "po_number": request.GET.get("po_number", ""),
             "oa_number": request.GET.get("oa_number", ""),
@@ -287,6 +344,7 @@ def po_report(request):
             "po_status": request.GET.get("po_status", ""),
             "date_from": date_from,
             "date_to": date_to,
+            "department": request.GET.get("department", ""),
         },
         # Permissions
         "can_view_value": can_view_value(request.user),
@@ -556,11 +614,11 @@ def po_report_summary_excel(request):
     base_filters = {"po_date__range": [date_from, date_to]}
 
     if request.GET.get("po_number"):
-        base_filters["id"] = request.GET["po_number"]
+        base_filters["po_number"] = request.GET["po_number"]
 
     if request.GET.get("oa_number"):
-        base_filters["id"] = request.GET["oa_number"]
-
+        base_filters["oa_number"] = request.GET["oa_number"]
+        
     if request.GET.get("company"):
         base_filters["company_id"] = request.GET["company"]
 

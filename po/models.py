@@ -33,6 +33,19 @@ class PurchaseOrder(models.Model):
     )
 
     delivery_date = models.DateField(null=True, blank=True)
+    department = models.CharField(
+        max_length=50,
+        choices=[
+            ("Marketing", "Marketing"),
+            ("Design", "Design"),
+            ("Production", "Production"),
+            ("Quality", "Quality"),
+            ("Admin", "Admin"),
+            ("Logistics", "Logistics"),
+        ],
+        blank=True,
+        verbose_name="Department",
+    )
 
     created_by = models.ForeignKey(
         get_user_model(),

@@ -158,6 +158,13 @@
                         <div class="invalid-feedback">{{ form.company.errors|striptags }}</div>
                     {% endif %}
                 </div>
+                <div class="col-md-3">
+                    <label class="form-label">Department</label>
+                    {{ form.department|add_class:"form-select" }}
+                    {% if form.department.errors %}
+                        <div class="invalid-feedback">{{ form.department.errors|striptags }}</div>
+                    {% endif %}
+                </div>
                 {% if form.instance.pk %}
                 <div class="col-md-2">
                     <label class="form-label">PO Status</label>
@@ -190,7 +197,6 @@
                             <th class="text-center">Qty</th>
                             <th class="text-center">UOM</th>
                             <th class="text-center">Value</th>
-                            <th class="text-center">Status</th>
                             <th class="text-center">Remove</th>
                         </tr>
                     </thead>
@@ -215,10 +221,6 @@
 
                             <td class="text-center">
                                 {{ f.material_value|add_class:"form-control" }}
-                            </td>
-
-                            <td class="text-center">
-                                {{ f.status|add_class:"form-select" }}
                             </td>
 
                             <td class="text-center">
@@ -270,10 +272,6 @@ document.addEventListener("DOMContentLoaded", function () {
             <td class="text-center">
                 {{ formset.empty_form.material_value|add_class:"form-control" }}
             </td>
-            <td class="text-center">
-                {{ formset.empty_form.status|add_class:"form-select" }}
-            </td>
-
             <td class="text-center">
                 {{ formset.empty_form.DELETE|add_class:"d-none delete-flag" }}
                 <button type="button" class="btn btn-danger btn-sm remove-item">−</button>
