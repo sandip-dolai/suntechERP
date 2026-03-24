@@ -9,11 +9,13 @@
 <table border="1">
     <thead>
         <tr>
+            <th>#</th>
             <th>PO Number</th>
             <th>OA Number</th>
             <th>Company</th>
             <th>PO Date</th>
             <th>Delivery Date</th>
+            <th>Created By</th>
             <th>PO Status</th>
             <th>Total Quantity</th>
             {% if can_view_value %}
@@ -25,11 +27,13 @@
     <tbody>
         {% for po in pos %}
         <tr>
+            <td>{{ forloop.counter }}</td>
             <td>{{ po.po_number }}</td>
             <td>{{ po.oa_number }}</td>
             <td>{{ po.company.name }}</td>
             <td>{{ po.po_date }}</td>
             <td>{{ po.delivery_date|default:"" }}</td>
+            <td>{{ po.created_by|default:"" }}</td>
             <td>{{ po.get_po_status_display }}</td>
             <td>{{ po.total_quantity|floatformat:2 }}</td>
             {% if can_view_value %}
@@ -38,11 +42,29 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="{% if can_view_value %}8{% else %}7{% endif %}">
+            <td colspan="{% if can_view_value %}10{% else %}9{% endif %}">
                 No Purchase Orders Found
             </td>
         </tr>
         {% endfor %}
+
+        <!-- Grand Total Row -->
+        {% if pos %}
+        <tr>
+            <td colspan="8"><strong>GRAND TOTAL</strong></td>
+            <td>
+                <strong>
+                {% with total=0 %}
+                    {% for po in pos %}
+                        {% if forloop.last %}{{ po.total_quantity|floatformat:2 }}{% endif %}
+                    {% endfor %}
+                {% endwith %}
+                </strong>
+            </td>
+            {% if can_view_value %}<td></td>{% endif %}
+        </tr>
+        {% endif %}
+
     </tbody>
 </table>
 

@@ -9,38 +9,48 @@
 <table border="1">
     <thead>
         <tr>
+            <th>#</th>
             <th>PO Number</th>
             <th>OA Number</th>
             <th>Company</th>
             <th>Material Code</th>
-            <th>Material</th>
+            <th>Material Description</th>
             <th>Quantity</th>
+            <th>UOM</th>
             {% if can_view_value %}
             <th>Material Value</th>
             {% endif %}
-            <th>Status</th>
+            <th>Item Status</th>
             <th>PO Date</th>
+            <th>Delivery Date</th>
+            <th>Created By</th>
+            <th>PO Status</th>
         </tr>
     </thead>
 
     <tbody>
         {% for item in items %}
         <tr>
+            <td>{{ forloop.counter }}</td>
             <td>{{ item.purchase_order.po_number }}</td>
             <td>{{ item.purchase_order.oa_number }}</td>
             <td>{{ item.purchase_order.company.name }}</td>
             <td>{{ item.material_code|default:"" }}</td>
             <td>{{ item.material_description }}</td>
             <td>{{ item.quantity_value|floatformat:2 }}</td>
+            <td>{{ item.uom }}</td>
             {% if can_view_value %}
             <td>{{ item.material_value|floatformat:2 }}</td>
             {% endif %}
             <td>{{ item.get_status_display }}</td>
             <td>{{ item.purchase_order.po_date }}</td>
+            <td>{{ item.purchase_order.delivery_date|default:"" }}</td>
+            <td>{{ item.purchase_order.created_by|default:"" }}</td>
+            <td>{{ item.purchase_order.get_po_status_display }}</td>
         </tr>
         {% empty %}
         <tr>
-            <td colspan="{% if can_view_value %}9{% else %}8{% endif %}">
+            <td colspan="{% if can_view_value %}14{% else %}13{% endif %}">
                 No Items Found
             </td>
         </tr>
@@ -48,12 +58,13 @@
 
         {% if grand_totals %}
         <tr>
-            <td colspan="5"><strong>GRAND TOTAL</strong></td>
+            <td colspan="6"><strong>GRAND TOTAL</strong></td>
             <td><strong>{{ grand_totals.total_quantity|floatformat:2 }}</strong></td>
+            <td></td>
             {% if can_view_value %}
             <td><strong>{{ grand_totals.total_value|floatformat:2 }}</strong></td>
             {% endif %}
-            <td colspan="2"></td>
+            <td colspan="5"></td>
         </tr>
         {% endif %}
     </tbody>
