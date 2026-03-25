@@ -1,10 +1,10 @@
 {% extends "base/base.html" %}
 {% load static %}
-
+{% load indent_extras %}
 {% block content %}
 <div class="container-fluid">
 
-    <!-- Page Header -->
+    <!-- ================= PAGE HEADER ================= -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0">
             {% if mode == "edit" %}
@@ -13,43 +13,36 @@
                 Create Indent
             {% endif %}
         </h4>
-
         <a href="{% url 'indent:indent_list' %}" class="btn btn-secondary btn-sm">
             Back to List
         </a>
     </div>
 
-    <form method="post" novalidate>
+    <form method="post" novalidate id="indent-form">
         {% csrf_token %}
 
-        <!-- ================= HEADER ================= -->
+        <!-- ================= HEADER CARD ================= -->
         <div class="card mb-3">
-            <div class="card-header">
-                <strong>Indent Header</strong>
-            </div>
-
+            <div class="card-header"><strong>Indent Header</strong></div>
             <div class="card-body">
+
                 {% if form.non_field_errors %}
-                    <div class="alert alert-danger">
-                        {{ form.non_field_errors }}
-                    </div>
+                    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
                 {% endif %}
 
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <label class="form-label">Purchase Order</label>
+                        <label class="form-label">Purchase Order <span class="text-danger">*</span></label>
                         {{ form.purchase_order }}
                         {{ form.purchase_order.errors }}
                     </div>
-
                     <div class="col-md-4">
-                        <label class="form-label">Production Process</label>
+                        <label class="form-label">Production Process <span class="text-danger">*</span></label>
                         {{ form.po_process }}
                         {{ form.po_process.errors }}
                     </div>
-
                     <div class="col-md-4">
-                        <label class="form-label">Indent Date</label>
+                        <label class="form-label">Indent Date <span class="text-danger">*</span></label>
                         {{ form.indent_date }}
                         {{ form.indent_date.errors }}
                     </div>
@@ -62,16 +55,15 @@
                         {{ form.remarks.errors }}
                     </div>
                 </div>
+
             </div>
         </div>
 
-        <!-- ================= ITEMS ================= -->
+        <!-- ================= INDENT ITEMS ================= -->
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>Indent Items</strong>
-                <button type="button"
-                        class="btn btn-sm btn-outline-primary"
-                        id="add-row">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="add-row">
                     + Add Item
                 </button>
             </div>
@@ -80,73 +72,213 @@
                 {{ formset.management_form }}
 
                 {% if formset.non_form_errors %}
-                    <div class="alert alert-danger m-3">
-                        {{ formset.non_form_errors }}
-                    </div>
+                    <div class="alert alert-danger m-3">{{ formset.non_form_errors }}</div>
                 {% endif %}
 
-                <table class="table table-bordered table-striped table-sm mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="width: 40px;">#</th>
-                            <th>PO Item</th>
-                            <th style="width: 140px;">Required Qty</th>
-                            <th style="width: 100px;">UOM</th>
-                            <th>Remarks</th>
-                            <th style="width: 80px;">Remove</th>
-                        </tr>
-                    </thead>
+                <div id="indent-items-container">
+                    {% for item_form in formset %}
+                    {% with forloop.counter0 as idx %}
 
-                    <tbody id="formset-body">
-                        {% for form in formset %}
-                        <tr>
-                            <td class="row-index">{{ forloop.counter }}</td>
+                    <div class="indent-item-block border-bottom"
+                         data-form-index="{{ idx }}"
+                         {% if item_form.instance.pk %}data-item-id="{{ item_form.instance.pk }}"{% endif %}>
 
-                            <td>
-                                {{ form.purchase_order_item }}
-                                {{ form.purchase_order_item.errors }}
-                            </td>
+                        <!-- ── PO Item Row ── -->
+                        <div class="d-flex align-items-center px-3 py-2 bg-light">
+                            <span class="row-index me-2 text-muted fw-bold">{{ forloop.counter }}</span>
 
-                            <td>
-                                {{ form.required_quantity }}
-                                {{ form.required_quantity.errors }}
-                            </td>
+                            <div class="flex-fill row g-2 mb-0">
+                                <div class="col-md-5">
+                                    <label class="form-label form-label-sm mb-0">PO Item</label>
+                                    {{ item_form.purchase_order_item }}
+                                    {{ item_form.purchase_order_item.errors }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label form-label-sm mb-0">Required Qty</label>
+                                    {{ item_form.required_quantity }}
+                                    {{ item_form.required_quantity.errors }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label form-label-sm mb-0">UOM</label>
+                                    {{ item_form.uom }}
+                                    {{ item_form.uom.errors }}
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label form-label-sm mb-0">Remarks</label>
+                                    {{ item_form.remarks }}
+                                    {{ item_form.remarks.errors }}
+                                </div>
+                            </div>
 
-                            <td>
-                                {{ form.uom }}
-                                {{ form.uom.errors }}
-                            </td>
+                            <!-- Hidden formset fields -->
+                            {{ item_form.id }}
+                            {{ item_form.DELETE }}
 
-                            <td>
-                                {{ form.remarks }}
-                                {{ form.remarks.errors }}
-                            </td>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-danger remove-item-row ms-2"
+                                    title="Remove item">
+                                <i class="fa fa-trash"></i>
+                            </button>
+                        </div>
 
-                            <td class="text-center">
-                                {{ form.id }}
-                                {{ form.DELETE }}
+                        <!-- ── Sub-Items Card ── -->
+                        <div class="sub-items-section px-3 pt-2 pb-3">
 
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-danger remove-row"
-                                        title="Remove">
-                                    <i class="fa fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                            <!-- BOM Picker row -->
+                            <div class="row g-2 mb-2 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label form-label-sm mb-0">
+                                        <i class="fa fa-sitemap text-primary"></i> Select BOM
+                                    </label>
+                                    <select class="form-control form-control-sm bom-select"
+                                            data-form-index="{{ idx }}">
+                                        <option value="">— Pick a BOM —</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label form-label-sm mb-0">BOM Item</label>
+                                    <select class="form-control form-control-sm bom-item-select"
+                                            data-form-index="{{ idx }}">
+                                        <option value="">— Select BOM first —</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-auto">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-success add-from-bom"
+                                            data-form-index="{{ idx }}"
+                                            title="Add selected BOM item as sub-item">
+                                        <i class="fa fa-plus"></i> Add from BOM
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-secondary add-manual-sub"
+                                            data-form-index="{{ idx }}"
+                                            title="Add a blank manual sub-item">
+                                        <i class="fa fa-pencil"></i> Add Manual
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Sub-items table -->
+                            <table class="table table-bordered table-sm mb-0 sub-items-table"
+                                   data-form-index="{{ idx }}">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:30px;">#</th>
+                                        <th>Item <span class="text-danger">*</span></th>
+                                        <th style="width:110px;">Size</th>
+                                        <th style="width:100px;">Qty <span class="text-danger">*</span></th>
+                                        <th>Material <span class="text-danger">*</span></th>
+                                        <th>Remarks</th>
+                                        <th style="width:65px;">Source</th>
+                                        <th style="width:50px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="sub-items-body">
+
+                                    {% if mode == "edit" and existing_sub_items %}
+                                        {% with existing_sub_items|default_if_none:'' as sub_map %}
+                                        {% if item_form.instance.pk %}
+                                            {% for sub in existing_sub_items|dict_key:item_form.instance.pk %}
+                                            <tr class="sub-item-row">
+                                                <td class="sub-row-index text-muted">{{ forloop.counter }}</td>
+                                                <td>
+                                                    <input type="hidden"
+                                                           name="sub_bom_item_id-{{ idx }}-{{ forloop.counter0 }}"
+                                                           value="{{ sub.bom_item_id|default:'' }}"
+                                                           class="sub-bom-item-id-input">
+                                                    <input type="text"
+                                                           name="sub_item-{{ idx }}-{{ forloop.counter0 }}"
+                                                           value="{{ sub.item }}"
+                                                           class="form-control form-control-sm"
+                                                           required>
+                                                </td>
+                                                <td>
+                                                    <input type="text"
+                                                           name="sub_size-{{ idx }}-{{ forloop.counter0 }}"
+                                                           value="{{ sub.size }}"
+                                                           class="form-control form-control-sm">
+                                                </td>
+                                                <td>
+                                                    <input type="number"
+                                                           name="sub_quantity-{{ idx }}-{{ forloop.counter0 }}"
+                                                           value="{{ sub.quantity }}"
+                                                           class="form-control form-control-sm"
+                                                           step="0.01" min="0.01" required>
+                                                </td>
+                                                <td>
+                                                    <input type="text"
+                                                           name="sub_material-{{ idx }}-{{ forloop.counter0 }}"
+                                                           value="{{ sub.material }}"
+                                                           class="form-control form-control-sm"
+                                                           required>
+                                                </td>
+                                                <td>
+                                                    <input type="text"
+                                                           name="sub_remarks-{{ idx }}-{{ forloop.counter0 }}"
+                                                           value="{{ sub.remarks }}"
+                                                           class="form-control form-control-sm">
+                                                </td>
+                                                <td class="text-center">
+                                                    {% if sub.bom_item_id %}
+                                                        <span class="badge bg-primary" title="BOM linked">BOM</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">Manual</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-center">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-danger remove-sub-row">
+                                                        <i class="fa fa-times"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% endif %}
+                                        {% endwith %}
+                                    {% endif %}
+
+                                    {% if not mode == "edit" or not item_form.instance.pk %}
+                                    <tr class="sub-empty-row">
+                                        <td colspan="8" class="text-center text-muted py-2">
+                                            No sub-items yet. Add from BOM or manually.
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+
+                                </tbody>
+                            </table>
+
+                            <!-- Hidden count field — updated by JS before submit -->
+                            <input type="hidden"
+                                   name="sub_item_count-{{ idx }}"
+                                   class="sub-item-count"
+                                   value="0">
+
+                        </div>
+                        <!-- end sub-items-section -->
+
+                    </div>
+                    <!-- end indent-item-block -->
+                    {% endwith %}
+                    {% endfor %}
+
+                    {% if not formset.forms %}
+                    <div id="empty-items-msg" class="text-center text-muted py-4">
+                        Click "+ Add Item" to start adding indent items.
+                    </div>
+                    {% endif %}
+
+                </div>
+                <!-- end indent-items-container -->
+
             </div>
         </div>
 
         <!-- ================= ACTIONS ================= -->
-        <div class="d-flex justify-content-end">
+        <div class="d-flex justify-content-end gap-2">
+            <a href="{% url 'indent:indent_list' %}" class="btn btn-secondary">Cancel</a>
             <button type="submit" class="btn btn-success">
-                {% if mode == "edit" %}
-                    Update Indent
-                {% else %}
-                    Create Indent
-                {% endif %}
+                {% if mode == "edit" %}Update Indent{% else %}Create Indent{% endif %}
             </button>
         </div>
 
@@ -155,55 +287,144 @@
 
 <!-- ================= STYLES ================= -->
 <style>
-input[type="checkbox"][name$="-DELETE"] {
-    display: none;
-}
+    input[type="checkbox"][name$="-DELETE"] { display: none; }
+
+    .indent-item-block { background: #fff; }
+    .indent-item-block:hover { background: #fafafa; }
+
+    .sub-items-section {
+        background: #f8f9fa;
+        border-top: 1px dashed #dee2e6;
+    }
+
+    .sub-items-table thead th { font-size: 12px; }
+    .sub-items-table td input { font-size: 12px; }
+
+    .badge.bg-primary { font-size: 10px; }
+    .badge.bg-secondary { font-size: 10px; }
 </style>
 
+<!-- ================= JS ================= -->
 <script src="{% static 'assets/vendors/jquery/dist/jquery.min.js' %}"></script>
 
-<!-- ================= FORMSET + AJAX JS ================= -->
 <script>
 $(document).ready(function () {
 
-    const prefix = "items";
-    let poItemsCache = [];
+    const prefix      = "items";
+    let poItemsCache  = [];
+    let bomsCache     = [];  // [{id, bom_no}, ...]
+    let bomItemsCache = {};  // {bom_id: [{id, item, size, quantity, material, remarks}, ...]}
 
-    function updateRowIndexes() {
-        $("#formset-body tr:visible").each(function (i) {
-            $(this).find(".row-index").text(i + 1);
+    // ── AJAX URLs (injected safely) ──────────────────────────────────────
+    const URL_PROCESSES = "{% url 'indent:ajax_po_processes' %}";
+    const URL_PO_ITEMS  = "{% url 'indent:ajax_po_items' %}";
+    const URL_BOMS      = "{% url 'indent:ajax_boms_for_po' %}";
+    const URL_BOM_ITEMS = "{% url 'indent:ajax_bom_items' %}";
+
+    // ====================================================================
+    // UTILITIES
+    // ====================================================================
+
+    function updateItemIndexes() {
+        $(".indent-item-block:visible").each(function (i) {
+            $(this).find(".row-index").first().text(i + 1);
         });
     }
 
-    // ================= GET SELECTED ITEMS =================
-    function getSelectedItemIds() {
+    function updateSubIndexes(block) {
+        block.find(".sub-items-body tr.sub-item-row").each(function (i) {
+            $(this).find(".sub-row-index").text(i + 1);
+        });
+    }
+
+    function getFormIndex(el) {
+        return parseInt($(el).closest("[data-form-index]").attr("data-form-index"));
+    }
+
+    // Renumber all sub-item input names for a given form index and tbody
+    function renameSubInputs(tbody, formIdx) {
+        tbody.find("tr.sub-item-row").each(function (subIdx) {
+            $(this).find("input").each(function () {
+                let name = $(this).attr("name");
+                if (!name) return;
+                // Replace the last number segment: sub_item-{formIdx}-{subIdx}
+                name = name.replace(/-\d+$/, "-" + subIdx);
+                $(this).attr("name", name);
+            });
+        });
+    }
+
+    // ====================================================================
+    // PO CHANGE — load processes, PO items, and BOMs
+    // ====================================================================
+    $("#id_purchase_order").on("change", function () {
+        let poId = $(this).val();
+
+        // Reset
+        poItemsCache = [];
+        bomsCache    = [];
+        bomItemsCache = {};
+
+        $("#id_po_process").html('<option value="">---------</option>');
+        $(".po-item-select").html('<option value="">---------</option>');
+        $(".bom-select").html('<option value="">— Pick a BOM —</option>');
+        $(".bom-item-select").html('<option value="">— Select BOM first —</option>');
+
+        if (!poId) return;
+
+        // Load processes
+        $.get(URL_PROCESSES, { po_id: poId }, function (data) {
+            let opts = '<option value="">---------</option>';
+            $.each(data, function (_, p) {
+                opts += `<option value="${p.id}">${p.name}</option>`;
+            });
+            $("#id_po_process").html(opts);
+        });
+
+        // Load PO items
+        $.get(URL_PO_ITEMS, { po_id: poId }, function (data) {
+            poItemsCache = data;
+            refreshPoItemDropdowns();
+        });
+
+        // Load BOMs for this PO
+        $.get(URL_BOMS, { po_id: poId }, function (data) {
+            bomsCache = data;
+            let opts = '<option value="">— Pick a BOM —</option>';
+            $.each(data, function (_, b) {
+                opts += `<option value="${b.id}">${b.bom_no}</option>`;
+            });
+            $(".bom-select").html(opts);
+        });
+    });
+
+    // ====================================================================
+    // PO ITEM DROPDOWN — de-duplicate across rows
+    // ====================================================================
+    function getSelectedPoItemIds() {
         let selected = [];
         $(".po-item-select").each(function () {
-            let val = $(this).val();
-            if (val) selected.push(val);
+            let v = $(this).val();
+            if (v) selected.push(v);
         });
         return selected;
     }
 
-    // ================= REFRESH DROPDOWNS =================
     function refreshPoItemDropdowns() {
-        let selectedIds = getSelectedItemIds();
+        let selectedIds = getSelectedPoItemIds();
 
         $(".po-item-select").each(function () {
-            let select = $(this);
+            let select     = $(this);
             let currentVal = select.val();
 
             select.empty();
             select.append('<option value="">---------</option>');
 
             $.each(poItemsCache, function (_, item) {
-                if (
-                    !selectedIds.includes(item.id.toString()) ||
-                    item.id.toString() === currentVal
-                ) {
-                    select.append(
-                        `<option value="${item.id}">${item.name}</option>`
-                    );
+                if (!selectedIds.includes(item.id.toString()) ||
+                     item.id.toString() === currentVal) {
+                    select.append(`<option value="${item.id}"
+                        data-uom="${item.uom}">${item.name}</option>`);
                 }
             });
 
@@ -211,108 +432,425 @@ $(document).ready(function () {
         });
     }
 
-    // ================= LOAD PO ITEMS =================
-    $("#id_purchase_order").on("change", function () {
-        let poId = $(this).val();
-        poItemsCache = [];
+    // Auto-fill UOM when PO item is selected
+    $(document).on("change", ".po-item-select", function () {
+        let option = $(this).find(":selected");
+        let uom    = option.data("uom") || "";
+        let block  = $(this).closest(".indent-item-block");
+        block.find("input[name$='-uom']").val(uom);
+        refreshPoItemDropdowns();
+    });
 
-        if (!poId) {
-            $(".po-item-select").html('<option value="">---------</option>');
+    // ====================================================================
+    // BOM SELECT — load BOM items into bom-item-select
+    // ====================================================================
+    $(document).on("change", ".bom-select", function () {
+        let bomId    = $(this).val();
+        let formIdx  = $(this).data("form-index");
+        let itemSel  = $(`.bom-item-select[data-form-index="${formIdx}"]`);
+
+        itemSel.html('<option value="">— Loading... —</option>');
+
+        if (!bomId) {
+            itemSel.html('<option value="">— Select BOM first —</option>');
             return;
         }
 
-        $.ajax({
-            url: "{% url 'indent:ajax_po_items' %}",
-            data: { po_id: poId },
-            success: function (data) {
-                poItemsCache = data;
-                refreshPoItemDropdowns();
-            }
-        });
-    });
-
-
-
-
-    $("#id_purchase_order").on("change", function () {
-        let poId = $(this).val();
-
-        $("#id_po_process").html('<option value="">---------</option>');
-
-        if (!poId) return;
-
-        $.ajax({
-            url: "{% url 'indent:ajax_po_processes' %}",
-            data: { po_id: poId },
-            success: function (data) {
-                let options = '<option value="">---------</option>';
-                $.each(data, function (_, p) {
-                    options += `<option value="${p.id}">${p.name}</option>`;
-                });
-                $("#id_po_process").html(options);
-            }
-        });
-    });
-
-
-    // ================= ADD ROW =================
-    $("#add-row").on("click", function () {
-
-        let totalForms = parseInt($("#id_" + prefix + "-TOTAL_FORMS").val());
-        let newRow = $("#formset-body tr:last").clone(true);
-
-        newRow.find("input, select, textarea").each(function () {
-            let name = $(this).attr("name");
-            let id = $(this).attr("id");
-
-            if (!name) return;
-
-            if (name.endsWith("-id")) {
-                $(this).remove();
-                return;
-            }
-
-            name = name.replace(/\d+/, totalForms);
-            id = id.replace(/\d+/, totalForms);
-
-            $(this).attr({ name: name, id: id }).val("");
-        });
-
-        newRow.find('input[type="checkbox"]').prop("checked", false);
-        newRow.show();
-
-        $("#formset-body").append(newRow);
-        $("#id_" + prefix + "-TOTAL_FORMS").val(totalForms + 1);
-
-        refreshPoItemDropdowns();
-        updateRowIndexes();
-    });
-
-    // ================= REMOVE ROW =================
-    
-
-    $(document).on("click", ".remove-row", function () {
-        let row = $(this).closest("tr");
-        let deleteField = row.find('input[type="checkbox"][name$="-DELETE"]');
-        let idField = row.find('input[type="hidden"][name$="-id"]');
-
-        if (idField.length) {
-            deleteField.prop("checked", true);
-            row.hide();
-        } else {
-            row.remove();
-            let totalForms = parseInt($("#id_items-TOTAL_FORMS").val());
-            $("#id_items-TOTAL_FORMS").val(totalForms - 1);
+        // Use cache if available
+        if (bomItemsCache[bomId]) {
+            populateBomItemSelect(itemSel, bomItemsCache[bomId]);
+            return;
         }
 
-        updateRowIndexes();
+        $.get(URL_BOM_ITEMS, { bom_id: bomId }, function (data) {
+            bomItemsCache[bomId] = data;
+            populateBomItemSelect(itemSel, data);
+        });
     });
 
+    function populateBomItemSelect(select, items) {
+        let opts = '<option value="">— Select item —</option>';
+        $.each(items, function (_, it) {
+            opts += `<option value="${it.id}"
+                data-item="${it.item}"
+                data-size="${it.size}"
+                data-qty="${it.quantity}"
+                data-material="${it.material}"
+                data-remarks="${it.remarks}">${it.item} — ${it.material}</option>`;
+        });
+        select.html(opts);
+    }
 
-    // ================= ITEM CHANGE =================
-    $(document).on("change", ".po-item-select", function () {
+    // ====================================================================
+    // ADD FROM BOM
+    // ====================================================================
+    $(document).on("click", ".add-from-bom", function () {
+        let formIdx  = $(this).data("form-index");
+        let itemSel  = $(`.bom-item-select[data-form-index="${formIdx}"]`);
+        let option   = itemSel.find(":selected");
+        let bomItemId = itemSel.val();
+
+        if (!bomItemId) {
+            alert("Please select a BOM item first.");
+            return;
+        }
+
+        let rowData = {
+            bom_item_id : bomItemId,
+            item        : option.data("item")     || "",
+            size        : option.data("size")     || "",
+            quantity    : option.data("qty")      || "",
+            material    : option.data("material") || "",
+            remarks     : option.data("remarks")  || "",
+            is_bom      : true,
+        };
+
+        addSubRow(formIdx, rowData);
+
+        // Reset BOM item picker after adding
+        itemSel.val("");
+    });
+
+    // ====================================================================
+    // ADD MANUAL SUB-ITEM
+    // ====================================================================
+    $(document).on("click", ".add-manual-sub", function () {
+        let formIdx = $(this).data("form-index");
+        addSubRow(formIdx, {
+            bom_item_id : "",
+            item        : "",
+            size        : "",
+            quantity    : "",
+            material    : "",
+            remarks     : "",
+            is_bom      : false,
+        });
+    });
+
+    // ====================================================================
+    // BUILD SUB-ITEM ROW HTML
+    // ====================================================================
+    function addSubRow(formIdx, data) {
+        let tbody   = $(`.sub-items-table[data-form-index="${formIdx}"] .sub-items-body`);
+        let subIdx  = tbody.find("tr.sub-item-row").length;
+
+        tbody.find(".sub-empty-row").remove();
+
+        let badge = data.is_bom
+            ? `<span class="badge bg-primary" title="BOM linked">BOM</span>`
+            : `<span class="badge bg-secondary">Manual</span>`;
+
+        let row = `
+            <tr class="sub-item-row">
+                <td class="sub-row-index text-muted">${subIdx + 1}</td>
+                <td>
+                    <input type="hidden"
+                           name="sub_bom_item_id-${formIdx}-${subIdx}"
+                           value="${data.bom_item_id}"
+                           class="sub-bom-item-id-input">
+                    <input type="text"
+                           name="sub_item-${formIdx}-${subIdx}"
+                           value="${data.item}"
+                           class="form-control form-control-sm"
+                           placeholder="Item name"
+                           required>
+                </td>
+                <td>
+                    <input type="text"
+                           name="sub_size-${formIdx}-${subIdx}"
+                           value="${data.size}"
+                           class="form-control form-control-sm"
+                           placeholder="e.g. 10mm">
+                </td>
+                <td>
+                    <input type="number"
+                           name="sub_quantity-${formIdx}-${subIdx}"
+                           value="${data.quantity}"
+                           class="form-control form-control-sm"
+                           step="0.01" min="0.01"
+                           placeholder="0.00"
+                           required>
+                </td>
+                <td>
+                    <input type="text"
+                           name="sub_material-${formIdx}-${subIdx}"
+                           value="${data.material}"
+                           class="form-control form-control-sm"
+                           placeholder="Material"
+                           required>
+                </td>
+                <td>
+                    <input type="text"
+                           name="sub_remarks-${formIdx}-${subIdx}"
+                           value="${data.remarks}"
+                           class="form-control form-control-sm"
+                           placeholder="Optional">
+                </td>
+                <td class="text-center">${badge}</td>
+                <td class="text-center">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger remove-sub-row">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </td>
+            </tr>`;
+
+        tbody.append(row);
+        updateSubIndexes(tbody.closest(".indent-item-block"));
+    }
+
+    // ====================================================================
+    // REMOVE SUB-ITEM ROW
+    // ====================================================================
+    $(document).on("click", ".remove-sub-row", function () {
+        let block  = $(this).closest(".indent-item-block");
+        let tbody  = $(this).closest("tbody");
+        let formIdx = block.data("form-index");
+
+        $(this).closest("tr").remove();
+
+        // Show empty message if no rows left
+        if (tbody.find("tr.sub-item-row").length === 0) {
+            tbody.append(`<tr class="sub-empty-row">
+                <td colspan="8" class="text-center text-muted py-2">
+                    No sub-items yet. Add from BOM or manually.
+                </td>
+            </tr>`);
+        }
+
+        renameSubInputs(tbody, formIdx);
+        updateSubIndexes(block);
+    });
+
+    // ====================================================================
+    // ADD INDENT ITEM ROW (formset clone)
+    // ====================================================================
+    $("#add-row").on("click", function () {
+        let totalForms = parseInt($("#id_" + prefix + "-TOTAL_FORMS").val());
+        let newIdx     = totalForms;
+
+        // Remove empty state message
+        $("#empty-items-msg").remove();
+
+        // Clone last block if available, else build fresh
+        let existingBlocks = $(".indent-item-block");
+        let newBlock;
+
+        if (existingBlocks.length > 0) {
+            newBlock = existingBlocks.last().clone(false);
+
+            // Reset formset field names/ids in the cloned block
+            newBlock.find("input, select, textarea").each(function () {
+                let name = $(this).attr("name");
+                let id   = $(this).attr("id");
+
+                if (name && name.endsWith("-id")) { $(this).remove(); return; }
+                if (name) $(this).attr("name", name.replace(/items-\d+/, `items-${newIdx}`));
+                if (id)   $(this).attr("id",   id.replace(/items-\d+/, `items-${newIdx}`));
+                $(this).val("");
+            });
+
+            newBlock.find('input[type="checkbox"]').prop("checked", false);
+
+            // Reset sub-items section
+            newBlock.find(".sub-items-body").html(`
+                <tr class="sub-empty-row">
+                    <td colspan="8" class="text-center text-muted py-2">
+                        No sub-items yet. Add from BOM or manually.
+                    </td>
+                </tr>`);
+            newBlock.find(".sub-item-count").val(0).attr("name", `sub_item_count-${newIdx}`);
+            newBlock.find(".bom-select").attr("data-form-index", newIdx);
+            newBlock.find(".bom-item-select").attr("data-form-index", newIdx);
+            newBlock.find(".add-from-bom").attr("data-form-index", newIdx);
+            newBlock.find(".add-manual-sub").attr("data-form-index", newIdx);
+            newBlock.find(".sub-items-table").attr("data-form-index", newIdx);
+
+        } else {
+            // No existing blocks — build fresh HTML
+            newBlock = buildFreshItemBlock(newIdx);
+        }
+
+        newBlock.attr("data-form-index", newIdx).removeAttr("data-item-id");
+        newBlock.show();
+
+        // Repopulate BOM select if BOMs are already loaded
+        if (bomsCache.length > 0) {
+            let opts = '<option value="">— Pick a BOM —</option>';
+            $.each(bomsCache, function (_, b) {
+                opts += `<option value="${b.id}">${b.bom_no}</option>`;
+            });
+            newBlock.find(".bom-select").html(opts);
+        }
+
+        $("#indent-items-container").append(newBlock);
+        $("#id_" + prefix + "-TOTAL_FORMS").val(newIdx + 1);
+
         refreshPoItemDropdowns();
+        updateItemIndexes();
     });
+
+    function buildFreshItemBlock(idx) {
+        return $(`
+            <div class="indent-item-block border-bottom" data-form-index="${idx}">
+                <div class="d-flex align-items-center px-3 py-2 bg-light">
+                    <span class="row-index me-2 text-muted fw-bold"></span>
+                    <div class="flex-fill row g-2 mb-0">
+                        <div class="col-md-5">
+                            <label class="form-label form-label-sm mb-0">PO Item</label>
+                            <select name="items-${idx}-purchase_order_item"
+                                    id="id_items-${idx}-purchase_order_item"
+                                    class="form-control po-item-select">
+                                <option value="">---------</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label form-label-sm mb-0">Required Qty</label>
+                            <input type="number" step="0.001"
+                                   name="items-${idx}-required_quantity"
+                                   id="id_items-${idx}-required_quantity"
+                                   class="form-control">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label form-label-sm mb-0">UOM</label>
+                            <input type="text"
+                                   name="items-${idx}-uom"
+                                   id="id_items-${idx}-uom"
+                                   class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label form-label-sm mb-0">Remarks</label>
+                            <input type="text"
+                                   name="items-${idx}-remarks"
+                                   id="id_items-${idx}-remarks"
+                                   class="form-control">
+                        </div>
+                    </div>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger remove-item-row ms-2">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </div>
+                <div class="sub-items-section px-3 pt-2 pb-3">
+                    <div class="row g-2 mb-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label form-label-sm mb-0">
+                                <i class="fa fa-sitemap text-primary"></i> Select BOM
+                            </label>
+                            <select class="form-control form-control-sm bom-select"
+                                    data-form-index="${idx}">
+                                <option value="">— Pick a BOM —</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label form-label-sm mb-0">BOM Item</label>
+                            <select class="form-control form-control-sm bom-item-select"
+                                    data-form-index="${idx}">
+                                <option value="">— Select BOM first —</option>
+                            </select>
+                        </div>
+                        <div class="col-md-auto">
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-success add-from-bom"
+                                    data-form-index="${idx}">
+                                <i class="fa fa-plus"></i> Add from BOM
+                            </button>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary add-manual-sub"
+                                    data-form-index="${idx}">
+                                <i class="fa fa-pencil"></i> Add Manual
+                            </button>
+                        </div>
+                    </div>
+                    <table class="table table-bordered table-sm mb-0 sub-items-table"
+                           data-form-index="${idx}">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:30px;">#</th>
+                                <th>Item</th>
+                                <th style="width:110px;">Size</th>
+                                <th style="width:100px;">Qty</th>
+                                <th>Material</th>
+                                <th>Remarks</th>
+                                <th style="width:65px;">Source</th>
+                                <th style="width:50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="sub-items-body">
+                            <tr class="sub-empty-row">
+                                <td colspan="8" class="text-center text-muted py-2">
+                                    No sub-items yet. Add from BOM or manually.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <input type="hidden" name="sub_item_count-${idx}"
+                           class="sub-item-count" value="0">
+                </div>
+            </div>
+        `);
+    }
+
+    // ====================================================================
+    // REMOVE INDENT ITEM ROW
+    // ====================================================================
+    $(document).on("click", ".remove-item-row", function () {
+        let block       = $(this).closest(".indent-item-block");
+        let deleteField = block.find('input[type="checkbox"][name$="-DELETE"]');
+        let idField     = block.find('input[type="hidden"][name$="-id"]');
+
+        if (idField.length && idField.val()) {
+            // Existing saved row — mark for deletion
+            deleteField.prop("checked", true);
+            block.hide();
+        } else {
+            // New unsaved row — remove DOM + decrement TOTAL_FORMS
+            block.remove();
+            let total = parseInt($("#id_" + prefix + "-TOTAL_FORMS").val());
+            $("#id_" + prefix + "-TOTAL_FORMS").val(total - 1);
+        }
+
+        updateItemIndexes();
+    });
+
+    // ====================================================================
+    // PRE-SUBMIT — update all sub_item_count hidden fields
+    // ====================================================================
+    $("#indent-form").on("submit", function () {
+        $(".indent-item-block:visible").each(function () {
+            let formIdx = $(this).data("form-index");
+            let count   = $(this).find("tr.sub-item-row").length;
+            $(this).find(".sub-item-count").val(count);
+        });
+    });
+
+    // ====================================================================
+    // INIT — on edit page, populate BOMs if PO is already selected
+    // ====================================================================
+    {% if mode == "edit" %}
+    (function () {
+        let poId = $("#id_purchase_order").val();
+        if (!poId) return;
+
+        $.get(URL_BOMS, { po_id: poId }, function (data) {
+            bomsCache = data;
+            let opts = '<option value="">— Pick a BOM —</option>';
+            $.each(data, function (_, b) {
+                opts += `<option value="${b.id}">${b.bom_no}</option>`;
+            });
+            $(".bom-select").html(opts);
+        });
+
+        $.get(URL_PO_ITEMS, { po_id: poId }, function (data) {
+            poItemsCache = data;
+            // Don't call refreshPoItemDropdowns here on edit —
+            // dropdowns already have their saved values rendered by Django
+        });
+    })();
+    {% endif %}
+
+    // Initial index update
+    updateItemIndexes();
 
 });
 </script>

@@ -2,8 +2,10 @@ from django.db import models, transaction
 from django.contrib.auth import get_user_model
 
 from po.models import PurchaseOrder, PurchaseOrderItem, POProcess
+from bom.models import BOMItem
 
 User = get_user_model()
+
 INDENT_PROCESS_CODE_MAP = {
     13: "RAW",
     18: "ACC",
@@ -14,20 +16,15 @@ INDENT_PROCESS_CODE_MAP = {
 class Indent(models.Model):
     """
     Production Indent raised during a PO Production process.
-    Header contains context only.
+    One indent per PO + process combination (can have multiple items).
     """
-
-    STATUS_CHOICES = [
-        ("OPEN", "Open"),
-        ("CLOSED", "Closed"),
-    ]
 
     indent_number = models.CharField(
         max_length=50,
         unique=True,
         blank=True,
         editable=False,
-        help_text="System generated indent number",
+        help_text="System generated: IND/{oa_number}/{CODE}/{0001}",
     )
 
     indent_date = models.DateField(
@@ -45,12 +42,6 @@ class Indent(models.Model):
         on_delete=models.PROTECT,
         related_name="indents",
         help_text="Production process during which indent is raised",
-    )
-
-    status = models.CharField(
-        max_length=10,
-        choices=STATUS_CHOICES,
-        default="OPEN",
     )
 
     created_by = models.ForeignKey(
@@ -84,8 +75,9 @@ class Indent(models.Model):
             indent_code = INDENT_PROCESS_CODE_MAP.get(process_id)
             if not indent_code:
                 raise ValueError("Invalid production process for indent numbering.")
-            
-            po_number = self.purchase_order.po_number
+
+            oa_number = self.purchase_order.oa_number
+
             with transaction.atomic():
                 last_indent = (
                     Indent.objects.select_for_update()
@@ -95,12 +87,15 @@ class Indent(models.Model):
                 )
 
                 if last_indent and last_indent.indent_number:
-                    last_no = int(last_indent.indent_number.split("/")[-1])
+                    try:
+                        last_no = int(last_indent.indent_number.split("/")[-1])
+                    except (IndexError, ValueError):
+                        last_no = 0
                 else:
                     last_no = 0
 
                 self.indent_number = (
-                    f"IND/{po_number}/{indent_code}/" f"{str(last_no + 1).zfill(4)}"
+                    f"IND/{oa_number}/{indent_code}/{str(last_no + 1).zfill(4)}"
                 )
 
         super().save(*args, **kwargs)
@@ -108,8 +103,8 @@ class Indent(models.Model):
 
 class IndentItem(models.Model):
     """
-    Line item inside an Indent.
-    References PO item directly.
+    One line per PO item inside an Indent.
+    Captures how much of that PO item is being indented.
     """
 
     indent = models.ForeignKey(
@@ -132,7 +127,7 @@ class IndentItem(models.Model):
 
     uom = models.CharField(
         max_length=20,
-        help_text="Unit of Measure (default from PO item)",
+        help_text="Unit of Measure (carried from PO item)",
     )
 
     remarks = models.TextField(
@@ -145,4 +140,71 @@ class IndentItem(models.Model):
         verbose_name_plural = "Indent Items"
 
     def __str__(self):
-        return f"{self.indent.indent_number} - {self.purchase_order_item}"
+        return f"{self.indent.indent_number} — {self.purchase_order_item}"
+
+
+class IndentSubItem(models.Model):
+    """
+    Raw materials / components needed to fulfil one IndentItem.
+
+    - If bom_item is set   → this row was pulled from a BOM (BOM-linked)
+    - If bom_item is null  → this row was entered manually (free-form)
+
+    Fields mirror BOMItem so BOM-pulled rows auto-fill cleanly,
+    but every field remains editable after selection.
+    """
+
+    indent_item = models.ForeignKey(
+        IndentItem,
+        on_delete=models.CASCADE,
+        related_name="sub_items",
+    )
+
+    # Optional link to a BOMItem — null means manually entered
+    bom_item = models.ForeignKey(
+        BOMItem,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="indent_sub_items",
+        help_text="Set when sub-item was pulled from a BOM; null for manual entries",
+    )
+
+    item = models.CharField(
+        max_length=255,
+        help_text="Material / component name",
+    )
+
+    size = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    material = models.CharField(
+        max_length=255,
+    )
+
+    remarks = models.TextField(
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "Indent Sub-Item"
+        verbose_name_plural = "Indent Sub-Items"
+        indexes = [
+            models.Index(fields=["indent_item"]),
+        ]
+
+    def __str__(self):
+        source = f"BOM#{self.bom_item_id}" if self.bom_item_id else "Manual"
+        return f"{self.indent_item} — {self.item} [{source}]"
+
+    @property
+    def is_bom_linked(self):
+        return self.bom_item_id is not None

@@ -4,130 +4,146 @@
 {% block content %}
 <div class="container-fluid">
 
-    <!-- Page Header -->
+    <!-- ================= PAGE HEADER ================= -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0">
-            Indent Details — {{ indent.indent_number }}
-        </h4>
+        <h4 class="mb-0">Indent Details — {{ indent.indent_number }}</h4>
 
-        <div>
+        <div class="d-flex gap-2">
             <a href="{% url 'indent:indent_list' %}" class="btn btn-secondary btn-sm">
                 Back to List
             </a>
-
-            {% if indent.status == "OPEN" %}
-                <a href="{% url 'indent:indent_update' indent.id %}"
-                   class="btn btn-primary btn-sm">
-                    Edit
-                </a>
-
-                <a href="{% url 'indent:indent_close' indent.id %}"
-                   class="btn btn-warning btn-sm"
-                   onclick="return confirm('Are you sure you want to close this indent?');">
-                    Close
-                </a>
-            {% endif %}
+            <a href="{% url 'indent:indent_update' indent.id %}" class="btn btn-primary btn-sm">
+                <i class="fa fa-pencil"></i> Edit
+            </a>
+            <a href="{% url 'indent:indent_delete' indent.id %}" class="btn btn-danger btn-sm">
+                <i class="fa fa-trash"></i> Delete
+            </a>
         </div>
     </div>
 
-    <!-- Indent Header Info -->
+    <!-- ================= HEADER INFO ================= -->
     <div class="card mb-3">
+        <div class="card-header"><strong>Indent Header</strong></div>
         <div class="card-body">
-            <div class="row">
-
+            <div class="row mb-3">
                 <div class="col-md-3">
-                    <strong>Indent No</strong><br>
-                    {{ indent.indent_number }}
+                    <small class="text-muted d-block">Indent No</small>
+                    <strong>{{ indent.indent_number }}</strong>
                 </div>
-
                 <div class="col-md-3">
-                    <strong>Indent Date</strong><br>
-                    {{ indent.indent_date }}
+                    <small class="text-muted d-block">Indent Date</small>
+                    <strong>{{ indent.indent_date }}</strong>
                 </div>
-
                 <div class="col-md-3">
-                    <strong>PO Number</strong><br>
-                    {{ indent.purchase_order.po_number }}
+                    <small class="text-muted d-block">PO Number</small>
+                    <strong>{{ indent.purchase_order.po_number }}</strong>
                 </div>
-
                 <div class="col-md-3">
-                    <strong>Status</strong><br>
-                    {% if indent.status == "OPEN" %}
-                        <span class="badge bg-warning text-dark">OPEN</span>
-                    {% else %}
-                        <span class="badge bg-success">CLOSED</span>
-                    {% endif %}
+                    <small class="text-muted d-block">OA Number</small>
+                    <strong>{{ indent.purchase_order.oa_number }}</strong>
                 </div>
-
             </div>
-
-            <hr>
-
             <div class="row">
-
-                <div class="col-md-6">
-                    <strong>Production Process</strong><br>
-                    {{ indent.po_process.department_process.name }}
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Production Process</small>
+                    <strong>{{ indent.po_process.department_process.name }}</strong>
                 </div>
-
-                <div class="col-md-6">
-                    <strong>Created By</strong><br>
-                    {{ indent.created_by|default:"—" }}
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Created By</small>
+                    <strong>{{ indent.created_by|default:"—" }}</strong>
                 </div>
-
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Created At</small>
+                    <strong>{{ indent.created_at|date:"d M Y, H:i" }}</strong>
+                </div>
+                {% if indent.remarks %}
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Remarks</small>
+                    <strong>{{ indent.remarks }}</strong>
+                </div>
+                {% endif %}
             </div>
-
-            {% if indent.remarks %}
-                <hr>
-                <div class="row">
-                    <div class="col-md-12">
-                        <strong>Remarks</strong><br>
-                        {{ indent.remarks }}
-                    </div>
-                </div>
-            {% endif %}
         </div>
     </div>
 
-    <!-- Indent Items -->
-    <div class="card">
-        <div class="card-header">
-            <strong>Indent Items</strong>
+    <!-- ================= INDENT ITEMS ================= -->
+    {% for item in indent.items.all %}
+    <div class="card mb-3">
+
+        <!-- Item Header -->
+        <div class="card-header d-flex justify-content-between align-items-center bg-light">
+            <div>
+                <span class="badge bg-dark me-2">Item {{ forloop.counter }}</span>
+                <strong>{{ item.purchase_order_item.material_description }}</strong>
+            </div>
+            <div class="d-flex gap-3 text-muted small">
+                <span>
+                    <i class="fa fa-cubes"></i>
+                    Required: <strong class="text-dark">{{ item.required_quantity }} {{ item.uom }}</strong>
+                </span>
+                {% if item.remarks %}
+                <span>
+                    <i class="fa fa-comment-o"></i> {{ item.remarks }}
+                </span>
+                {% endif %}
+            </div>
         </div>
 
+        <!-- Sub-Items -->
         <div class="card-body p-0">
-            <table class="table table-bordered table-striped table-sm mb-0">
+            {% with sub_items=item.sub_items.all %}
+            {% if sub_items %}
+            <table class="table table-bordered table-sm mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>#</th>
-                        <th>PO Item</th>
-                        <th>Required Quantity</th>
-                        <th>UOM</th>
+                        <th style="width:40px;">#</th>
+                        <th>Item</th>
+                        <th style="width:120px;">Size</th>
+                        <th style="width:100px;">Quantity</th>
+                        <th>Material</th>
                         <th>Remarks</th>
+                        <th style="width:80px;" class="text-center">Source</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in indent.items.all %}
-                        <tr>
-                            <td>{{ forloop.counter }}</td>
-                            <td>
-                                {{ item.purchase_order_item.material_description }}
-                            </td>
-                            <td>{{ item.required_quantity }}</td>
-                            <td>{{ item.uom }}</td>
-                            <td>{{ item.remarks|default:"—" }}</td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center text-muted">
-                                No indent items found.
-                            </td>
-                        </tr>
+                    {% for sub in sub_items %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ sub.item }}</td>
+                        <td>{{ sub.size|default:"—" }}</td>
+                        <td>{{ sub.quantity }}</td>
+                        <td>{{ sub.material }}</td>
+                        <td>{{ sub.remarks|default:"—" }}</td>
+                        <td class="text-center">
+                            {% if sub.is_bom_linked %}
+                                <span class="badge bg-primary"
+                                      title="Linked from BOM: {{ sub.bom_item.bom.bom_no }}">
+                                    BOM
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">Manual</span>
+                            {% endif %}
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            {% else %}
+            <div class="text-center text-muted py-3">
+                <i class="fa fa-info-circle"></i> No sub-items added for this item.
+            </div>
+            {% endif %}
+            {% endwith %}
+        </div>
+
+    </div>
+    {% empty %}
+    <div class="card">
+        <div class="card-body text-center text-muted py-4">
+            No indent items found.
         </div>
     </div>
+    {% endfor %}
 
 </div>
 {% endblock %}

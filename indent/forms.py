@@ -7,6 +7,9 @@ from po.models import PurchaseOrder, PurchaseOrderItem, POProcess
 INDENT_PROCESS_IDS = [13, 18, 23]
 
 
+# ======================================================
+# INDENT HEADER FORM
+# ======================================================
 class IndentForm(forms.ModelForm):
     class Meta:
         model = Indent
@@ -17,11 +20,9 @@ class IndentForm(forms.ModelForm):
             "remarks",
         ]
         widgets = {
-            "purchase_order": forms.Select(
-                attrs={"class": "form-control po-select select2"}
-            ),
+            "purchase_order": forms.Select(attrs={"class": "form-control po-select"}),
             "po_process": forms.Select(
-                attrs={"class": "form-control po-process-select select2"}
+                attrs={"class": "form-control po-process-select"}
             ),
             "indent_date": forms.DateInput(
                 attrs={"type": "date", "class": "form-control"}
@@ -32,44 +33,39 @@ class IndentForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # Start with empty process queryset — populated by PO selection
         self.fields["po_process"].queryset = POProcess.objects.none()
 
-        # 🔑 HANDLE POST (CREATE)
+        # POST (create): filter processes by submitted PO
         if self.data.get("purchase_order"):
             po_id = self.data.get("purchase_order")
             self.fields["po_process"].queryset = POProcess.objects.filter(
                 purchase_order_id=po_id,
                 department_process_id__in=INDENT_PROCESS_IDS,
                 department_process__department="Production",
-            )
+            ).select_related("department_process")
 
-        # 🔑 HANDLE EDIT
+        # Edit (initial load): filter processes by existing PO
         elif self.instance.pk:
             po = self.instance.purchase_order
             self.fields["po_process"].queryset = POProcess.objects.filter(
                 purchase_order=po,
                 department_process_id__in=INDENT_PROCESS_IDS,
                 department_process__department="Production",
-            )
+            ).select_related("department_process")
 
     def clean(self):
         cleaned_data = super().clean()
-
         po = cleaned_data.get("purchase_order")
         po_process = cleaned_data.get("po_process")
 
-        # 🔒 Block edits if indent is closed
-        if self.instance.pk and self.instance.status == "CLOSED":
-            raise forms.ValidationError("This indent is closed and cannot be modified.")
-
-        # Validate PO Process belongs to PO
         if po and po_process:
+            # Process must belong to the selected PO
             if po_process.purchase_order_id != po.id:
                 raise forms.ValidationError(
                     "Selected process does not belong to the selected PO."
                 )
-
-            # Ensure Production-only process
+            # Process must be Production department
             if po_process.department_process.department != "Production":
                 raise forms.ValidationError(
                     "Indent can only be created for Production processes."
@@ -78,6 +74,9 @@ class IndentForm(forms.ModelForm):
         return cleaned_data
 
 
+# ======================================================
+# INDENT ITEM FORM
+# ======================================================
 class IndentItemForm(forms.ModelForm):
     class Meta:
         model = IndentItem
@@ -102,12 +101,12 @@ class IndentItemForm(forms.ModelForm):
         self.purchase_order = kwargs.pop("purchase_order", None)
         super().__init__(*args, **kwargs)
 
-        # 🔑 HANDLE POST (CREATE + UPDATE)
+        # POST (create/update): filter items by submitted PO
         if self.data.get("purchase_order"):
             po_id = self.data.get("purchase_order")
             qs = PurchaseOrderItem.objects.filter(purchase_order_id=po_id)
 
-        # 🔑 HANDLE EDIT (initial load)
+        # Edit (initial load): filter items by existing PO
         elif self.purchase_order:
             qs = PurchaseOrderItem.objects.filter(purchase_order=self.purchase_order)
 
@@ -119,26 +118,24 @@ class IndentItemForm(forms.ModelForm):
             lambda obj: obj.material_description
         )
 
-
     def clean_required_quantity(self):
         qty = self.cleaned_data.get("required_quantity")
-
         if qty is None or qty <= 0:
             raise forms.ValidationError("Required quantity must be greater than zero.")
-
         return qty
 
 
+# ======================================================
+# INDENT ITEM FORMSET
+# ======================================================
 class BaseIndentItemFormSet(BaseInlineFormSet):
     def clean(self):
         super().clean()
-
         valid_forms = [
             form
             for form in self.forms
             if form.cleaned_data and not form.cleaned_data.get("DELETE", False)
         ]
-
         if not valid_forms:
             raise forms.ValidationError("At least one indent item is required.")
 

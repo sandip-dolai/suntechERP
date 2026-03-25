@@ -4,101 +4,142 @@
 <div class="container-fluid">
 
     <!-- ================= HEADER ================= -->
-    <h4 class="mb-3">Indent Report</h4>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Indent Report</h4>
+        <a href="{% url 'indent:indent_report_excel' %}?{{ request.GET.urlencode }}"
+           class="btn btn-success btn-sm">
+            <i class="fa fa-file-excel-o"></i> Export Excel
+        </a>
+    </div>
 
     <!-- ================= FILTERS ================= -->
-    <form method="get" class="row g-2 mb-3">
-        <div class="col-md-2">
-            <input type="date" name="date_from" value="{{ filters.date_from }}" class="form-control">
-        </div>
-        <div class="col-md-2">
-            <input type="date" name="date_to" value="{{ filters.date_to }}" class="form-control">
-        </div>
-        <div class="col-md-2">
-            <select name="status" class="form-control">
-                <option value="">All Status</option>
-                <option value="OPEN" {% if filters.status == "OPEN" %}selected{% endif %}>OPEN</option>
-                <option value="CLOSED" {% if filters.status == "CLOSED" %}selected{% endif %}>CLOSED</option>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <select name="purchase_order" class="form-control">
-                <option value="">All POs</option>
-                {% for po in purchase_orders %}
-                    <option value="{{ po.id }}"
-                        {% if filters.purchase_order|stringformat:"s" == po.id|stringformat:"s" %}selected{% endif %}>
-                        {{ po.po_number }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-3">
-            <button class="btn btn-primary">Apply</button>
-            <a href="{% url 'indent:indent_report' %}" class="btn btn-secondary">Reset</a>
-            <a href="{% url 'indent:indent_report_excel' %}?{{ request.GET.urlencode }}"
-               class="btn btn-success">
-                Excel
-            </a>
+    <form method="get" class="card mb-3">
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+
+                <div class="col-md-2">
+                    <label class="form-label mb-1">From Date</label>
+                    <input type="date"
+                           name="date_from"
+                           value="{{ filters.date_from }}"
+                           class="form-control form-control-sm">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label mb-1">To Date</label>
+                    <input type="date"
+                           name="date_to"
+                           value="{{ filters.date_to }}"
+                           class="form-control form-control-sm">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label mb-1">PO Number</label>
+                    <select name="purchase_order"
+                            class="form-control select2-filter"
+                            style="width:100%;">
+                        <option value="">— All POs —</option>
+                        {% for po in purchase_orders %}
+                            <option value="{{ po.id }}"
+                                {% if filters.purchase_order|stringformat:"s" == po.id|stringformat:"s" %}selected{% endif %}>
+                                {{ po.po_number }} / {{ po.oa_number }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label mb-1">Indent No</label>
+                    <input type="text"
+                           name="indent_no"
+                           value="{{ filters.indent_no }}"
+                           class="form-control form-control-sm"
+                           placeholder="e.g. IND/OA-001/RAW/0001">
+                </div>
+
+                <div class="col-md-auto">
+                    <button class="btn btn-primary btn-sm">
+                        <i class="fa fa-search"></i> Apply
+                    </button>
+                    <a href="{% url 'indent:indent_report' %}" class="btn btn-secondary btn-sm">
+                        <i class="fa fa-refresh"></i> Reset
+                    </a>
+                </div>
+
+            </div>
         </div>
     </form>
 
-    <!-- ================= SUMMARY ================= -->
-    <div class="row mb-3">
-        <div class="col-sm-2">
-            <div class="card text-center">
-                <div class="card-body">
-                    <small>Total</small>
-                    <h5>{{ summary.total }}</h5>
-                </div>
-            </div>
-        </div>
-        <div class="col-sm-2">
-            <div class="card text-center">
-                <div class="card-body">
-                    <small>Open</small>
-                    <h5>{{ summary.open_count }}</h5>
-                </div>
-            </div>
-        </div>
-        <div class="col-sm-2">
-            <div class="card text-center">
-                <div class="card-body">
-                    <small>Closed</small>
-                    <h5>{{ summary.closed_count }}</h5>
-                </div>
-            </div>
+    <!-- ================= TABLE ================= -->
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-bordered table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>Indent No</th>
+                        <th>Date</th>
+                        <th>PO No</th>
+                        <th>OA No</th>
+                        <th>Process</th>
+                        <th>Created By</th>
+                        <th style="width:100px;" class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for indent in page_obj %}
+                    <tr>
+                        <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                        <td>
+                            <a href="{% url 'indent:indent_detail' indent.id %}">
+                                {{ indent.indent_number }}
+                            </a>
+                        </td>
+                        <td>{{ indent.indent_date }}</td>
+                        <td>{{ indent.purchase_order.po_number }}</td>
+                        <td>{{ indent.purchase_order.oa_number }}</td>
+                        <td>{{ indent.po_process.department_process.name }}</td>
+                        <td>{{ indent.created_by|default:"—" }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'indent:indent_detail' indent.id %}"
+                               class="btn btn-sm btn-info"
+                               title="View">
+                                <i class="fa fa-eye"></i>
+                            </a>
+                            <a href="{% url 'indent:indent_print' indent.id %}"
+                               class="btn btn-sm btn-secondary ms-1"
+                               target="_blank"
+                               title="Print">
+                                <i class="fa fa-print"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-3">
+                            No indents found for the selected filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- ================= TABLE ================= -->
-    <table class="table table-bordered table-sm">
-        <thead class="table-light">
-            <tr>
-                <th>Indent No</th>
-                <th>Date</th>
-                <th>PO</th>
-                <th>Process</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for indent in page_obj %}
-            <tr>
-                <td>{{ indent.indent_number }}</td>
-                <td>{{ indent.indent_date }}</td>
-                <td>{{ indent.purchase_order.po_number }}</td>
-                <td>{{ indent.po_process.department_process.name }}</td>
-                <td>{{ indent.status }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5" class="text-center text-muted">No data</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
+    <!-- ================= PAGINATION ================= -->
     {% include "components/pagination.html" %}
 
 </div>
+
+<script>
+$(document).ready(function () {
+    $('.select2-filter').select2({
+        theme: 'bootstrap4',
+        width: '100%',
+        placeholder: '— All POs —',
+        allowClear: true,
+    });
+});
+</script>
+
 {% endblock %}

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indent Print — {{ indent.indent_number }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            color: #000;
+            padding: 20px 30px;
+            background: #fff;
+        }
+
+        /* ── SCREEN TOOLBAR ── */
+        .no-print-bar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: #2c3e50;
+            color: #fff;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            font-size: 13px;
+        }
+        .no-print-bar button {
+            background: #27ae60;
+            color: #fff;
+            border: none;
+            padding: 6px 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .no-print-bar button:hover { background: #219150; }
+        .no-print-bar .close-btn { background: #7f8c8d; margin-left: 8px; }
+
+        @media screen { body { padding-top: 55px; } }
+
+        /* ── HEADER ── */
+        .print-header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+        }
+        .print-header h2 { font-size: 18px; letter-spacing: 1px; text-transform: uppercase; }
+        .print-header p  { font-size: 12px; color: #444; margin-top: 2px; }
+
+        .doc-title {
+            text-align: center;
+            font-size: 15px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+            text-decoration: underline;
+        }
+
+        /* ── INFO GRID ── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px 12px;
+            border: 1px solid #ccc;
+            padding: 10px 12px;
+            margin-bottom: 16px;
+            background: #fafafa;
+        }
+        .info-cell { display: flex; flex-direction: column; }
+        .info-cell .label {
+            font-size: 10px; color: #555;
+            text-transform: uppercase; font-weight: bold;
+        }
+        .info-cell .value { font-size: 13px; font-weight: bold; }
+
+        /* ── ITEM BLOCK ── */
+        .item-block { margin-bottom: 18px; }
+
+        .item-header {
+            background: #333;
+            color: #fff;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .item-header .item-meta { font-size: 11px; font-weight: normal; }
+
+        /* ── SUB-ITEMS TABLE ── */
+        .sub-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .sub-table th {
+            background: #555;
+            color: #fff;
+            padding: 5px 8px;
+            font-size: 11px;
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .sub-table td {
+            padding: 5px 8px;
+            border-bottom: 1px solid #ddd;
+            font-size: 12px;
+            vertical-align: top;
+        }
+        .sub-table tbody tr:nth-child(even) { background: #f7f7f7; }
+
+        .badge-bom    { background: #0d6efd; color:#fff; padding:1px 5px; border-radius:3px; font-size:10px; }
+        .badge-manual { background: #6c757d; color:#fff; padding:1px 5px; border-radius:3px; font-size:10px; }
+
+        .no-sub { color: #888; font-style: italic; padding: 8px 10px; font-size: 12px; }
+
+        /* ── SIGNATURE ── */
+        .print-footer {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .sign-block { text-align: center; width: 160px; }
+        .sign-block .sign-line {
+            border-top: 1px solid #000;
+            margin-top: 40px;
+            padding-top: 4px;
+            font-size: 12px;
+        }
+
+        /* ── PRINT MEDIA ── */
+        @media print {
+            .no-print-bar { display: none !important; }
+            body { padding: 10px 20px; }
+
+            .item-header {
+                background: #333 !important;
+                color: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .sub-table th {
+                background: #555 !important;
+                color: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .sub-table tbody tr:nth-child(even) {
+                background: #f7f7f7 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .item-block { page-break-inside: avoid; }
+
+            @page {
+                size: A4 landscape;
+                margin: 15mm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── SCREEN TOOLBAR ── -->
+    <div class="no-print-bar">
+        <span>Indent Print Preview — {{ indent.indent_number }}</span>
+        <div>
+            <button onclick="window.print()">🖨 Print</button>
+            <button class="close-btn" onclick="window.close()">✕ Close</button>
+        </div>
+    </div>
+
+    <!-- ── COMPANY HEADER ── -->
+    <div class="print-header">
+        <h2>Suntech ERP</h2>
+        <p>Production Indent</p>
+    </div>
+
+    <!-- ── DOCUMENT TITLE ── -->
+    <div class="doc-title">Production Indent — {{ indent.indent_number }}</div>
+
+    <!-- ── INDENT INFO ── -->
+    <div class="info-grid">
+        <div class="info-cell">
+            <span class="label">Indent No</span>
+            <span class="value">{{ indent.indent_number }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">Indent Date</span>
+            <span class="value">{{ indent.indent_date }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">PO Number</span>
+            <span class="value">{{ indent.purchase_order.po_number }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">OA Number</span>
+            <span class="value">{{ indent.purchase_order.oa_number }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">Production Process</span>
+            <span class="value">{{ indent.po_process.department_process.name }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">Customer / Supplier</span>
+            <span class="value">{{ indent.purchase_order.company }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">Created By</span>
+            <span class="value">{{ indent.created_by|default:"—" }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">Total PO Items</span>
+            <span class="value">{{ indent.items.count }}</span>
+        </div>
+        {% if indent.remarks %}
+        <div class="info-cell" style="grid-column: span 4;">
+            <span class="label">Remarks</span>
+            <span class="value">{{ indent.remarks }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ── INDENT ITEMS + SUB-ITEMS ── -->
+    {% for item in indent.items.all %}
+    <div class="item-block">
+
+        <!-- Item header row -->
+        <div class="item-header">
+            <span>
+                Item {{ forloop.counter }} —
+                {{ item.purchase_order_item.material_description }}
+            </span>
+            <span class="item-meta">
+                Required: {{ item.required_quantity }} {{ item.uom }}
+                {% if item.remarks %} | {{ item.remarks }}{% endif %}
+            </span>
+        </div>
+
+        <!-- Sub-items -->
+        {% with sub_items=item.sub_items.all %}
+        {% if sub_items %}
+        <table class="sub-table">
+            <thead>
+                <tr>
+                    <th style="width:35px;">#</th>
+                    <th>Item / Component</th>
+                    <th style="width:110px;">Size</th>
+                    <th style="width:90px;">Quantity</th>
+                    <th>Material</th>
+                    <th>Remarks</th>
+                    <th style="width:65px;">Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sub in sub_items %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ sub.item }}</td>
+                    <td>{{ sub.size|default:"—" }}</td>
+                    <td>{{ sub.quantity }}</td>
+                    <td>{{ sub.material }}</td>
+                    <td>{{ sub.remarks|default:"—" }}</td>
+                    <td>
+                        {% if sub.is_bom_linked %}
+                            <span class="badge-bom">BOM</span>
+                        {% else %}
+                            <span class="badge-manual">Manual</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="no-sub">No sub-items for this indent item.</div>
+        {% endif %}
+        {% endwith %}
+
+    </div>
+    {% endfor %}
+
+    <!-- ── SIGNATURE FOOTER ── -->
+    <div class="print-footer">
+        <div class="sign-block">
+            <div class="sign-line">Prepared By</div>
+        </div>
+        <div class="sign-block">
+            <div class="sign-line">Checked By</div>
+        </div>
+        <div class="sign-block">
+            <div class="sign-line">Approved By</div>
+        </div>
+    </div>
+
+</body>
+</html>

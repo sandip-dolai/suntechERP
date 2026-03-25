@@ -1,19 +1,169 @@
-<table border="1">
-    <tr>
-        <th>Indent No</th>
-        <th>Date</th>
-        <th>PO</th>
-        <th>Process</th>
-        <th>Status</th>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; }
+
+        table { border-collapse: collapse; width: 100%; }
+
+        /* ── Title row ── */
+        .title-row td {
+            background: #1f3864;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 8px 10px;
+            text-align: center;
+        }
+
+        /* ── Indent header row ── */
+        .indent-header-row td {
+            background: #2e75b6;
+            color: #ffffff;
+            font-weight: bold;
+            padding: 5px 8px;
+            font-size: 11px;
+        }
+
+        /* ── Column header row ── */
+        .col-header-row th {
+            background: #bdd7ee;
+            color: #1f3864;
+            font-weight: bold;
+            padding: 4px 8px;
+            font-size: 11px;
+            border: 1px solid #9dc3e6;
+            text-align: center;
+        }
+
+        /* ── Data rows ── */
+        .data-row td {
+            padding: 4px 8px;
+            border: 1px solid #dde; 
+            font-size: 11px;
+            vertical-align: top;
+        }
+        .data-row:nth-child(even) td { background: #f2f8ff; }
+
+        /* ── No sub-items row ── */
+        .no-sub-row td {
+            padding: 3px 8px;
+            border: 1px solid #dde;
+            font-size: 11px;
+            color: #888;
+            font-style: italic;
+        }
+
+        /* ── Spacer between indents ── */
+        .spacer-row td { height: 6px; background: #fff; }
+
+        /* ── Source badge ── */
+        .src-bom    { color: #0d6efd; font-weight: bold; }
+        .src-manual { color: #6c757d; }
+    </style>
+</head>
+<body>
+
+<table>
+
+    <!-- ════════════ TITLE ════════════ -->
+    <tr class="title-row">
+        <td colspan="12">INDENT REPORT — Suntech ERP</td>
     </tr>
 
+    <!-- empty spacer -->
+    <tr><td colspan="12" style="height:6px;"></td></tr>
+
     {% for indent in indents %}
+
+    <!-- ════ INDENT HEADER ════ -->
+    <tr class="indent-header-row">
+        <td colspan="3">Indent No: {{ indent.indent_number }}</td>
+        <td colspan="2">Date: {{ indent.indent_date }}</td>
+        <td colspan="2">PO: {{ indent.purchase_order.po_number }}</td>
+        <td colspan="2">OA: {{ indent.purchase_order.oa_number }}</td>
+        <td colspan="3">Process: {{ indent.po_process.department_process.name }} | Created By: {{ indent.created_by|default:"—" }}</td>
+    </tr>
+
+    <!-- ════ COLUMN HEADERS ════ -->
+    <tr class="col-header-row">
+        <th>#</th>
+        <th>PO Item</th>
+        <th>Required Qty</th>
+        <th>UOM</th>
+        <th>Item Remarks</th>
+        <th>Sub # </th>
+        <th>Component / Item</th>
+        <th>Size</th>
+        <th>Quantity</th>
+        <th>Material</th>
+        <th>Sub Remarks</th>
+        <th>Source</th>
+    </tr>
+
+    <!-- ════ ITEMS + SUB-ITEMS ════ -->
+    {% for item in indent.items.all %}
+        {% with sub_items=item.sub_items.all %}
+
+        {% if sub_items %}
+            {% for sub in sub_items %}
+            <tr class="data-row">
+                {% if forloop.first %}
+                    {# Only show PO item info on first sub row #}
+                    <td rowspan="{{ sub_items|length }}">{{ forloop.parentloop.counter }}</td>
+                    <td rowspan="{{ sub_items|length }}">{{ item.purchase_order_item.material_description }}</td>
+                    <td rowspan="{{ sub_items|length }}" style="text-align:center;">{{ item.required_quantity }}</td>
+                    <td rowspan="{{ sub_items|length }}" style="text-align:center;">{{ item.uom }}</td>
+                    <td rowspan="{{ sub_items|length }}">{{ item.remarks|default:"" }}</td>
+                {% endif %}
+                <td style="text-align:center;">{{ forloop.counter }}</td>
+                <td>{{ sub.item }}</td>
+                <td style="text-align:center;">{{ sub.size|default:"" }}</td>
+                <td style="text-align:center;">{{ sub.quantity }}</td>
+                <td>{{ sub.material }}</td>
+                <td>{{ sub.remarks|default:"" }}</td>
+                <td style="text-align:center;">
+                    {% if sub.bom_item_id %}
+                        <span class="src-bom">BOM</span>
+                    {% else %}
+                        <span class="src-manual">Manual</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+
+        {% else %}
+            {# No sub-items — show item row with empty sub columns #}
+            <tr class="no-sub-row">
+                <td style="text-align:center;">{{ forloop.counter }}</td>
+                <td>{{ item.purchase_order_item.material_description }}</td>
+                <td style="text-align:center;">{{ item.required_quantity }}</td>
+                <td style="text-align:center;">{{ item.uom }}</td>
+                <td>{{ item.remarks|default:"" }}</td>
+                <td colspan="7" style="text-align:center;">No sub-items</td>
+            </tr>
+        {% endif %}
+
+        {% endwith %}
+    {% empty %}
+        <tr class="no-sub-row">
+            <td colspan="12" style="text-align:center;">No items in this indent.</td>
+        </tr>
+    {% endfor %}
+
+    <!-- spacer between indents -->
+    <tr class="spacer-row"><td colspan="12"></td></tr>
+
+    {% empty %}
     <tr>
-        <td>{{ indent.indent_number }}</td>
-        <td>{{ indent.indent_date }}</td>
-        <td>{{ indent.purchase_order.po_number }}</td>
-        <td>{{ indent.po_process.department_process.name }}</td>
-        <td>{{ indent.status }}</td>
+        <td colspan="12"
+            style="text-align:center; padding:10px; color:#888; font-style:italic;">
+            No indents found for the selected filters.
+        </td>
     </tr>
     {% endfor %}
+
 </table>
+
+</body>
+</html>
