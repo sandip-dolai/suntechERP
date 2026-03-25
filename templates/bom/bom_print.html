@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOM Print — {{ bom.bom_no }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            color: #000;
+            padding: 20px 30px;
+            background: #fff;
+        }
+
+        /* ===== HEADER ===== */
+        .print-header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+        }
+
+        .print-header h2 {
+            font-size: 18px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .print-header p {
+            font-size: 12px;
+            color: #444;
+            margin-top: 2px;
+        }
+
+        /* ===== BOM TITLE ===== */
+        .bom-title {
+            text-align: center;
+            font-size: 15px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+            text-decoration: underline;
+        }
+
+        /* ===== INFO GRID ===== */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px 12px;
+            border: 1px solid #ccc;
+            padding: 10px 12px;
+            margin-bottom: 16px;
+            background: #fafafa;
+        }
+
+        .info-cell {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-cell .label {
+            font-size: 10px;
+            color: #555;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .info-cell .value {
+            font-size: 13px;
+            font-weight: bold;
+            color: #000;
+        }
+
+        /* ===== ITEMS TABLE ===== */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .items-table th {
+            background: #333;
+            color: #fff;
+            padding: 6px 8px;
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .items-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #ddd;
+            vertical-align: top;
+        }
+
+        .items-table tbody tr:nth-child(even) {
+            background: #f7f7f7;
+        }
+
+        .items-table td.center {
+            text-align: center;
+        }
+
+        /* ===== FOOTER ===== */
+        .print-footer {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+
+        .sign-block {
+            text-align: center;
+            width: 160px;
+        }
+
+        .sign-block .sign-line {
+            border-top: 1px solid #000;
+            margin-top: 40px;
+            padding-top: 4px;
+        }
+
+        .no-print-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #2c3e50;
+            color: #fff;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            font-size: 13px;
+        }
+
+        .no-print-bar button {
+            background: #27ae60;
+            color: #fff;
+            border: none;
+            padding: 6px 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .no-print-bar button:hover {
+            background: #219150;
+        }
+
+        .no-print-bar .close-btn {
+            background: #7f8c8d;
+            margin-left: 8px;
+        }
+
+        /* printed body needs top margin to clear the bar */
+        @media screen {
+            body {
+                padding-top: 55px;
+            }
+        }
+
+        /* ===== PRINT MEDIA ===== */
+        @media print {
+            .no-print-bar {
+                display: none !important;
+            }
+
+            body {
+                padding: 10px 20px;
+            }
+
+            .items-table th {
+                background: #333 !important;
+                color: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .items-table tbody tr:nth-child(even) {
+                background: #f7f7f7 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            @page {
+                size: A4 landscape;
+                margin: 15mm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== SCREEN-ONLY TOOLBAR ===== -->
+    <div class="no-print-bar">
+        <span>BOM Print Preview — {{ bom.bom_no }}</span>
+        <div>
+            <button onclick="window.print()">🖨 Print</button>
+            <button class="close-btn" onclick="window.close()">✕ Close</button>
+        </div>
+    </div>
+
+    <!-- ===== COMPANY HEADER ===== -->
+    <div class="print-header">
+        <h2>Suntech ERP</h2>
+        <p>Bill of Materials</p>
+    </div>
+
+    <!-- ===== BOM TITLE ===== -->
+    <div class="bom-title">Bill of Materials — {{ bom.bom_no }}</div>
+
+    <!-- ===== BOM INFO ===== -->
+    <div class="info-grid">
+        <div class="info-cell">
+            <span class="label">BOM No</span>
+            <span class="value">{{ bom.bom_no }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">BOM Date</span>
+            <span class="value">{{ bom.bom_date }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">PO Number</span>
+            <span class="value">{{ bom.po.po_number }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">OA Number</span>
+            <span class="value">{{ bom.po.oa_number }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">Customer / Supplier</span>
+            <span class="value">{{ bom.po.company }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">Created By</span>
+            <span class="value">{{ bom.created_by }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">Total Items</span>
+            <span class="value">{{ items|length }}</span>
+        </div>
+    </div>
+
+    <!-- ===== ITEMS TABLE ===== -->
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="width:40px;">#</th>
+                <th>Item</th>
+                <th style="width:130px;">Size</th>
+                <th style="width:100px;">Quantity</th>
+                <th>Material</th>
+                <th>Remarks</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td class="center">{{ forloop.counter }}</td>
+                <td>{{ item.item }}</td>
+                <td>{{ item.size|default:"—" }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.material }}</td>
+                <td>{{ item.remarks|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align:center; color:#888; padding: 16px;">
+                    No items in this BOM.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- ===== SIGNATURE FOOTER ===== -->
+    <div class="print-footer">
+        <div class="sign-block">
+            <div class="sign-line">Prepared By</div>
+        </div>
+        <div class="sign-block">
+            <div class="sign-line">Checked By</div>
+        </div>
+        <div class="sign-block">
+            <div class="sign-line">Approved By</div>
+        </div>
+    </div>
+
+    <!-- ===== AUTO PRINT ON LOAD (optional) ===== -->
+    <script>
+        // Uncomment the line below if you want it to auto-print on open:
+        // window.onload = function() { window.print(); };
+    </script>
+
+</body>
+</html>

@@ -13,7 +13,6 @@
                 Create BOM
             {% endif %}
         </h4>
-
         <a href="{% url 'bom:bom_list' %}" class="btn btn-secondary btn-sm">
             Back to List
         </a>
@@ -27,35 +26,41 @@
             <div class="card-header">
                 <strong>BOM Header</strong>
             </div>
-
             <div class="card-body">
-                <div class="row mb-3">
+                <div class="row">
 
                     <div class="col-md-4">
-                        <label class="form-label">Purchase Order</label>
+                        <label class="form-label">Purchase Order <span class="text-danger">*</span></label>
                         <select name="purchase_order"
                                 id="id_purchase_order"
                                 class="form-control"
                                 {% if mode == "edit" %}disabled{% endif %}
                                 required>
-                            <option value="">---------</option>
+                            <option value="">— Select PO —</option>
                             {% for po in purchase_orders %}
                                 <option value="{{ po.id }}"
                                     {% if bom and bom.po.id == po.id %}selected{% endif %}>
-                                    {{ po.po_number }}
+                                    {{ po.po_number }} / {{ po.oa_number }}
                                 </option>
                             {% endfor %}
                         </select>
                     </div>
 
-                    <div class="col-md-4">
-                        <label class="form-label">BOM Date</label>
+                    <div class="col-md-3">
+                        <label class="form-label">BOM Date <span class="text-danger">*</span></label>
                         <input type="date"
                                name="bom_date"
                                class="form-control"
                                value="{{ bom.bom_date|date:'Y-m-d' }}"
                                required>
                     </div>
+
+                    {% if mode == "edit" %}
+                    <div class="col-md-3">
+                        <label class="form-label">BOM No</label>
+                        <input type="text" class="form-control" value="{{ bom.bom_no }}" disabled>
+                    </div>
+                    {% endif %}
 
                 </div>
             </div>
@@ -65,14 +70,9 @@
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>BOM Items</strong>
-
-                {% if mode != "edit" %}
-                <button type="button"
-                        class="btn btn-sm btn-outline-primary"
-                        id="add-row">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="add-row">
                     + Add Item
                 </button>
-                {% endif %}
             </div>
 
             <div class="card-body p-0">
@@ -80,47 +80,80 @@
                     <thead class="table-light">
                         <tr>
                             <th style="width:40px;">#</th>
-                            <th>PO Item</th>
-                            <th>PO Qty</th>
-                            <th>UOM</th>
-                            <th>BOM Qty</th>
-                            <th style="width:80px;">Remove</th>
+                            <th>Item <span class="text-danger">*</span></th>
+                            <th style="width:130px;">Size</th>
+                            <th style="width:120px;">Quantity <span class="text-danger">*</span></th>
+                            <th>Material <span class="text-danger">*</span></th>
+                            <th>Remarks</th>
+                            <th style="width:70px;">Remove</th>
                         </tr>
                     </thead>
-
                     <tbody id="bom-items-body">
-                        {% if mode == "edit" %}
+
+                        {% if items %}
                             {% for item in items %}
-                                <tr>
-                                    <td class="row-index">{{ forloop.counter }}</td>
-                                    <td>{{ item.po_item.material_description }}</td>
-                                    <td>{{ item.po_item.quantity_value }}</td>
-                                    <td>{{ item.po_item.uom }}</td>
-                                    <td>
-                                        <input type="number"
-                                               step="0.01"
-                                               name="quantity_{{ item.po_item.id }}"
-                                               value="{{ item.quantity }}"
-                                               class="form-control"
-                                               required>
-                                    </td>
-                                    <td class="text-center">—</td>
-                                </tr>
+                            <tr>
+                                <td class="row-index">{{ forloop.counter }}</td>
+                                <td>
+                                    <input type="text"
+                                           name="item[]"
+                                           class="form-control"
+                                           value="{{ item.item }}"
+                                           required>
+                                </td>
+                                <td>
+                                    <input type="text"
+                                           name="size[]"
+                                           class="form-control"
+                                           value="{{ item.size }}">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="quantity[]"
+                                           class="form-control"
+                                           step="0.01"
+                                           min="0.01"
+                                           value="{{ item.quantity }}"
+                                           required>
+                                </td>
+                                <td>
+                                    <input type="text"
+                                           name="material[]"
+                                           class="form-control"
+                                           value="{{ item.material }}"
+                                           required>
+                                </td>
+                                <td>
+                                    <input type="text"
+                                           name="remarks[]"
+                                           class="form-control"
+                                           value="{{ item.remarks }}">
+                                </td>
+                                <td class="text-center">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger remove-row"
+                                            title="Remove">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
                             {% endfor %}
                         {% else %}
                             <tr class="empty-row">
-                                <td colspan="6" class="text-center text-muted">
-                                    Select PO and add items
+                                <td colspan="7" class="text-center text-muted py-3">
+                                    Click "+ Add Item" to add BOM items
                                 </td>
                             </tr>
                         {% endif %}
+
                     </tbody>
                 </table>
             </div>
         </div>
 
         <!-- ================= ACTIONS ================= -->
-        <div class="d-flex justify-content-end">
+        <div class="d-flex justify-content-end gap-2">
+            <a href="{% url 'bom:bom_list' %}" class="btn btn-secondary">Cancel</a>
             <button type="submit" class="btn btn-success">
                 {% if mode == "edit" %}Update BOM{% else %}Create BOM{% endif %}
             </button>
@@ -135,139 +168,92 @@
 <script>
 $(document).ready(function () {
 
-    let poItemsCache = [];
-
     function updateRowIndexes() {
         $("#bom-items-body tr:visible").each(function (i) {
             $(this).find(".row-index").text(i + 1);
         });
     }
 
-    function getSelectedItemIds() {
-        let ids = [];
-        $(".po-item-select").each(function () {
-            if ($(this).val()) ids.push($(this).val());
-        });
-        return ids;
-    }
-
-    function refreshItemDropdowns() {
-        let selectedIds = getSelectedItemIds();
-
-        $(".po-item-select").each(function () {
-            let select = $(this);
-            let current = select.val();
-
-            select.empty();
-            select.append('<option value="">---------</option>');
-
-            $.each(poItemsCache, function (_, item) {
-                if (
-                    !selectedIds.includes(item.id.toString()) ||
-                    item.id.toString() === current
-                ) {
-                    select.append(
-                        `<option value="${item.id}"
-                                 data-qty="${item.quantity}"
-                                 data-uom="${item.uom}">
-                            ${item.name}
-                         </option>`
-                    );
-                }
-            });
-
-            select.val(current);
-        });
-    }
-
-    // ================= LOAD PO ITEMS =================
-    $("#id_purchase_order").on("change", function () {
-        let poId = $(this).val();
-        poItemsCache = [];
-        $("#bom-items-body").html("");
-
-        if (!poId) return;
-
-        $.ajax({
-            url: "{% url 'bom:ajax_load_po_items' %}",
-            data: { po_id: poId },
-            success: function (data) {
-                poItemsCache = data;
-                $("#bom-items-body").html(`
-                    <tr class="empty-row">
-                        <td colspan="6" class="text-center text-muted">
-                            Click "Add Item" to add BOM items
-                        </td>
-                    </tr>
-                `);
-            }
-        });
-    });
-
-    // ================= ADD ROW =================
-    $("#add-row").on("click", function () {
-        if (poItemsCache.length === 0) return;
-
-        $(".empty-row").remove();
-
-        let row = `
+    function newRow() {
+        return `
             <tr>
                 <td class="row-index"></td>
                 <td>
-                    <select class="form-control po-item-select">
-                        <option value="">---------</option>
-                    </select>
+                    <input type="text"
+                           name="item[]"
+                           class="form-control"
+                           placeholder="Item name"
+                           required>
                 </td>
-                <td class="po-qty"></td>
-                <td class="po-uom"></td>
+                <td>
+                    <input type="text"
+                           name="size[]"
+                           class="form-control"
+                           placeholder="e.g. 10x20mm">
+                </td>
                 <td>
                     <input type="number"
+                           name="quantity[]"
+                           class="form-control"
                            step="0.01"
-                           class="form-control bom-qty"
-                           disabled required>
+                           min="0.01"
+                           placeholder="0.00"
+                           required>
+                </td>
+                <td>
+                    <input type="text"
+                           name="material[]"
+                           class="form-control"
+                           placeholder="Material type"
+                           required>
+                </td>
+                <td>
+                    <input type="text"
+                           name="remarks[]"
+                           class="form-control"
+                           placeholder="Optional">
                 </td>
                 <td class="text-center">
                     <button type="button"
-                            class="btn btn-sm btn-outline-danger remove-row">
+                            class="btn btn-sm btn-outline-danger remove-row"
+                            title="Remove">
                         <i class="fa fa-trash"></i>
                     </button>
                 </td>
             </tr>
         `;
+    }
 
-        $("#bom-items-body").append(row);
-        refreshItemDropdowns();
+    // ================= ADD ROW =================
+    $("#add-row").on("click", function () {
+        $(".empty-row").remove();
+        $("#bom-items-body").append(newRow());
         updateRowIndexes();
+        // Focus the first input of the new row
+        $("#bom-items-body tr:last input:first").focus();
     });
 
     // ================= REMOVE ROW =================
     $(document).on("click", ".remove-row", function () {
         $(this).closest("tr").remove();
+        if ($("#bom-items-body tr").length === 0) {
+            $("#bom-items-body").html(`
+                <tr class="empty-row">
+                    <td colspan="7" class="text-center text-muted py-3">
+                        Click "+ Add Item" to add BOM items
+                    </td>
+                </tr>
+            `);
+        }
         updateRowIndexes();
-        refreshItemDropdowns();
     });
 
-    // ================= ITEM CHANGE =================
-    $(document).on("change", ".po-item-select", function () {
-        let option = $(this).find(":selected");
-        let row = $(this).closest("tr");
-
-        let qty = option.data("qty") || "";
-        let uom = option.data("uom") || "";
-        let id = $(this).val();
-
-        row.find(".po-qty").text(qty);
-        row.find(".po-uom").text(uom);
-
-        let input = row.find(".bom-qty");
-        input.prop("disabled", !id);
-
-        if (id) {
-            input.attr("name", `quantity_${id}`);
-            input.val(qty);
+    // ================= SUBMIT GUARD =================
+    $("form").on("submit", function () {
+        if ($("#bom-items-body tr.empty-row").length) {
+            alert("Please add at least one BOM item before saving.");
+            return false;
         }
-
-        refreshItemDropdowns();
     });
 
 });

@@ -91,9 +91,7 @@ def bom_create(request):
 # ======================================================
 @login_required
 def bom_detail(request, pk):
-    bom = get_object_or_404(
-        BOM.objects.select_related("po", "created_by"), pk=pk
-    )
+    bom = get_object_or_404(BOM.objects.select_related("po", "created_by"), pk=pk)
     items = bom.items.all()
 
     return render(request, "bom/bom_detail.html", {"bom": bom, "items": items})
@@ -149,42 +147,57 @@ def bom_delete(request, pk):
 
 
 # ======================================================
-# REPORT
+# BOM REPORT  — replace the existing bom_report view
 # ======================================================
 @login_required
 def bom_report(request):
     today = datetime.today().date()
-
+ 
     date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
     date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
     po_id = request.GET.get("po", "")
-
+    bom_no = request.GET.get("bom_no", "").strip()
+ 
     filters = {"bom_date__range": [date_from, date_to]}
     if po_id:
         filters["po_id"] = po_id
-
+    if bom_no:
+        filters["bom_no__icontains"] = bom_no
+ 
     qs = (
         BOM.objects.select_related("po", "created_by")
         .filter(**filters)
+        .annotate(item_count=Count("items"))
         .order_by("-id")
     )
-
-    summary = qs.aggregate(total_boms=Count("id"))
-
+ 
+    summary = qs.aggregate(
+        total_boms=Count("id"),
+        unique_pos=Count("po", distinct=True),
+        total_items=Count("items"),
+    )
+ 
     paginator = Paginator(qs, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
-
+ 
     return render(
         request,
         "bom/bom_report.html",
         {
             "page_obj": page_obj,
             "summary": summary,
-            "filters": {"date_from": date_from, "date_to": date_to, "po": po_id},
+            "filters": {
+                "date_from": date_from,
+                "date_to": date_to,
+                "po": po_id,
+                "bom_no": bom_no,
+            },
             "purchase_orders": PurchaseOrder.objects.order_by("-id"),
             "q": "",
         },
     )
+ 
+ 
 
 
 @login_required
@@ -200,9 +213,7 @@ def bom_report_excel(request):
         filters["po_id"] = po_id
 
     boms = (
-        BOM.objects.select_related("po", "created_by")
-        .filter(**filters)
-        .order_by("-id")
+        BOM.objects.select_related("po", "created_by").filter(**filters).order_by("-id")
     )
 
     html = render_to_string("bom/bom_report_excel.html", {"boms": boms})
@@ -258,3 +269,12 @@ def _save_bom_items(request, bom):
 
     if to_create:
         BOMItem.objects.bulk_create(to_create)
+
+
+@login_required
+def bom_print(request, pk):
+    bom = get_object_or_404(
+        BOM.objects.select_related("po", "po__company", "created_by"), pk=pk
+    )
+    items = bom.items.all()
+    return render(request, "bom/bom_print.html", {"bom": bom, "items": items})

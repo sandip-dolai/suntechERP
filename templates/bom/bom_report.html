@@ -3,81 +3,130 @@
 
 <div class="container-fluid">
 
-    <h4 class="mb-3">BOM Report</h4>
+    <!-- ================= HEADER ================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">BOM Report</h4>
+        <a href="{% url 'bom:bom_report_excel' %}?{{ request.GET.urlencode }}"
+           class="btn btn-success btn-sm">
+            <i class="fa fa-file-excel-o"></i> Export Excel
+        </a>
+    </div>
 
     <!-- ================= FILTERS ================= -->
-    <form method="get" class="row g-2 mb-3">
-        <div class="col-md-2">
-            <input type="date" name="date_from" value="{{ filters.date_from }}" class="form-control">
-        </div>
-        <div class="col-md-2">
-            <input type="date" name="date_to" value="{{ filters.date_to }}" class="form-control">
-        </div>
-        <div class="col-md-3">
-            <select name="po" class="form-control">
-                <option value="">All POs</option>
-                {% for po in purchase_orders %}
-                    <option value="{{ po.id }}"
-                        {% if filters.po|stringformat:"s" == po.id|stringformat:"s" %}selected{% endif %}>
-                        {{ po.po_number }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-auto">
-            <button class="btn btn-primary">Apply</button>
-        </div>
-        <div class="col-md-auto">
-            <a href="{% url 'bom:bom_report' %}" class="btn btn-secondary">Reset</a>
-        </div>
-        <div class="col-md-auto">
-            <a href="{% url 'bom:bom_report_excel' %}?{{ request.GET.urlencode }}"
-               class="btn btn-success">
-                Export Excel
-            </a>
+    <form method="get" class="card mb-3">
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+
+                <div class="col-md-2">
+                    <label class="form-label mb-1">From Date</label>
+                    <input type="date"
+                           name="date_from"
+                           value="{{ filters.date_from }}"
+                           class="form-control form-control-sm">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label mb-1">To Date</label>
+                    <input type="date"
+                           name="date_to"
+                           value="{{ filters.date_to }}"
+                           class="form-control form-control-sm">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label mb-1">PO Number</label>
+                    <select name="po" class="form-control form-control-sm">
+                        <option value="">— All POs —</option>
+                        {% for po in purchase_orders %}
+                            <option value="{{ po.id }}"
+                                {% if filters.po|stringformat:"s" == po.id|stringformat:"s" %}selected{% endif %}>
+                                {{ po.po_number }} / {{ po.oa_number }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label mb-1">BOM No</label>
+                    <input type="text"
+                           name="bom_no"
+                           value="{{ filters.bom_no }}"
+                           class="form-control form-control-sm"
+                           placeholder="e.g. BOM/OA-001/0001">
+                </div>
+
+                <div class="col-md-auto">
+                    <button class="btn btn-primary btn-sm">
+                        <i class="fa fa-search"></i> Apply
+                    </button>
+                    <a href="{% url 'bom:bom_report' %}" class="btn btn-secondary btn-sm">
+                        <i class="fa fa-refresh"></i> Reset
+                    </a>
+                </div>
+
+            </div>
         </div>
     </form>
 
-    <!-- ================= SUMMARY ================= -->
-    <div class="row mb-3">
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <small>Total BOMs</small>
-                    <h5>{{ summary.total_boms }}</h5>
-                </div>
-            </div>
+    <!-- ================= TABLE ================= -->
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-bordered table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>BOM No</th>
+                        <th>BOM Date</th>
+                        <th>PO No</th>
+                        <th>OA No</th>
+                        <th class="text-center" style="width:90px;">Items</th>
+                        <th>Created By</th>
+                        <th class="text-center" style="width:110px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bom in page_obj %}
+                    <tr>
+                        <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                        <td>
+                            <a href="{% url 'bom:bom_detail' bom.id %}" title="View Detail">
+                                {{ bom.bom_no }}
+                            </a>
+                        </td>
+                        <td>{{ bom.bom_date }}</td>
+                        <td>{{ bom.po.po_number }}</td>
+                        <td>{{ bom.po.oa_number }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary">{{ bom.item_count }}</span>
+                        </td>
+                        <td>{{ bom.created_by }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'bom:bom_detail' bom.id %}"
+                               class="btn btn-sm btn-info"
+                               title="View Detail">
+                                <i class="fa fa-eye"></i>
+                            </a>
+                            <a href="{% url 'bom:bom_print' bom.id %}"
+                               class="btn btn-sm btn-secondary ms-1"
+                               target="_blank"
+                               title="Print BOM">
+                                <i class="fa fa-print"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-3">
+                            No BOMs found for the selected filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- ================= TABLE ================= -->
-    <table class="table table-bordered table-sm">
-        <thead class="table-light">
-            <tr>
-                <th>BOM No</th>
-                <th>BOM Date</th>
-                <th>PO No</th>
-                <th>Created By</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for bom in page_obj %}
-            <tr>
-                <td>{{ bom.bom_no }}</td>
-                <td>{{ bom.bom_date }}</td>
-                <td>{{ bom.po.po_number }}</td>
-                <td>{{ bom.created_by }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="4" class="text-center text-muted">
-                    No BOMs found.
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
+    <!-- ================= PAGINATION ================= -->
     {% include "components/pagination.html" %}
 
 </div>
