@@ -1,17 +1,135 @@
-<table border="1">
-    <tr>
-        <th>BOM No</th>
-        <th>BOM Date</th>
-        <th>PO No</th>
-        <th>Created By</th>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; }
+
+        table { border-collapse: collapse; width: 100%; }
+
+        /* ── Title row ── */
+        .title-row td {
+            background: #1f3864;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 8px 10px;
+            text-align: center;
+        }
+
+        /* ── BOM header band ── */
+        .bom-header-row td {
+            background: #375623;
+            color: #ffffff;
+            font-weight: bold;
+            padding: 5px 8px;
+            font-size: 11px;
+        }
+
+        /* ── Column header row ── */
+        .col-header-row th {
+            background: #e2efda;
+            color: #375623;
+            font-weight: bold;
+            padding: 4px 8px;
+            font-size: 11px;
+            border: 1px solid #a9d18e;
+            text-align: center;
+        }
+
+        /* ── Data rows ── */
+        .data-row td {
+            padding: 4px 8px;
+            border: 1px solid #dde;
+            font-size: 11px;
+            vertical-align: top;
+        }
+        .data-row:nth-child(even) td { background: #f4f9f0; }
+
+        /* ── No items row ── */
+        .no-items-row td {
+            padding: 3px 8px;
+            border: 1px solid #dde;
+            font-size: 11px;
+            color: #888;
+            font-style: italic;
+        }
+
+        /* ── Spacer ── */
+        .spacer-row td { height: 6px; background: #fff; }
+    </style>
+</head>
+<body>
+
+<table>
+
+    <!-- ════════════ TITLE ════════════ -->
+    <tr class="title-row">
+        <td colspan="9">BOM REPORT — Suntech ERP</td>
     </tr>
 
+    <tr><td colspan="9" style="height:6px;"></td></tr>
+
     {% for bom in boms %}
+
+    <!-- ════ BOM HEADER ════ -->
+    <tr class="bom-header-row">
+        <td colspan="3">BOM No: {{ bom.bom_no }}</td>
+        <td colspan="2">Date: {{ bom.bom_date }}</td>
+        <td colspan="2">PO: {{ bom.po.po_number }} / OA: {{ bom.po.oa_number }}</td>
+        <td colspan="2">Created By: {{ bom.created_by|default:"—" }}</td>
+    </tr>
+
+    <!-- ════ COLUMN HEADERS ════ -->
+    <tr class="col-header-row">
+        <th style="width:35px;">#</th>
+        <th>Item / Component</th>
+        <th style="width:120px;">Size</th>
+        <th style="width:90px;">Quantity</th>
+        <th>Material</th>
+        <th>Remarks</th>
+        <!-- BOM-level info repeated for easy filtering in Excel -->
+        <th>BOM No</th>
+        <th>PO No</th>
+        <th>OA No</th>
+    </tr>
+
+    <!-- ════ BOM ITEMS ════ -->
+    {% with items=bom.items.all %}
+    {% if items %}
+        {% for item in items %}
+        <tr class="data-row">
+            <td style="text-align:center;">{{ forloop.counter }}</td>
+            <td>{{ item.item }}</td>
+            <td style="text-align:center;">{{ item.size|default:"" }}</td>
+            <td style="text-align:center;">{{ item.quantity }}</td>
+            <td>{{ item.material }}</td>
+            <td>{{ item.remarks|default:"" }}</td>
+            <td>{{ bom.bom_no }}</td>
+            <td>{{ bom.po.po_number }}</td>
+            <td>{{ bom.po.oa_number }}</td>
+        </tr>
+        {% endfor %}
+    {% else %}
+        <tr class="no-items-row">
+            <td style="text-align:center;">—</td>
+            <td colspan="8" style="text-align:center;">No items in this BOM.</td>
+        </tr>
+    {% endif %}
+    {% endwith %}
+
+    <!-- spacer between BOMs -->
+    <tr class="spacer-row"><td colspan="9"></td></tr>
+
+    {% empty %}
     <tr>
-        <td>{{ bom.bom_no }}</td>
-        <td>{{ bom.bom_date }}</td>
-        <td>{{ bom.po.po_number }}</td>
-        <td>{{ bom.created_by }}</td>
+        <td colspan="9"
+            style="text-align:center; padding:10px; color:#888; font-style:italic;">
+            No BOMs found for the selected filters.
+        </td>
     </tr>
     {% endfor %}
+
 </table>
+
+</body>
+</html>

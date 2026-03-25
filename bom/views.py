@@ -152,34 +152,34 @@ def bom_delete(request, pk):
 @login_required
 def bom_report(request):
     today = datetime.today().date()
- 
+
     date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
     date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
     po_id = request.GET.get("po", "")
     bom_no = request.GET.get("bom_no", "").strip()
- 
+
     filters = {"bom_date__range": [date_from, date_to]}
     if po_id:
         filters["po_id"] = po_id
     if bom_no:
         filters["bom_no__icontains"] = bom_no
- 
+
     qs = (
         BOM.objects.select_related("po", "created_by")
         .filter(**filters)
         .annotate(item_count=Count("items"))
         .order_by("-id")
     )
- 
+
     summary = qs.aggregate(
         total_boms=Count("id"),
         unique_pos=Count("po", distinct=True),
         total_items=Count("items"),
     )
- 
+
     paginator = Paginator(qs, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
- 
+
     return render(
         request,
         "bom/bom_report.html",
@@ -196,10 +196,11 @@ def bom_report(request):
             "q": "",
         },
     )
- 
- 
 
 
+# ======================================================
+# BOM REPORT EXCEL  — replace the existing view
+# ======================================================
 @login_required
 def bom_report_excel(request):
     today = datetime.today().date()
@@ -207,16 +208,25 @@ def bom_report_excel(request):
     date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
     date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
     po_id = request.GET.get("po", "")
+    bom_no = request.GET.get("bom_no", "").strip()
 
     filters = {"bom_date__range": [date_from, date_to]}
     if po_id:
         filters["po_id"] = po_id
+    if bom_no:
+        filters["bom_no__icontains"] = bom_no
 
     boms = (
-        BOM.objects.select_related("po", "created_by").filter(**filters).order_by("-id")
+        BOM.objects.select_related("po", "created_by")
+        .prefetch_related("items")
+        .filter(**filters)
+        .order_by("-id")
     )
 
-    html = render_to_string("bom/bom_report_excel.html", {"boms": boms})
+    html = render_to_string(
+        "bom/bom_report_excel.html",
+        {"boms": boms},
+    )
 
     response = HttpResponse(html)
     response["Content-Type"] = "application/vnd.ms-excel"
