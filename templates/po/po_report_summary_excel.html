@@ -1,72 +1,79 @@
-<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title>PO Summary Report</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family:Arial,sans-serif; font-size:12px; }
+        table { border-collapse:collapse; width:100%; }
+        .title-row td { background:#1f3864; color:#fff; font-size:14px; font-weight:bold; padding:8px 10px; text-align:center; }
+        .col-header-row th { background:#bdd7ee; color:#1f3864; font-weight:bold; padding:4px 8px; font-size:11px; border:1px solid #9dc3e6; text-align:center; }
+        .data-row td { padding:4px 8px; border:1px solid #dde; font-size:11px; }
+        .data-row:nth-child(even) td { background:#f2f8ff; }
+        .total-row td { padding:5px 8px; border:1px solid #9dc3e6; font-weight:bold; background:#dae8fc; font-size:11px; }
+        .spacer td { height:4px; }
+    </style>
 </head>
 <body>
+<table>
+    <tr class="title-row">
+        <td colspan="{% if can_view_value %}11{% else %}9{% endif %}">
+            PO SUMMARY REPORT — Suntech ERP
+        </td>
+    </tr>
+    <tr><td colspan="{% if can_view_value %}11{% else %}9{% endif %}" style="height:4px;"></td></tr>
 
-<table border="1">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>PO Number</th>
-            <th>OA Number</th>
-            <th>Company</th>
-            <th>PO Date</th>
-            <th>Delivery Date</th>
-            <th>Created By</th>
-            <th>PO Status</th>
-            <th>Total Quantity</th>
-            {% if can_view_value %}
-            <th>Total Value</th>
-            {% endif %}
-        </tr>
-    </thead>
-
-    <tbody>
-        {% for po in pos %}
-        <tr>
-            <td>{{ forloop.counter }}</td>
-            <td>{{ po.po_number }}</td>
-            <td>{{ po.oa_number }}</td>
-            <td>{{ po.company.name }}</td>
-            <td>{{ po.po_date }}</td>
-            <td>{{ po.delivery_date|default:"" }}</td>
-            <td>{{ po.created_by|default:"" }}</td>
-            <td>{{ po.get_po_status_display }}</td>
-            <td>{{ po.total_quantity|floatformat:2 }}</td>
-            {% if can_view_value %}
-            <td>{{ po.total_value|floatformat:2 }}</td>
-            {% endif %}
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="{% if can_view_value %}10{% else %}9{% endif %}">
-                No Purchase Orders Found
-            </td>
-        </tr>
-        {% endfor %}
-
-        <!-- Grand Total Row -->
-        {% if pos %}
-        <tr>
-            <td colspan="8"><strong>GRAND TOTAL</strong></td>
-            <td>
-                <strong>
-                {% with total=0 %}
-                    {% for po in pos %}
-                        {% if forloop.last %}{{ po.total_quantity|floatformat:2 }}{% endif %}
-                    {% endfor %}
-                {% endwith %}
-                </strong>
-            </td>
-            {% if can_view_value %}<td></td>{% endif %}
-        </tr>
+    <tr class="col-header-row">
+        <th>#</th>
+        <th>PO Number</th>
+        <th>OA Number</th>
+        <th>Company</th>
+        <th>Department</th>
+        <th>PO Date</th>
+        <th>Delivery Date</th>
+        <th>PO Status</th>
+        <th>Items</th>
+        {% if can_view_value %}
+        <th>Total Qty</th>
+        <th>Total Value</th>
         {% endif %}
+    </tr>
 
-    </tbody>
+    {% for po in pos %}
+    <tr class="data-row">
+        <td style="text-align:center;">{{ forloop.counter }}</td>
+        <td>{{ po.po_number }}</td>
+        <td>{{ po.oa_number }}</td>
+        <td>{{ po.company.name }}</td>
+        <td>{{ po.department|default:"—" }}</td>
+        <td style="text-align:center;">{{ po.po_date }}</td>
+        <td style="text-align:center;">{{ po.delivery_date|default:"" }}</td>
+        <td style="text-align:center;">{{ po.get_po_status_display }}</td>
+        <td style="text-align:center;">{{ po.items.count }}</td>
+        {% if can_view_value %}
+        <td style="text-align:right;">{{ po.total_quantity|floatformat:3 }}</td>
+        <td style="text-align:right;">{{ po.total_value|floatformat:2 }}</td>
+        {% endif %}
+    </tr>
+    {% empty %}
+    <tr>
+        <td colspan="{% if can_view_value %}11{% else %}9{% endif %}"
+            style="text-align:center; padding:10px; color:#888; font-style:italic;">
+            No POs found.
+        </td>
+    </tr>
+    {% endfor %}
+
+    {% if can_view_value and pos %}
+    <tr class="total-row">
+        <td colspan="9" style="text-align:right;">Grand Total:</td>
+        <td style="text-align:right;">
+            {% with total_q=0 %}{% for po in pos %}{% if forloop.last %}—{% endif %}{% endfor %}{% endwith %}
+        </td>
+        <td style="text-align:right;">
+            {% with total_v=0 %}{% for po in pos %}{% if forloop.last %}—{% endif %}{% endfor %}{% endwith %}
+        </td>
+    </tr>
+    {% endif %}
+
 </table>
-
 </body>
 </html>

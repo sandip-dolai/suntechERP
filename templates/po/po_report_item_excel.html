@@ -1,74 +1,100 @@
-<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title>PO Item Report</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family:Arial,sans-serif; font-size:12px; }
+        table { border-collapse:collapse; width:100%; }
+        .title-row td { background:#1f3864; color:#fff; font-size:14px; font-weight:bold; padding:8px 10px; text-align:center; }
+        .po-header-row td { background:#2e75b6; color:#fff; font-weight:bold; padding:5px 8px; font-size:11px; }
+        .col-header-row th { background:#bdd7ee; color:#1f3864; font-weight:bold; padding:4px 8px; font-size:11px; border:1px solid #9dc3e6; text-align:center; }
+        .data-row td { padding:4px 8px; border:1px solid #dde; font-size:11px; vertical-align:top; }
+        .data-row:nth-child(even) td { background:#f2f8ff; }
+        .total-row td { padding:5px 8px; border:1px solid #9dc3e6; font-weight:bold; background:#dae8fc; font-size:11px; }
+        .spacer-row td { height:6px; background:#fff; }
+        .no-items td { padding:4px 8px; border:1px solid #dde; color:#888; font-style:italic; font-size:11px; }
+    </style>
 </head>
 <body>
+<table>
 
-<table border="1">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>PO Number</th>
-            <th>OA Number</th>
-            <th>Company</th>
-            <th>Material Code</th>
-            <th>Material Description</th>
-            <th>Quantity</th>
-            <th>UOM</th>
-            {% if can_view_value %}
-            <th>Material Value</th>
-            {% endif %}
-            <th>Item Status</th>
-            <th>PO Date</th>
-            <th>Delivery Date</th>
-            <th>Created By</th>
-            <th>PO Status</th>
-        </tr>
-    </thead>
+    <tr class="title-row">
+        <td colspan="{% if can_view_value %}9{% else %}8{% endif %}">
+            PO ITEM REPORT — Suntech ERP
+        </td>
+    </tr>
+    <tr><td colspan="{% if can_view_value %}9{% else %}8{% endif %}" style="height:6px;"></td></tr>
 
-    <tbody>
-        {% for item in items %}
-        <tr>
-            <td>{{ forloop.counter }}</td>
-            <td>{{ item.purchase_order.po_number }}</td>
-            <td>{{ item.purchase_order.oa_number }}</td>
-            <td>{{ item.purchase_order.company.name }}</td>
-            <td>{{ item.material_code|default:"" }}</td>
-            <td>{{ item.material_description }}</td>
-            <td>{{ item.quantity_value|floatformat:2 }}</td>
-            <td>{{ item.uom }}</td>
-            {% if can_view_value %}
-            <td>{{ item.material_value|floatformat:2 }}</td>
-            {% endif %}
-            <td>{{ item.get_status_display }}</td>
-            <td>{{ item.purchase_order.po_date }}</td>
-            <td>{{ item.purchase_order.delivery_date|default:"" }}</td>
-            <td>{{ item.purchase_order.created_by|default:"" }}</td>
-            <td>{{ item.purchase_order.get_po_status_display }}</td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="{% if can_view_value %}14{% else %}13{% endif %}">
-                No Items Found
-            </td>
-        </tr>
-        {% endfor %}
+    {% regroup items by purchase_order as po_groups %}
 
-        {% if grand_totals %}
-        <tr>
-            <td colspan="6"><strong>GRAND TOTAL</strong></td>
-            <td><strong>{{ grand_totals.total_quantity|floatformat:2 }}</strong></td>
-            <td></td>
-            {% if can_view_value %}
-            <td><strong>{{ grand_totals.total_value|floatformat:2 }}</strong></td>
-            {% endif %}
-            <td colspan="5"></td>
-        </tr>
+    {% for po_group in po_groups %}
+    {% with po=po_group.grouper %}
+
+    <!-- PO Header Band -->
+    <tr class="po-header-row">
+        <td colspan="3">PO: {{ po.po_number }} / OA: {{ po.oa_number }}</td>
+        <td colspan="2">Company: {{ po.company }}</td>
+        <td colspan="2">Date: {{ po.po_date }} | Delivery: {{ po.delivery_date|default:"—" }}</td>
+        <td colspan="{% if can_view_value %}2{% else %}1{% endif %}">
+            Status: {{ po.get_po_status_display }} | Dept: {{ po.department|default:"—" }}
+        </td>
+    </tr>
+
+    <!-- Column Headers -->
+    <tr class="col-header-row">
+        <th style="width:35px;">#</th>
+        <th style="width:110px;">Material Code</th>
+        <th>Material Description</th>
+        <th style="width:90px;">Quantity</th>
+        <th style="width:60px;">UOM</th>
+        {% if can_view_value %}
+        <th style="width:100px;">Value</th>
         {% endif %}
-    </tbody>
-</table>
+        <th style="width:100px;">Item Status</th>
+        <th>Created By</th>
+    </tr>
 
+    <!-- Items -->
+    {% for item in po_group.list %}
+    <tr class="data-row">
+        <td style="text-align:center;">{{ forloop.counter }}</td>
+        <td>{{ item.material_code|default:"—" }}</td>
+        <td>{{ item.material_description }}</td>
+        <td style="text-align:center;">{{ item.quantity_value|floatformat:2 }}</td>
+        <td style="text-align:center;">{{ item.uom }}</td>
+        {% if can_view_value %}
+        <td style="text-align:right;">{{ item.material_value|floatformat:2 }}</td>
+        {% endif %}
+        <td style="text-align:center;">{{ item.get_status_display }}</td>
+        <td>{{ item.purchase_order.created_by|default:"—" }}</td>
+    </tr>
+    {% empty %}
+    <tr class="no-items">
+        <td colspan="{% if can_view_value %}8{% else %}7{% endif %}"
+            style="text-align:center;">No items.</td>
+    </tr>
+    {% endfor %}
+
+    <!-- Spacer between POs -->
+    <tr class="spacer-row">
+        <td colspan="{% if can_view_value %}9{% else %}8{% endif %}"></td>
+    </tr>
+
+    {% endwith %}
+    {% endfor %}
+
+    <!-- Grand Total -->
+    {% if grand_totals %}
+    <tr class="total-row">
+        <td colspan="3" style="text-align:right;">Grand Total:</td>
+        <td style="text-align:center;">{{ grand_totals.total_quantity|floatformat:2 }}</td>
+        <td></td>
+        {% if can_view_value %}
+        <td style="text-align:right;">{{ grand_totals.total_value|floatformat:2 }}</td>
+        {% endif %}
+        <td colspan="2"></td>
+    </tr>
+    {% endif %}
+
+</table>
 </body>
 </html>

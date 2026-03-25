@@ -1,308 +1,252 @@
 {% extends 'base/base.html' %}
-{% load widget_tweaks %}
 {% load static %}
-
-{% block title %}
-  {% if form.instance.pk %} Edit PO {% else %} Create PO {% endif %} - Suntech ERP
-{% endblock %}
+{% block title %}{{ title }} - Suntech ERP{% endblock %}
 
 {% block content %}
+<div class="container-fluid">
 
-<!-- ================= ERP FORM CSS ================= -->
-<style>
-/* Base inputs */
-.form-control,
-.form-select {
-    border-radius: 8px;
-    border: 1px solid #ced4da;
-    padding: 8px 10px;
-    font-size: 0.95rem;
-    transition: border-color .15s ease, box-shadow .15s ease;
-}
-
-/* Focus */
-.form-control:focus,
-.form-select:focus {
-    border-color: #86b7fe;
-    box-shadow: 0 0 0 .15rem rgba(13,110,253,.15);
-}
-
-/* Validation */
-.is-invalid {
-    border-color: #dc3545;
-}
-.invalid-feedback,
-.small-error {
-    font-size: .82rem;
-    color: #dc3545;
-    margin-top: 4px;
-    display: block;
-}
-
-/* Table */
-.table thead th {
-    background: #f8f9fa;
-    font-weight: 600;
-    color: #495057;
-    border-bottom: 2px solid #dee2e6;
-}
-.table td {
-    vertical-align: middle;
-    padding: 8px;
-}
-.table tbody tr:hover {
-    background: #f9fbfd;
-}
-
-/* Buttons */
-.btn {
-    border-radius: 8px;
-    font-size: .9rem;
-}
-.btn-danger.remove-item {
-    padding: 4px 10px;
-}
-
-/* Card */
-.card {
-    border-radius: 12px;
-}
-
-/* Section title */
-.erp-section-title {
-    font-size: 1.05rem;
-    font-weight: 600;
-    margin-bottom: 12px;
-    padding-bottom: 6px;
-    border-bottom: 2px solid #e9ecef;
-}
-
-/* Select2 */
-.select2-container .select2-selection--single {
-    height: 42px;
-    border-radius: 8px;
-    border: 1px solid #ced4da;
-}
-.select2-selection__rendered {
-    line-height: 42px !important;
-}
-.select2-selection__arrow {
-    height: 42px !important;
-}
-</style>
-
-<div class="container my-4">
-
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold">
-            {% if form.instance.pk %} Edit Purchase Order {% else %} Create Purchase Order {% endif %}
-        </h2>
-        <a href="{% url 'po:po_list' %}" class="btn btn-outline-secondary btn-sm">← Back</a>
+    <!-- ================= PAGE HEADER ================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">{{ title }}</h4>
+        <a href="{% url 'po:po_list' %}" class="btn btn-secondary btn-sm">
+            Back to List
+        </a>
     </div>
 
-    <div class="card shadow-sm border-0 p-4">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
 
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+    <form method="post" novalidate id="po-form">
+        {% csrf_token %}
 
-        <form method="post" novalidate>
-            {% csrf_token %}
-            {% if form.non_field_errors %}
-            <div class="alert alert-danger">
-                {{ form.non_field_errors }}
-            </div>
-            {% endif %}
-            <!-- ================= PO DETAILS ================= -->
-            <div class="erp-section-title">PO Details</div>
+        <!-- ================= PO HEADER ================= -->
+        <div class="card mb-3">
+            <div class="card-header"><strong>PO Details</strong></div>
+            <div class="card-body">
 
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label">PO Number</label>
-                    {{ form.po_number|add_class:"form-control" }}
-                    {% if form.po_number.errors %}
-                        <div class="invalid-feedback">{{ form.po_number.errors|striptags }}</div>
-                    {% endif %}
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">PO Date</label>
-                    {{ form.po_date|add_class:"form-control" }}
-                    {% if form.po_date.errors %}
-                        <div class="invalid-feedback">{{ form.po_date.errors|striptags }}</div>
-                    {% endif %}
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">OA Number</label>
-                    {{ form.oa_number|add_class:"form-control" }}
-                    {% if form.oa_number.errors %}
-                        <div class="invalid-feedback">{{ form.oa_number.errors|striptags }}</div>
-                    {% endif %}
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">Delivery Date</label>
-                    {{ form.delivery_date|add_class:"form-control" }}
-                    {% if form.delivery_date.errors %}
-                        <div class="invalid-feedback">{{ form.delivery_date.errors|striptags }}</div>
-                    {% endif %}
-                </div>
-
-                <div class="col-md-10">
-                    <label class="form-label">Supplier / Customer</label>
-                    {{ form.company|add_class:"form-select select2" }}
-                    {% if form.company.errors %}
-                        <div class="invalid-feedback">{{ form.company.errors|striptags }}</div>
-                    {% endif %}
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Department</label>
-                    {{ form.department|add_class:"form-select" }}
-                    {% if form.department.errors %}
-                        <div class="invalid-feedback">{{ form.department.errors|striptags }}</div>
-                    {% endif %}
-                </div>
-                {% if form.instance.pk %}
-                <div class="col-md-2">
-                    <label class="form-label">PO Status</label>
-                    {{ form.po_status|add_class:"form-select" }}
-                    {% if form.po_status.errors %}
-                        <div class="invalid-feedback">
-                            {{ form.po_status.errors|striptags }}
-                        </div>
-                    {% endif %}
-                </div>
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
                 {% endif %}
 
+                <div class="row g-3">
+
+                    <div class="col-md-3">
+                        <label class="form-label">PO Number <span class="text-danger">*</span></label>
+                        {{ form.po_number }}
+                        {% if form.po_number.errors %}
+                            <div class="text-danger small">{{ form.po_number.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">OA Number <span class="text-danger">*</span></label>
+                        {{ form.oa_number }}
+                        {% if form.oa_number.errors %}
+                            <div class="text-danger small">{{ form.oa_number.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">PO Date <span class="text-danger">*</span></label>
+                        {{ form.po_date }}
+                        {% if form.po_date.errors %}
+                            <div class="text-danger small">{{ form.po_date.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Delivery Date</label>
+                        {{ form.delivery_date }}
+                        {% if form.delivery_date.errors %}
+                            <div class="text-danger small">{{ form.delivery_date.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Supplier / Customer <span class="text-danger">*</span></label>
+                        {{ form.company }}
+                        {% if form.company.errors %}
+                            <div class="text-danger small">{{ form.company.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Department</label>
+                        {{ form.department }}
+                        {% if form.department.errors %}
+                            <div class="text-danger small">{{ form.department.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    {% if form.instance.pk %}
+                    <div class="col-md-3">
+                        <label class="form-label">PO Status</label>
+                        {{ form.po_status }}
+                        {% if form.po_status.errors %}
+                            <div class="text-danger small">{{ form.po_status.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PO ITEMS ================= -->
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>PO Items</strong>
+                <button type="button" id="add-item" class="btn btn-sm btn-outline-primary">
+                    <i class="fa fa-plus"></i> Add Item
+                </button>
             </div>
 
-            <!-- ================= PO ITEMS ================= -->
-            <div class="erp-section-title mt-4">PO Items</div>
+            <div class="card-body p-0">
+                {{ formset.management_form }}
 
-            {{ formset.management_form }}
+                {% if formset.non_form_errors %}
+                <div class="alert alert-danger m-3">{{ formset.non_form_errors }}</div>
+                {% endif %}
 
-            {% if formset.non_form_errors %}
-                <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
-            {% endif %}
-
-            <div class="table-responsive">
-                <table class="table table-bordered align-middle">
-                    <thead>
-                        <tr>
-                            <th class="text-center">Material Code</th>
-                            <th class="text-center">Material Description</th>
-                            <th class="text-center">Qty</th>
-                            <th class="text-center">UOM</th>
-                            <th class="text-center">Value</th>
-                            <th class="text-center">Remove</th>
-                        </tr>
-                    </thead>
-                    <tbody id="items-body">
-                        {% for f in formset.forms %}
-                        <tr class="item-row">
-                            {{ f.id }}
-                            <td class="text-center">
-                                {{ f.material_code|add_class:"form-control" }}
-                            </td>
-
-                            <td class="text-center">
-                                {{ f.material_description|add_class:"form-control" }}
-                            </td>
-
-                            <td class="text-center">
-                                {{ f.quantity_value |add_class:"form-control" }}
-                            </td>
-                            <td class="text-center">
-                                {{ f.uom|add_class:"form-control" }}
-                            </td>
-
-                            <td class="text-center">
-                                {{ f.material_value|add_class:"form-control" }}
-                            </td>
-
-                            <td class="text-center">
-                                {{ f.DELETE|add_class:"d-none delete-flag" }}
-                                <button type="button" class="btn btn-danger btn-sm remove-item"><i class="fa fa-minus" aria-hidden="true"></i></button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle mb-0" id="items-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:40px;" class="text-center">#</th>
+                                <th style="width:120px;">Material Code</th>
+                                <th>Material Description</th>
+                                <th style="width:100px;" class="text-center">Qty</th>
+                                <th style="width:80px;" class="text-center">UOM</th>
+                                {% if is_admin %}
+                                <th style="width:110px;" class="text-center">Value</th>
+                                {% endif %}
+                                <th style="width:50px;" class="text-center">Del</th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-body">
+                            {% for f in formset.forms %}
+                            <tr class="item-row">
+                                {{ f.id }}
+                                <td class="text-center row-index">{{ forloop.counter }}</td>
+                                <td>
+                                    {{ f.material_code }}
+                                    {{ f.material_code.errors }}
+                                </td>
+                                <td>
+                                    {{ f.material_description }}
+                                    {{ f.material_description.errors }}
+                                </td>
+                                <td class="text-center">
+                                    {{ f.quantity_value }}
+                                    {{ f.quantity_value.errors }}
+                                </td>
+                                <td class="text-center">
+                                    {{ f.uom }}
+                                    {{ f.uom.errors }}
+                                </td>
+                                {% if is_admin %}
+                                <td class="text-center">
+                                    {{ f.material_value }}
+                                    {{ f.material_value.errors }}
+                                </td>
+                                {% endif %}
+                                <td class="text-center">
+                                    {{ f.DELETE }}
+                                    <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
+        </div>
 
-            <button type="button" id="add-item" class="btn btn-outline-primary btn-sm mt-2">
-                + Add Item
+        <!-- ================= ACTIONS ================= -->
+        <div class="d-flex justify-content-end gap-2">
+            <a href="{% url 'po:po_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fa fa-save"></i> Save PO
             </button>
+        </div>
 
-            <!-- ================= ACTIONS ================= -->
-            <div class="mt-4">
-                <button type="submit" class="btn btn-primary px-4">Save PO</button>
-                <a href="{% url 'po:po_list' %}" class="btn btn-secondary px-4">Cancel</a>
-            </div>
-
-        </form>
-    </div>
+    </form>
 </div>
 
+<style>
+    input[type="checkbox"][name$="-DELETE"] { display: none; }
+    #items-table td input, #items-table td textarea, #items-table td select {
+        font-size: 12px;
+    }
+    #items-table td textarea { min-height: 50px; resize: vertical; }
+</style>
 
-<!-- ================= SAFE FORMSET JS ================= -->
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-    const prefix = "{{ formset.prefix }}";
-    const totalForms = document.getElementById(`id_${prefix}-TOTAL_FORMS`);
-    const tbody = document.getElementById("items-body");
+$(document).ready(function () {
 
-    const emptyRow = `
-        <tr class="item-row">
-            <td class="text-center">
-                {{ formset.empty_form.material_code|add_class:"form-control" }}
-            </td>
-            <td class="text-center">
-                {{ formset.empty_form.material_description|add_class:"form-control" }}
-            </td>
-            <td class="text-center">
-                {{ formset.empty_form.quantity_value|add_class:"form-control" }}
-            </td>
-            <td class="text-center">
-                {{ formset.empty_form.uom|add_class:"form-control" }}
-            </td>
-            <td class="text-center">
-                {{ formset.empty_form.material_value|add_class:"form-control" }}
-            </td>
-            <td class="text-center">
-                {{ formset.empty_form.DELETE|add_class:"d-none delete-flag" }}
-                <button type="button" class="btn btn-danger btn-sm remove-item">−</button>
-            </td>
-        </tr>
-    `.trim();
+    const prefix = "items";
 
-    document.getElementById("add-item").addEventListener("click", function () {
-        const index = parseInt(totalForms.value);
-        const html = emptyRow.replace(/__prefix__/g, index);
+    function updateIndexes() {
+        $("#items-body tr.item-row:visible").each(function (i) {
+            $(this).find(".row-index").text(i + 1);
+        });
+    }
 
-        const temp = document.createElement("tbody");
-        temp.innerHTML = html;
-        tbody.appendChild(temp.firstElementChild);
+    // ── ADD ITEM ──
+    $("#add-item").on("click", function () {
+        let total = parseInt($("#id_" + prefix + "-TOTAL_FORMS").val());
+        let newRow = $("#items-body tr.item-row:last").clone(false);
 
-        totalForms.value = index + 1;
+        newRow.find("input, textarea, select").each(function () {
+            let name = $(this).attr("name");
+            let id   = $(this).attr("id");
+
+            if (!name) return;
+            if (name.endsWith("-id")) { $(this).remove(); return; }
+
+            name = name.replace(/-\d+-/, `-${total}-`);
+            id   = id   ? id.replace(/-\d+-/, `-${total}-`) : id;
+
+            $(this).attr({ name, id }).val("");
+            // default UOM
+            if (name.endsWith("-uom")) $(this).val("SET");
+        });
+
+        newRow.find('input[type="checkbox"]').prop("checked", false);
+        newRow.find(".row-index").text(total + 1);
+
+        $("#items-body").append(newRow);
+        $("#id_" + prefix + "-TOTAL_FORMS").val(total + 1);
+        updateIndexes();
     });
 
-    document.addEventListener("click", function (e) {
-        if (!e.target.classList.contains("remove-item")) return;
+    // ── REMOVE ITEM ──
+    $(document).on("click", ".remove-item", function () {
+        let row        = $(this).closest("tr");
+        let deleteBox  = row.find('input[type="checkbox"][name$="-DELETE"]');
+        let idField    = row.find('input[type="hidden"][name$="-id"]');
 
-        const row = e.target.closest(".item-row");
-        const del = row.querySelector(".delete-flag");
-
-        if (del) {
-            del.checked = true;
-            row.style.display = "none";
+        if (idField.length && idField.val()) {
+            deleteBox.prop("checked", true);
+            row.hide();
+        } else {
+            row.remove();
+            let total = parseInt($("#id_" + prefix + "-TOTAL_FORMS").val());
+            $("#id_" + prefix + "-TOTAL_FORMS").val(total - 1);
         }
+        updateIndexes();
     });
+
+    // Init select2 for company
+    $('#id_company').select2({ width: '100%' });
+
+    updateIndexes();
 });
 </script>
-
 
 {% endblock %}

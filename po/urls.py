@@ -22,6 +22,7 @@ urlpatterns = [
         views.po_report_item_excel,
         name="po_report_item_excel",
     ),
+    path("<int:pk>/print/", views.po_print, name="po_print"),
     # ------------------------------
     # PO PROCESS ROUTES
     # ------------------------------

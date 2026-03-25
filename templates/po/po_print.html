@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PO Print — {{ po.po_number }}</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:Arial,sans-serif; font-size:13px; color:#000; padding:20px 30px; background:#fff; }
+
+        /* ── toolbar ── */
+        .no-print-bar {
+            position:fixed; top:0; left:0; right:0;
+            background:#2c3e50; color:#fff;
+            padding:8px 16px;
+            display:flex; align-items:center; justify-content:space-between;
+            z-index:1000; font-size:13px;
+        }
+        .no-print-bar button { background:#27ae60; color:#fff; border:none; padding:6px 18px; border-radius:4px; cursor:pointer; font-size:13px; }
+        .no-print-bar button:hover { background:#219150; }
+        .no-print-bar .close-btn { background:#7f8c8d; margin-left:8px; }
+        @media screen { body { padding-top:55px; } }
+
+        /* ── header ── */
+        .print-header { text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:14px; }
+        .print-header h2 { font-size:18px; letter-spacing:1px; text-transform:uppercase; }
+        .print-header p { font-size:12px; color:#444; margin-top:2px; }
+        .doc-title { text-align:center; font-size:15px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; text-decoration:underline; }
+
+        /* ── info grid ── */
+        .info-grid {
+            display:grid; grid-template-columns:repeat(4,1fr);
+            gap:4px 12px; border:1px solid #ccc; padding:10px 12px;
+            margin-bottom:16px; background:#fafafa;
+        }
+        .info-cell { display:flex; flex-direction:column; }
+        .info-cell .label { font-size:10px; color:#555; text-transform:uppercase; font-weight:bold; }
+        .info-cell .value { font-size:13px; font-weight:bold; }
+
+        /* ── items table ── */
+        .items-table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+        .items-table th { background:#1f3864; color:#fff; padding:6px 8px; font-size:11px; text-align:left; text-transform:uppercase; }
+        .items-table td { padding:5px 8px; border-bottom:1px solid #ddd; font-size:12px; vertical-align:top; }
+        .items-table tbody tr:nth-child(even) { background:#f2f8ff; }
+        .items-table td.center { text-align:center; }
+        .items-table td.right { text-align:right; }
+        .totals-row td { font-weight:bold; background:#e8f0fe; border-top:2px solid #1f3864; }
+
+        /* ── signature ── */
+        .print-footer { margin-top:30px; display:flex; justify-content:space-between; }
+        .sign-block { text-align:center; width:160px; }
+        .sign-block .sign-line { border-top:1px solid #000; margin-top:40px; padding-top:4px; font-size:12px; }
+
+        /* ── print ── */
+        @media print {
+            .no-print-bar { display:none !important; }
+            body { padding:10px 20px; }
+            .items-table th { background:#1f3864 !important; color:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+            .items-table tbody tr:nth-child(even) { background:#f2f8ff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+            .totals-row td { background:#e8f0fe !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+            @page { size:A4 portrait; margin:15mm; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print-bar">
+        <span>PO Print Preview — {{ po.po_number }}</span>
+        <div>
+            <button onclick="window.print()">🖨 Print</button>
+            <button class="close-btn" onclick="window.close()">✕ Close</button>
+        </div>
+    </div>
+
+    <div class="print-header">
+        <h2>Suntech ERP</h2>
+        <p>Purchase Order</p>
+    </div>
+
+    <div class="doc-title">Purchase Order — {{ po.po_number }}</div>
+
+    <div class="info-grid">
+        <div class="info-cell">
+            <span class="label">PO Number</span>
+            <span class="value">{{ po.po_number }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">OA Number</span>
+            <span class="value">{{ po.oa_number }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">PO Date</span>
+            <span class="value">{{ po.po_date }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">Delivery Date</span>
+            <span class="value">{{ po.delivery_date|default:"—" }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">Company</span>
+            <span class="value">{{ po.company }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">Department</span>
+            <span class="value">{{ po.department|default:"—" }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">PO Status</span>
+            <span class="value">{{ po.get_po_status_display }}</span>
+        </div>
+        <div class="info-cell">
+            <span class="label">Created By</span>
+            <span class="value">{{ po.created_by|default:"—" }}</span>
+        </div>
+    </div>
+
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="width:35px;">#</th>
+                <th style="width:110px;">Material Code</th>
+                <th>Material Description</th>
+                <th style="width:90px;" class="center">Quantity</th>
+                <th style="width:60px;" class="center">UOM</th>
+                {% if can_view_value %}
+                <th style="width:100px;" class="right">Value</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in po.items.all %}
+            <tr>
+                <td class="center">{{ forloop.counter }}</td>
+                <td>{{ item.material_code|default:"—" }}</td>
+                <td>{{ item.material_description }}</td>
+                <td class="center">{{ item.quantity_value|floatformat:2 }}</td>
+                <td class="center">{{ item.uom }}</td>
+                {% if can_view_value %}
+                <td class="right">{{ item.material_value|floatformat:2 }}</td>
+                {% endif %}
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="{% if can_view_value %}6{% else %}5{% endif %}"
+                    style="text-align:center; color:#888; padding:12px;">
+                    No items.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        {% if can_view_value %}
+        <tfoot>
+            <tr class="totals-row">
+                <td colspan="3" class="right">Total:</td>
+                <td class="center">{{ po.total_quantity|floatformat:2 }}</td>
+                <td></td>
+                <td class="right">{{ po.total_value|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+
+    <div class="print-footer">
+        <div class="sign-block"><div class="sign-line">Prepared By</div></div>
+        <div class="sign-block"><div class="sign-line">Checked By</div></div>
+        <div class="sign-block"><div class="sign-line">Approved By</div></div>
+    </div>
+
+</body>
+</html>

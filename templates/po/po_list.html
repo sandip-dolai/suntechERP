@@ -1,159 +1,199 @@
 {% extends 'base/base.html' %}
-{% block title %} Purchase Orders - Suntech ERP {% endblock %}
+{% load static %}
+{% block title %}Purchase Orders - Suntech ERP{% endblock %}
 
 {% block content %}
+<div class="container-fluid">
 
-<!-- HEADER + ACTIONS -->
-<div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
-    <h2 class="mb-2 mb-md-0">Purchase Orders</h2>
-
-    <form method="get" class="d-flex gap-2">
-        <input
-            type="text"
-            name="q"
-            value="{{ request.GET.q }}"
-            class="form-control"
-            placeholder="Search PO / OA / Company / Material"
-            style="min-width: 280px;"
-        >
-
-        <button type="submit" class="btn btn-primary">
-            Search
-        </button>
-
-        {% if request.GET.q %}
-            <a href="{% url 'po:po_list' %}" class="btn btn-secondary">
-                Clear
-            </a>
-        {% endif %}
-
+    <!-- ================= HEADER ================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0">Purchase Orders</h4>
+            <small class="text-muted">Total: {{ page_obj.paginator.count }}</small>
+        </div>
         {% if is_admin %}
-        <a href="{% url 'po:po_create' %}" class="btn btn-success ml-2">
-            <i class="bi bi-plus-lg"></i> Create PO
+        <a href="{% url 'po:po_create' %}" class="btn btn-success btn-sm">
+            <i class="fa fa-plus"></i> Create PO
         </a>
         {% endif %}
+    </div>
+
+    <!-- ================= SEARCH ================= -->
+    <form method="get" class="mb-3">
+        <div class="row g-2">
+            <div class="col-md-5">
+                <input type="text"
+                       name="q"
+                       value="{{ q }}"
+                       class="form-control"
+                       placeholder="Search PO / OA / Company / Material">
+            </div>
+            <div class="col-md-auto">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa fa-search"></i> Search
+                </button>
+            </div>
+            {% if q %}
+            <div class="col-md-auto">
+                <a href="{% url 'po:po_list' %}" class="btn btn-outline-secondary">Clear</a>
+            </div>
+            {% endif %}
+        </div>
     </form>
+
+    <!-- ================= TABLE ================= -->
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-bordered table-hover table-sm mb-0">
+                <thead class="table-primary">
+                    <tr>
+                        <th style="width:40px;" class="text-center">#</th>
+                        <th>PO Number</th>
+                        <th>OA Number</th>
+                        <th>Company</th>
+                        <th class="text-center">Items</th>
+                        <th class="text-center">PO Date</th>
+                        <th class="text-center">Delivery Date</th>
+                        <th class="text-center">Department</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center" style="width:130px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for po in page_obj %}
+                    <tr id="po-row-{{ po.pk }}">
+                        <td class="text-center">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                        <td>
+                            <a href="{% url 'po:po_process_list' po.pk %}" class="fw-bold">
+                                {{ po.po_number }}
+                            </a>
+                        </td>
+                        <td>{{ po.oa_number }}</td>
+                        <td>{{ po.company }}</td>
+                        <td class="text-center">
+                            <span class="badge badge-secondary">
+                                {{ po.items.count }} item{{ po.items.count|pluralize }}
+                            </span>
+                        </td>
+                        <td class="text-center">{{ po.po_date }}</td>
+                        <td class="text-center">{{ po.delivery_date|default:"—" }}</td>
+                        <td class="text-center">{{ po.department|default:"—" }}</td>
+                        <td class="text-center">
+                            <span class="badge
+                                {% if po.po_status == 'COMPLETED' %}badge-success
+                                {% elif po.po_status == 'PENDING' %}badge-warning text-dark
+                                {% else %}badge-secondary{% endif %}">
+                                {{ po.get_po_status_display }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'po:po_process_list' po.pk %}"
+                               class="btn btn-sm btn-info"
+                               title="Processes">
+                                <i class="fa fa-tasks"></i>
+                            </a>
+                            {% if is_admin %}
+                            <a href="{% url 'po:po_edit' po.pk %}"
+                               class="btn btn-sm btn-primary ms-1"
+                               title="Edit">
+                                <i class="fa fa-pencil"></i>
+                            </a>
+                            <button type="button"
+                                    class="btn btn-sm btn-danger ms-1 btn-delete-po"
+                                    data-id="{{ po.pk }}"
+                                    data-po="{{ po.po_number }}"
+                                    data-url="{% url 'po:po_delete' po.pk %}"
+                                    title="Delete">
+                                <i class="fa fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-3">
+                            No Purchase Orders found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% include "components/pagination.html" %}
+
 </div>
 
+<!-- ================= DELETE MODAL ================= -->
+<div class="modal fade" id="deletePoModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fa fa-trash"></i> Delete Purchase Order
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="modal-po-number"></strong>?</p>
+                <p class="text-danger small mb-0">
+                    <i class="fa fa-exclamation-triangle"></i>
+                    This will permanently delete the PO and all its items and processes.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-po">
+                    <i class="fa fa-trash"></i> Yes, Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
-<!-- PO TABLE -->
-<table class="table table-bordered table-hover table-responsive" id="poTable">
-    <thead class="table-primary">
-        <tr>
-            <th class="text-center">PO Number</th>
-            <th class="text-center">OA Number</th>
-            <th class="text-center">Company</th>
-            <th class="text-center">Items</th>
-            <th class="text-center">Created By</th>
-            <th class="text-center">PO Date</th>
-            <th class="text-center">PO Status</th>
-            <th class="text-center">Department</th>
-            <th class="text-center">Actions</th>
-        </tr>
-    </thead>
+<script>
+$(document).ready(function () {
 
-    <tbody>
-        {% for po in page_obj %}
-        <tr>
-            <td class="text-center fw-bold">{{ po.po_number }}</td>
+    let deleteUrl = "";
+    let deletePoId = "";
 
-            <td class="text-center">{{ po.oa_number }}</td>
+    // Open modal
+    $(document).on("click", ".btn-delete-po", function () {
+        deleteUrl  = $(this).data("url");
+        deletePoId = $(this).data("id");
+        let poNum  = $(this).data("po");
+        $("#modal-po-number").text(poNum);
+        $("#deletePoModal").modal("show");
+    });
 
-            <td class="text-center">{{ po.company }}</td>
+    // Confirm delete
+    $("#confirm-delete-po").on("click", function () {
+        $.ajax({
+            url: deleteUrl,
+            method: "POST",
+            data: { csrfmiddlewaretoken: "{{ csrf_token }}" },
+            success: function (res) {
+                if (res.success) {
+                    $("#deletePoModal").modal("hide");
+                    $("#po-row-" + deletePoId).fadeOut(300, function () {
+                        $(this).remove();
+                    });
+                } else {
+                    alert(res.error || "Delete failed.");
+                }
+            },
+            error: function () {
+                alert("An error occurred. Please try again.");
+            }
+        });
+    });
 
-            <td>
-                {% if po.items.exists %}
-                <table class="table table-sm table-bordered mb-0 bg-light">
-                    <thead class="table-secondary">
-                        <tr>
-                            <th>Code</th>
-                            <th>Material</th>
-                            <th>Qty</th>
-                            {% if can_view_value %}
-                            <th>Value</th>
-                            {% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in po.items.all %}
-                        <tr>
-                            <td class="text-center">
-                                {{ item.material_code }}
-                            </td>
-                            <td>
-                                {{ item.material_description|truncatewords:8 }}
-                            </td>
-                            <td class="text-end">
-                                {{ item.quantity_value|floatformat:3 }} {{ item.uom }}
-                            </td>
-                            {% if is_admin %}
-                            <td class="text-end">
-                                {{ item.material_value }}
-                            </td>
-                            {% endif %}
-                        </tr>
-                        {% endfor %}
-                        <tr>
-                            <td></td>
-                            <td></td>
-                            <td class="text-end">
-                                {{ po.total_quantity|floatformat:3 }}
-                            </td>
-                            {% if can_view_value %}
-                            <td class="text-end">
-                                {{ po.total_value|floatformat:2 }}
-                            </td>
-                            {% endif %}
-                            <td></td>
-                        </tr>
-                    </tbody>
-                </table>
-                {% else %}
-                    <span class="text-muted small">No Items</span>
-                {% endif %}
-            </td>
-
-            <td class="text-center">{{ po.created_by|default:"—" }}</td>
-
-            <td class="text-center">{{ po.po_date }}</td>
-            <td class="text-center">
-                <span class="badge
-                    {% if po.po_status == 'COMPLETED' %} bg-success
-                    {% elif po.po_status == 'PENDING' %} bg-warning text-dark
-                    {% else %} bg-secondary
-                    {% endif %}">
-                    {{ po.get_po_status_display }}
-                </span>
-            </td>
-            <td class="text-center">{{ po.department|default:"—" }}</td>
-            <td class="text-center d-flex flex-column">
-                <!-- PROCESS BUTTON (ALL USERS) -->
-                <a href="{% url 'po:po_process_list' po.pk %}"
-                   class="btn btn-info btn-sm"
-                   title="View / Update PO Processes">
-                    <i class="fa fa-tasks"></i>
-                </a>
-
-                <!-- ADMIN ONLY -->
-                {% if is_admin %}
-                    <a href="{% url 'po:po_edit' po.pk %}" class="btn btn-primary btn-sm">
-                        <i class="fa fa-pencil-square-o"></i>
-                    </a>
-                    <a href="{% url 'po:po_delete' po.pk %}" class="btn btn-danger btn-sm">
-                        <i class="fa fa-trash-o"></i>
-                    </a>
-                {% endif %}
-            </td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="7" class="text-center text-muted">
-                No Purchase Orders found.
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% include "components/pagination.html" %}
+});
+</script>
 
 {% endblock %}

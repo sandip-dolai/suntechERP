@@ -28,7 +28,7 @@ from .models import (
 from .forms import PurchaseOrderForm, PurchaseOrderItemFormSet, POProcessUpdateForm
 from master.models import CompanyMaster, ProcessStatusMaster
 from datetime import datetime
-from django.http import HttpResponseForbidden, HttpResponse
+from django.http import HttpResponseForbidden, HttpResponse, JsonResponse
 from django.template.loader import render_to_string
 import json
 from django.core.paginator import Paginator
@@ -118,21 +118,27 @@ def po_edit(request, pk):
     return render(request, "po/po_form.html", context)
 
 
-# ------------------------------
-# PO DELETE
-# ------------------------------
+# ======================================================
+# PO DELETE — update in po/views.py
+# Replace the existing po_delete view with this
+# ======================================================
 @login_required_view
 def po_delete(request, pk):
     po = get_object_or_404(PurchaseOrder, pk=pk)
 
+    if not is_admin(request.user):
+        return JsonResponse(
+            {"success": False, "error": "Permission denied."}, status=403
+        )
+
     if request.method == "POST":
-        po.po_status = "PENDING"
-        po.save()
+        po_number = po.po_number
+        po.delete()
+        return JsonResponse(
+            {"success": True, "message": f"PO {po_number} deleted successfully."}
+        )
 
-        messages.warning(request, "Purchase Order cancelled (not deleted).")
-        return redirect("po:po_list")
-
-    return render(request, "po/po_delete.html", {"po": po})
+    return JsonResponse({"success": False, "error": "Invalid request."}, status=400)
 
 
 # ==============================================================
@@ -926,3 +932,21 @@ def po_list(request):
     }
 
     return render(request, "po/po_list.html", context)
+
+
+@login_required_view
+def po_print(request, pk):
+    po = get_object_or_404(
+        PurchaseOrder.objects.select_related("company", "created_by").prefetch_related(
+            "items"
+        ),
+        pk=pk,
+    )
+    return render(
+        request,
+        "po/po_print.html",
+        {
+            "po": po,
+            "can_view_value": can_view_value(request.user),
+        },
+    )
