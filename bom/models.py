@@ -1,15 +1,15 @@
 from django.db import models, transaction
 from django.contrib.auth import get_user_model
 
-from po.models import PurchaseOrder, PurchaseOrderItem
+from po.models import PurchaseOrder
 
 User = get_user_model()
 
 
 class BOM(models.Model):
     """
-    BOM Header (Indent-style)
-    One BOM per PO
+    BOM Header — linked to a PO.
+    Multiple BOMs can exist per PO.
     """
 
     bom_no = models.CharField(max_length=50, unique=True)
@@ -27,11 +27,15 @@ class BOM(models.Model):
     def generate_bom_no(cls, po):
         """
         Generates BOM number like:
-        BOM/PO-00123/0001
+        BOM/OA-00123/0001
+        Uses po.oa_number as the reference segment.
         """
         with transaction.atomic():
             last_bom = (
-                cls.objects.select_for_update().filter(po=po).order_by("-id").first()
+                cls.objects.select_for_update()
+                .filter(po=po)
+                .order_by("-id")
+                .first()
             )
 
             last_no = 0
@@ -42,32 +46,27 @@ class BOM(models.Model):
                     last_no = 0
 
             next_no = str(last_no + 1).zfill(4)
-            return f"BOM/{po.po_number}/{next_no}"
+            return f"BOM/{po.oa_number}/{next_no}"
 
 
 class BOMItem(models.Model):
     """
-    BOM Items
-    - Item & UOM come from PO item
-    - Quantity is editable
+    BOM Line Items — free-form materials required to complete the PO.
+    Not linked to PO items; entered manually per BOM.
     """
 
     bom = models.ForeignKey(BOM, on_delete=models.CASCADE, related_name="items")
-
-    po_item = models.ForeignKey(PurchaseOrderItem, on_delete=models.PROTECT)
-
+    item = models.CharField(max_length=255)
+    size = models.CharField(max_length=100, blank=True)
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
+    material = models.CharField(max_length=255)
+    remarks = models.TextField(blank=True)
 
     class Meta:
         ordering = ["id"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["bom", "po_item"], name="unique_po_item_per_bom"
-            )
-        ]
         indexes = [
             models.Index(fields=["bom"]),
         ]
 
     def __str__(self):
-        return f"{self.bom.bom_no} - {self.po_item}"
+        return f"{self.bom.bom_no} — {self.item} ({self.material})"

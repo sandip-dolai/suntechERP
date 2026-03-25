@@ -4,21 +4,16 @@ from .models import BOM, BOMItem
 
 class BOMItemInline(admin.TabularInline):
     model = BOMItem
-    extra = 0
-    autocomplete_fields = ["po_item"]
+    extra = 1
+    fields = ["item", "size", "quantity", "material", "remarks"]
 
 
 @admin.register(BOM)
 class BOMAdmin(admin.ModelAdmin):
-    list_display = (
-        "bom_no",
-        "po",
-        "bom_date",
-        "created_by",
-    )
-    list_filter = ("bom_date", "po")
-    search_fields = ("bom_no", "po__po_number")
-    readonly_fields = ("bom_no",)
+    list_display = ("bom_no", "po", "bom_date", "created_by")
+    list_filter = ("bom_date",)
+    search_fields = ("bom_no", "po__po_number", "po__oa_number")
+    readonly_fields = ("bom_no", "created_by")
 
     inlines = [BOMItemInline]
 

@@ -5,31 +5,28 @@ from django.db import transaction
 from django.contrib import messages
 
 from .models import BOM, BOMItem
-from po.models import PurchaseOrder, PurchaseOrderItem
+from po.models import PurchaseOrder
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from datetime import datetime
 from django.template.loader import render_to_string
 from django.http import HttpResponse
 
+
 # ======================================================
 # BOM LIST
 # ======================================================
-
-
 @login_required
 def bom_list(request):
     q = request.GET.get("q", "").strip()
 
-    qs = BOM.objects.select_related(
-        "po",
-        "created_by",
-    )
+    qs = BOM.objects.select_related("po", "created_by")
 
     if q:
         qs = qs.filter(
             Q(bom_no__icontains=q)
             | Q(po__po_number__icontains=q)
+            | Q(po__oa_number__icontains=q)
             | Q(created_by__username__icontains=q)
         )
 
@@ -38,16 +35,7 @@ def bom_list(request):
     paginator = Paginator(qs, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
 
-    context = {
-        "page_obj": page_obj,
-        "q": q,
-    }
-
-    return render(
-        request,
-        "bom/bom_list.html",
-        context,
-    )
+    return render(request, "bom/bom_list.html", {"page_obj": page_obj, "q": q})
 
 
 # ======================================================
@@ -56,7 +44,7 @@ def bom_list(request):
 @login_required
 @transaction.atomic
 def bom_create(request):
-    purchase_orders = PurchaseOrder.objects.all()
+    purchase_orders = PurchaseOrder.objects.order_by("-id")
 
     if request.method == "POST":
         po_id = request.POST.get("purchase_order")
@@ -66,12 +54,11 @@ def bom_create(request):
             messages.error(request, "Purchase Order is required.")
             return redirect("bom:bom_create")
 
-        po = get_object_or_404(PurchaseOrder, id=po_id)
-
-        # Prevent duplicate BOM per PO
-        if BOM.objects.filter(po=po).exists():
-            messages.error(request, "BOM already exists for this PO.")
+        if not bom_date:
+            messages.error(request, "BOM date is required.")
             return redirect("bom:bom_create")
+
+        po = get_object_or_404(PurchaseOrder, id=po_id)
 
         # Create BOM header
         bom = BOM.objects.create(
@@ -81,18 +68,10 @@ def bom_create(request):
             created_by=request.user,
         )
 
-        # Create BOM items from PO items
-        po_items = PurchaseOrderItem.objects.filter(purchase_order=po)
-        for item in po_items:
-            qty = request.POST.get(f"quantity_{item.id}")
-            if qty:
-                BOMItem.objects.create(
-                    bom=bom,
-                    po_item=item,
-                    quantity=qty,
-                )
+        # Parse and save BOM items from POST
+        _save_bom_items(request, bom)
 
-        messages.success(request, "BOM created successfully.")
+        messages.success(request, f"BOM {bom.bom_no} created successfully.")
         return redirect("bom:bom_list")
 
     return render(
@@ -113,20 +92,11 @@ def bom_create(request):
 @login_required
 def bom_detail(request, pk):
     bom = get_object_or_404(
-        BOM.objects.select_related("po", "created_by"),
-        pk=pk,
+        BOM.objects.select_related("po", "created_by"), pk=pk
     )
+    items = bom.items.all()
 
-    items = BOMItem.objects.select_related("po_item").filter(bom=bom)
-
-    return render(
-        request,
-        "bom/bom_detail.html",
-        {
-            "bom": bom,
-            "items": items,
-        },
-    )
+    return render(request, "bom/bom_detail.html", {"bom": bom, "items": items})
 
 
 # ======================================================
@@ -136,14 +106,17 @@ def bom_detail(request, pk):
 @transaction.atomic
 def bom_edit(request, pk):
     bom = get_object_or_404(BOM, pk=pk)
-    items = BOMItem.objects.select_related("po_item").filter(bom=bom)
+    items = bom.items.all()
 
     if request.method == "POST":
-        for item in items:
-            qty = request.POST.get(f"quantity_{item.id}")
-            if qty is not None:
-                item.quantity = qty
-                item.save()
+        bom_date = request.POST.get("bom_date")
+        if bom_date:
+            bom.bom_date = bom_date
+            bom.save()
+
+        # Replace all items with freshly submitted ones
+        bom.items.all().delete()
+        _save_bom_items(request, bom)
 
         messages.success(request, "BOM updated successfully.")
         return redirect("bom:bom_detail", pk=bom.id)
@@ -155,7 +128,6 @@ def bom_edit(request, pk):
             "mode": "edit",
             "bom": bom,
             "items": items,
-            # Pass only the BOM's PO (dropdown disabled anyway)
             "purchase_orders": PurchaseOrder.objects.filter(id=bom.po.id),
         },
     )
@@ -173,37 +145,12 @@ def bom_delete(request, pk):
         messages.success(request, "BOM deleted successfully.")
         return redirect("bom:bom_list")
 
-    return render(
-        request,
-        "bom/bom_confirm_delete.html",
-        {
-            "bom": bom,
-        },
-    )
+    return render(request, "bom/bom_confirm_delete.html", {"bom": bom})
 
 
 # ======================================================
-# AJAX: LOAD PO ITEMS
+# REPORT
 # ======================================================
-@login_required
-def ajax_load_po_items(request):
-    po_id = request.GET.get("po_id")
-
-    items = PurchaseOrderItem.objects.filter(purchase_order_id=po_id)
-
-    data = [
-        {
-            "id": item.id,
-            "name": item.material_description,
-            "quantity": item.quantity_value,
-            "uom": item.uom,
-        }
-        for item in items
-    ]
-
-    return JsonResponse(data, safe=False)
-
-
 @login_required
 def bom_report(request):
     today = datetime.today().date()
@@ -212,42 +159,31 @@ def bom_report(request):
     date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
     po_id = request.GET.get("po", "")
 
-    filters = {
-        "bom_date__range": [date_from, date_to],
-    }
-
+    filters = {"bom_date__range": [date_from, date_to]}
     if po_id:
         filters["po_id"] = po_id
 
     qs = (
-        BOM.objects.select_related("po", "created_by").filter(**filters).order_by("-id")
+        BOM.objects.select_related("po", "created_by")
+        .filter(**filters)
+        .order_by("-id")
     )
 
-    # ---------- SUMMARY ----------
-    summary = qs.aggregate(
-        total_boms=Count("id"),
-    )
+    summary = qs.aggregate(total_boms=Count("id"))
 
-    # ---------- PAGINATION ----------
     paginator = Paginator(qs, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
-
-    context = {
-        "page_obj": page_obj,
-        "summary": summary,
-        "filters": {
-            "date_from": date_from,
-            "date_to": date_to,
-            "po": po_id,
-        },
-        "purchase_orders": PurchaseOrder.objects.order_by("-id"),
-        "q": "",  # keeps pagination component happy
-    }
 
     return render(
         request,
         "bom/bom_report.html",
-        context,
+        {
+            "page_obj": page_obj,
+            "summary": summary,
+            "filters": {"date_from": date_from, "date_to": date_to, "po": po_id},
+            "purchase_orders": PurchaseOrder.objects.order_by("-id"),
+            "q": "",
+        },
     )
 
 
@@ -259,23 +195,17 @@ def bom_report_excel(request):
     date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
     po_id = request.GET.get("po", "")
 
-    filters = {
-        "bom_date__range": [date_from, date_to],
-    }
-
+    filters = {"bom_date__range": [date_from, date_to]}
     if po_id:
         filters["po_id"] = po_id
 
     boms = (
-        BOM.objects.select_related("po", "created_by").filter(**filters).order_by("-id")
+        BOM.objects.select_related("po", "created_by")
+        .filter(**filters)
+        .order_by("-id")
     )
 
-    html = render_to_string(
-        "bom/bom_report_excel.html",
-        {
-            "boms": boms,
-        },
-    )
+    html = render_to_string("bom/bom_report_excel.html", {"boms": boms})
 
     response = HttpResponse(html)
     response["Content-Type"] = "application/vnd.ms-excel"
@@ -285,3 +215,46 @@ def bom_report_excel(request):
     response["Pragma"] = "no-cache"
     response["Expires"] = "0"
     return response
+
+
+# ======================================================
+# HELPER
+# ======================================================
+def _save_bom_items(request, bom):
+    """
+    Reads repeating POST arrays:
+      item[], size[], quantity[], material[], remarks[]
+    and bulk-creates BOMItem rows. Rows where item/quantity/material
+    are all blank are silently skipped.
+    """
+    items_data = zip(
+        request.POST.getlist("item[]"),
+        request.POST.getlist("size[]"),
+        request.POST.getlist("quantity[]"),
+        request.POST.getlist("material[]"),
+        request.POST.getlist("remarks[]"),
+    )
+
+    to_create = []
+    for item, size, quantity, material, remarks in items_data:
+        item = item.strip()
+        quantity = quantity.strip()
+        material = material.strip()
+
+        # Skip entirely blank rows
+        if not item and not quantity and not material:
+            continue
+
+        to_create.append(
+            BOMItem(
+                bom=bom,
+                item=item,
+                size=size.strip(),
+                quantity=quantity or 0,
+                material=material,
+                remarks=remarks.strip(),
+            )
+        )
+
+    if to_create:
+        BOMItem.objects.bulk_create(to_create)
