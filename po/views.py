@@ -154,25 +154,17 @@ def po_report(request):
     completed_po_count = all_pos.filter(po_status="COMPLETED").count()
     pending_po_count = total_po_count - completed_po_count
 
-    po_value_qs = all_pos.annotate(
-        total_value=Coalesce(
-            Sum("items__material_value"),
-            Value(0),
-            output_field=DecimalField(max_digits=12, decimal_places=2),
-        )
-    )
-
-    total_po_value = po_value_qs.aggregate(
+    total_po_value = all_pos.aggregate(
         total=Coalesce(
-            Sum("total_value"),
+            Sum("items__material_value"),
             Value(0),
             output_field=DecimalField(max_digits=12, decimal_places=2),
         )
     )["total"]
 
-    dispatched_po_value = po_value_qs.filter(po_status="COMPLETED").aggregate(
+    dispatched_po_value = all_pos.filter(po_status="COMPLETED").aggregate(
         total=Coalesce(
-            Sum("total_value"),
+            Sum("items__material_value"),
             Value(0),
             output_field=DecimalField(max_digits=12, decimal_places=2),
         )
