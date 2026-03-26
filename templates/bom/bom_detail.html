@@ -14,9 +14,13 @@
             <a href="{% url 'bom:bom_edit' bom.id %}" class="btn btn-primary btn-sm">
                 <i class="fa fa-pencil"></i> Edit
             </a>
-            <a href="{% url 'bom:bom_delete' bom.id %}" class="btn btn-danger btn-sm">
-                <i class="fa fa-trash"></i> Delete
-            </a>
+            <form method="post" action="{% url 'bom:bom_delete' bom.id %}" class="d-inline" data-name="{{ bom.bom_no }}">
+                {% csrf_token %}
+                <button type="button" class="btn btn-sm btn-danger swal-delete-btn"
+                        title="Delete">
+                    <i class="fa fa-trash"></i> Delete
+                </button>
+            </form>
         </div>
     </div>
 
@@ -92,4 +96,29 @@
     </div>
 
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".swal-delete-btn").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var form = btn.closest("form");
+                var name = form.getAttribute("data-name");
+                Swal.fire({
+                    title: "Delete " + name + "?",
+                    text: "This cannot be undone.",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#dc3545",
+                    cancelButtonColor: "#6c757d",
+                    confirmButtonText: "Yes, Delete",
+                    cancelButtonText: "Cancel",
+                    reverseButtons: true,
+                }).then(function (result) {
+                    if (result.isConfirmed) form.submit();
+                });
+            });
+        });
+    });
+</script>
 {% endblock %}

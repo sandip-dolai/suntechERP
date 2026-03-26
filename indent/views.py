@@ -194,13 +194,11 @@ def indent_update(request, pk):
 @login_required
 def indent_delete(request, pk):
     indent = get_object_or_404(Indent, pk=pk)
-
     if request.method == "POST":
+        indent_number = indent.indent_number
         indent.delete()
-        messages.success(request, "Indent deleted successfully.")
-        return redirect("indent:indent_list")
-
-    return render(request, "indent/indent_confirm_delete.html", {"indent": indent})
+        messages.success(request, f"Indent {indent_number} deleted successfully.")
+    return redirect("indent:indent_list")
 
 
 # ======================================================

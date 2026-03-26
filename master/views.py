@@ -1,3 +1,5 @@
+from pyexpat.errors import messages
+
 from django.shortcuts import render, redirect, get_object_or_404
 from suntech_erp.permissions import admin_required
 from django.core.paginator import Paginator
@@ -69,16 +71,14 @@ def company_edit(request, pk):
 
 
 @admin_required
+@admin_required
 def company_delete(request, pk):
     obj = get_object_or_404(CompanyMaster, pk=pk)
     if request.method == "POST":
+        name = obj.name
         obj.delete()
-        return redirect("master:company_list")
-    return render(
-        request,
-        "master/company_master/company_delete.html",
-        {"obj": obj, "type": "Company"},
-    )
+        messages.success(request, f"Company '{name}' deleted successfully.")
+    return redirect("master:company_list")
 
 
 # ======================  PROCESS STATUS MASTER  ======================

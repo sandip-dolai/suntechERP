@@ -137,13 +137,11 @@ def bom_edit(request, pk):
 @login_required
 def bom_delete(request, pk):
     bom = get_object_or_404(BOM, pk=pk)
-
     if request.method == "POST":
+        bom_no = bom.bom_no
         bom.delete()
-        messages.success(request, "BOM deleted successfully.")
-        return redirect("bom:bom_list")
-
-    return render(request, "bom/bom_confirm_delete.html", {"bom": bom})
+        messages.success(request, f"BOM {bom_no} deleted successfully.")
+    return redirect("bom:bom_list")
 
 
 # ======================================================

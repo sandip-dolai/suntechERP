@@ -15,9 +15,17 @@
             <a href="{% url 'indent:indent_update' indent.id %}" class="btn btn-primary btn-sm">
                 <i class="fa fa-pencil"></i> Edit
             </a>
-            <a href="{% url 'indent:indent_delete' indent.id %}" class="btn btn-danger btn-sm">
-                <i class="fa fa-trash"></i> Delete
-            </a>
+            <form method="post"
+                  action="{% url 'indent:indent_delete' indent.id %}"
+                  class="d-inline swal-delete-form"
+                  data-name="{{ indent.indent_number }}">
+                {% csrf_token %}
+                <button type="button"
+                        class="btn btn-danger btn-sm swal-delete-btn"
+                        title="Delete Indent">
+                    <i class="fa fa-trash"></i> Delete
+                </button>
+            </form>
         </div>
     </div>
 
@@ -146,4 +154,30 @@
     {% endfor %}
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".swal-delete-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var form = btn.closest(".swal-delete-form");
+            var name = form.getAttribute("data-name");
+            Swal.fire({
+                title: "Delete " + name + "?",
+                html: "This will permanently delete the indent and all its items and sub-items.<br><small class='text-muted'>This action cannot be undone.</small>",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#dc3545",
+                cancelButtonColor: "#6c757d",
+                confirmButtonText: '<i class="fa fa-trash"></i> Yes, Delete',
+                cancelButtonText: "Cancel",
+                reverseButtons: true,
+            }).then(function (result) {
+                if (result.isConfirmed) form.submit();
+            });
+        });
+    });
+});
+</script>
 {% endblock %}
