@@ -225,6 +225,7 @@ def po_report(request):
     if filter_used:
         po_qs = (
             PurchaseOrder.objects.select_related("created_by", "company")
+            .prefetch_related("items")
             .filter(**base_filters)
             .annotate(
                 total_quantity=Coalesce(
@@ -237,6 +238,8 @@ def po_report(request):
                     Value(0),
                     output_field=DecimalField(max_digits=12, decimal_places=2),
                 ),
+                has_bom=Count("boms", distinct=True),
+                has_indent=Count("indents", distinct=True),
             )
             .order_by("id")
         )
@@ -383,27 +386,24 @@ def po_report(request):
 def po_report_summary_excel(request):
     today = datetime.today().date()
     date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
-    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
-
+    date_to   = request.GET.get("date_to")   or today.strftime("%Y-%m-%d")
+ 
     base_filters = {"po_date__range": [date_from, date_to]}
-
+ 
     if request.GET.get("po_number"):
         base_filters["po_number"] = request.GET["po_number"]
-
     if request.GET.get("oa_number"):
         base_filters["oa_number"] = request.GET["oa_number"]
-
     if request.GET.get("company"):
         base_filters["company_id"] = request.GET["company"]
-
     if request.GET.get("po_status"):
         base_filters["po_status"] = request.GET["po_status"]
-
     if request.GET.get("department"):
         base_filters["department"] = request.GET["department"]
-
+ 
     pos = (
         PurchaseOrder.objects.select_related("company", "created_by")
+        .prefetch_related("items")
         .filter(**base_filters)
         .annotate(
             total_quantity=Coalesce(
@@ -419,21 +419,37 @@ def po_report_summary_excel(request):
         )
         .order_by("id")
     )
-
+ 
+    # Compute grand totals for template
+    agg = pos.aggregate(
+        total_qty=Coalesce(
+            Sum("items__quantity_value"),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=3),
+        ),
+        total_value=Coalesce(
+            Sum("items__material_value"),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        ),
+    )
+ 
     html = render_to_string(
         "po/po_report_summary_excel.html",
         {
-            "pos": pos,
+            "pos":           pos,
+            "total_qty":     agg["total_qty"],
+            "total_value":   agg["total_value"],
             "can_view_value": can_view_value(request.user),
         },
     )
-
+ 
     response = HttpResponse(html)
-    response["Content-Type"] = "application/vnd.ms-excel"
+    response["Content-Type"]        = "application/vnd.ms-excel"
     response["Content-Disposition"] = (
-        f'attachment; filename="PO_Summary_Report_{date_from}_to_{date_to}.xls"'
+        f'attachment; filename="PO_Summary_{date_from}_to_{date_to}.xls"'
     )
-    response["Pragma"] = "no-cache"
+    response["Pragma"]  = "no-cache"
     response["Expires"] = "0"
     return response
 
@@ -445,25 +461,21 @@ def po_report_summary_excel(request):
 def po_report_item_excel(request):
     today = datetime.today().date()
     date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
-    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
-
+    date_to   = request.GET.get("date_to")   or today.strftime("%Y-%m-%d")
+ 
     base_filters = {"purchase_order__po_date__range": [date_from, date_to]}
-
+ 
     if request.GET.get("po_number"):
         base_filters["purchase_order__po_number"] = request.GET["po_number"]
-
     if request.GET.get("oa_number"):
         base_filters["purchase_order__oa_number"] = request.GET["oa_number"]
-
     if request.GET.get("company"):
         base_filters["purchase_order__company_id"] = request.GET["company"]
-
     if request.GET.get("po_status"):
         base_filters["purchase_order__po_status"] = request.GET["po_status"]
-
     if request.GET.get("department"):
         base_filters["purchase_order__department"] = request.GET["department"]
-
+ 
     items = (
         PurchaseOrderItem.objects.select_related(
             "purchase_order",
@@ -471,9 +483,9 @@ def po_report_item_excel(request):
             "purchase_order__created_by",
         )
         .filter(**base_filters)
-        .order_by("purchase_order__id")
+        .order_by("purchase_order__id", "id")
     )
-
+ 
     grand_totals = items.aggregate(
         total_quantity=Coalesce(
             Sum("quantity_value"),
@@ -486,22 +498,22 @@ def po_report_item_excel(request):
             output_field=DecimalField(max_digits=12, decimal_places=2),
         ),
     )
-
+ 
     html = render_to_string(
         "po/po_report_item_excel.html",
         {
-            "items": items,
-            "grand_totals": grand_totals,
+            "items":          items,
+            "grand_totals":   grand_totals,
             "can_view_value": can_view_value(request.user),
         },
     )
-
+ 
     response = HttpResponse(html)
-    response["Content-Type"] = "application/vnd.ms-excel"
+    response["Content-Type"]        = "application/vnd.ms-excel"
     response["Content-Disposition"] = (
-        f'attachment; filename="PO_Items_Report_{date_from}_to_{date_to}.xls"'
+        f'attachment; filename="PO_Items_{date_from}_to_{date_to}.xls"'
     )
-    response["Pragma"] = "no-cache"
+    response["Pragma"]  = "no-cache"
     response["Expires"] = "0"
     return response
 

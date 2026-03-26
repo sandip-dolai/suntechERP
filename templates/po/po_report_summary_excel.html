@@ -1,76 +1,154 @@
 <html>
 <head>
-    <meta charset="UTF-8">
-    <style>
-        body { font-family:Arial,sans-serif; font-size:12px; }
-        table { border-collapse:collapse; width:100%; }
-        .title-row td { background:#1f3864; color:#fff; font-size:14px; font-weight:bold; padding:8px 10px; text-align:center; }
-        .col-header-row th { background:#bdd7ee; color:#1f3864; font-weight:bold; padding:4px 8px; font-size:11px; border:1px solid #9dc3e6; text-align:center; }
-        .data-row td { padding:4px 8px; border:1px solid #dde; font-size:11px; }
-        .data-row:nth-child(even) td { background:#f2f8ff; }
-        .total-row td { padding:5px 8px; border:1px solid #9dc3e6; font-weight:bold; background:#dae8fc; font-size:11px; }
-        .spacer td { height:4px; }
-    </style>
+<meta charset="UTF-8">
+<style>
+    body  { font-family: Arial, sans-serif; font-size: 11px; }
+    table { border-collapse: collapse; width: 100%; }
+
+    .title td {
+        background: #1f3864;
+        color: #fff;
+        font-size: 14px;
+        font-weight: bold;
+        padding: 10px;
+        text-align: center;
+    }
+    .col-header th {
+        background: #2e75b6;
+        color: #fff;
+        font-weight: bold;
+        padding: 5px 8px;
+        border: 1px solid #1f5fa6;
+        text-align: center;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+    .data-row td {
+        padding: 4px 8px;
+        border: 1px solid #c9daea;
+        font-size: 11px;
+        vertical-align: middle;
+    }
+    .data-row:nth-child(odd) td  { background: #ffffff; }
+    .data-row:nth-child(even) td { background: #eef4fb; }
+
+    .status-completed { color: #1a7a1a; font-weight: bold; }
+    .status-pending   { color: #b8860b; }
+    .status-inprocess { color: #0055aa; }
+
+    .total-row td {
+        background: #1f3864;
+        color: #fff;
+        font-weight: bold;
+        padding: 6px 8px;
+        border: 1px solid #1f3864;
+        font-size: 11px;
+    }
+</style>
 </head>
 <body>
 <table>
-    <tr class="title-row">
-        <td colspan="{% if can_view_value %}11{% else %}9{% endif %}">
-            PO SUMMARY REPORT — Suntech ERP
+
+    <!-- Title -->
+    <tr class="title">
+        <td colspan="{% if can_view_value %}14{% else %}12{% endif %}">
+            PURCHASE ORDER SUMMARY REPORT — Suntech ERP
         </td>
     </tr>
-    <tr><td colspan="{% if can_view_value %}11{% else %}9{% endif %}" style="height:4px;"></td></tr>
-
-    <tr class="col-header-row">
-        <th>#</th>
-        <th>PO Number</th>
-        <th>OA Number</th>
-        <th>Company</th>
-        <th>Department</th>
-        <th>PO Date</th>
-        <th>Delivery Date</th>
-        <th>PO Status</th>
-        <th>Items</th>
-        {% if can_view_value %}
-        <th>Total Qty</th>
-        <th>Total Value</th>
-        {% endif %}
+    <tr>
+        <td colspan="{% if can_view_value %}14{% else %}12{% endif %}"
+            style="height:5px; background:#fff; border:none;"></td>
     </tr>
 
+    <!-- Single header row — all PO + item fields -->
+    <tr class="col-header">
+        <th style="width:35px;">#</th>
+        <th style="width:120px;">PO Number</th>
+        <th style="width:120px;">OA Number</th>
+        <th style="width:180px;">Company</th>
+        <th style="width:90px;">Department</th>
+        <th style="width:85px;">PO Date</th>
+        <th style="width:85px;">Delivery Date</th>
+        <th style="width:75px;">PO Status</th>
+        <th style="width:110px;">Material Code</th>
+        <th>Material Description</th>
+        <th style="width:80px;">Qty</th>
+        <th style="width:55px;">UOM</th>
+        {% if can_view_value %}
+        <th style="width:105px;">Value (₹)</th>
+        {% endif %}
+        <th style="width:95px;">Item Status</th>
+    </tr>
+
+    <!-- One flat row per item, all PO fields repeated -->
     {% for po in pos %}
+    {% for item in po.items.all %}
+    <tr class="data-row">
+        <td style="text-align:center;">{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
+        <td>{{ po.po_number }}</td>
+        <td>{{ po.oa_number }}</td>
+        <td>{{ po.company.name }}</td>
+        <td style="text-align:center;">{{ po.department|default:"—" }}</td>
+        <td style="text-align:center;">{{ po.po_date }}</td>
+        <td style="text-align:center;">{{ po.delivery_date|default:"" }}</td>
+        <td style="text-align:center;"
+            class="{% if po.po_status == 'COMPLETED' %}status-completed{% else %}status-pending{% endif %}">
+            {{ po.get_po_status_display }}
+        </td>
+        <td>{{ item.material_code|default:"—" }}</td>
+        <td>{{ item.material_description }}</td>
+        <td style="text-align:right;">{{ item.quantity_value|floatformat:3 }}</td>
+        <td style="text-align:center;">{{ item.uom }}</td>
+        {% if can_view_value %}
+        <td style="text-align:right;">{{ item.material_value|floatformat:2|default:"" }}</td>
+        {% endif %}
+        <td style="text-align:center;"
+            class="{% if item.status == 'COMPLETED' %}status-completed{% elif item.status == 'INPROCESS' %}status-inprocess{% else %}status-pending{% endif %}">
+            {{ item.get_status_display }}
+        </td>
+    </tr>
+    {% empty %}
+    <!-- PO with no items — still show PO row so it's not invisible -->
     <tr class="data-row">
         <td style="text-align:center;">{{ forloop.counter }}</td>
         <td>{{ po.po_number }}</td>
         <td>{{ po.oa_number }}</td>
         <td>{{ po.company.name }}</td>
-        <td>{{ po.department|default:"—" }}</td>
+        <td style="text-align:center;">{{ po.department|default:"—" }}</td>
         <td style="text-align:center;">{{ po.po_date }}</td>
         <td style="text-align:center;">{{ po.delivery_date|default:"" }}</td>
-        <td style="text-align:center;">{{ po.get_po_status_display }}</td>
-        <td style="text-align:center;">{{ po.items.count }}</td>
-        {% if can_view_value %}
-        <td style="text-align:right;">{{ po.total_quantity|floatformat:3 }}</td>
-        <td style="text-align:right;">{{ po.total_value|floatformat:2 }}</td>
-        {% endif %}
+        <td style="text-align:center;"
+            class="{% if po.po_status == 'COMPLETED' %}status-completed{% else %}status-pending{% endif %}">
+            {{ po.get_po_status_display }}
+        </td>
+        <td colspan="{% if can_view_value %}6{% else %}5{% endif %}"
+            style="color:#999; font-style:italic;">
+            No items
+        </td>
     </tr>
+    {% endfor %}
     {% empty %}
     <tr>
-        <td colspan="{% if can_view_value %}11{% else %}9{% endif %}"
-            style="text-align:center; padding:10px; color:#888; font-style:italic;">
-            No POs found.
+        <td colspan="{% if can_view_value %}14{% else %}12{% endif %}"
+            style="text-align:center; padding:14px; color:#888; font-style:italic;">
+            No purchase orders found for the selected filters.
         </td>
     </tr>
     {% endfor %}
 
-    {% if can_view_value and pos %}
+    <!-- Grand Total -->
+    {% if pos %}
     <tr class="total-row">
-        <td colspan="9" style="text-align:right;">Grand Total:</td>
-        <td style="text-align:right;">
-            {% with total_q=0 %}{% for po in pos %}{% if forloop.last %}—{% endif %}{% endfor %}{% endwith %}
+        <td colspan="{% if can_view_value %}10{% else %}9{% endif %}"
+            style="text-align:right;">
+            GRAND TOTAL ({{ pos|length }} PO{{ pos|length|pluralize }}):
         </td>
-        <td style="text-align:right;">
-            {% with total_v=0 %}{% for po in pos %}{% if forloop.last %}—{% endif %}{% endfor %}{% endwith %}
-        </td>
+        <td style="text-align:right;">{{ total_qty|floatformat:3 }}</td>
+        <td></td>
+        {% if can_view_value %}
+        <td style="text-align:right;">{{ total_value|floatformat:2 }}</td>
+        {% endif %}
+        <td></td>
     </tr>
     {% endif %}
 

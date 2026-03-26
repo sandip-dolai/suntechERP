@@ -1,97 +1,138 @@
 <html>
 <head>
-    <meta charset="UTF-8">
-    <style>
-        body { font-family:Arial,sans-serif; font-size:12px; }
-        table { border-collapse:collapse; width:100%; }
-        .title-row td { background:#1f3864; color:#fff; font-size:14px; font-weight:bold; padding:8px 10px; text-align:center; }
-        .po-header-row td { background:#2e75b6; color:#fff; font-weight:bold; padding:5px 8px; font-size:11px; }
-        .col-header-row th { background:#bdd7ee; color:#1f3864; font-weight:bold; padding:4px 8px; font-size:11px; border:1px solid #9dc3e6; text-align:center; }
-        .data-row td { padding:4px 8px; border:1px solid #dde; font-size:11px; vertical-align:top; }
-        .data-row:nth-child(even) td { background:#f2f8ff; }
-        .total-row td { padding:5px 8px; border:1px solid #9dc3e6; font-weight:bold; background:#dae8fc; font-size:11px; }
-        .spacer-row td { height:6px; background:#fff; }
-        .no-items td { padding:4px 8px; border:1px solid #dde; color:#888; font-style:italic; font-size:11px; }
-    </style>
+<meta charset="UTF-8">
+<style>
+    body  { font-family: Arial, sans-serif; font-size: 11px; }
+    table { border-collapse: collapse; width: 100%; }
+
+    .title td {
+        background: #1f3864;
+        color: #fff;
+        font-size: 14px;
+        font-weight: bold;
+        padding: 10px;
+        text-align: center;
+    }
+    .col-header th {
+        background: #2e75b6;
+        color: #fff;
+        font-weight: bold;
+        padding: 5px 8px;
+        border: 1px solid #1f5fa6;
+        text-align: center;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+    .data-row td {
+        padding: 4px 8px;
+        border: 1px solid #c9daea;
+        font-size: 11px;
+        vertical-align: middle;
+    }
+    .data-row:nth-child(odd) td  { background: #ffffff; }
+    .data-row:nth-child(even) td { background: #eef4fb; }
+
+    .status-completed  { color: #1a7a1a; font-weight: bold; }
+    .status-pending    { color: #b8860b; font-weight: bold; }
+    .status-inprocess  { color: #0055aa; font-weight: bold; }
+
+    .total-row td {
+        background: #1f3864;
+        color: #fff;
+        font-weight: bold;
+        padding: 5px 8px;
+        border: 1px solid #1f3864;
+        font-size: 11px;
+    }
+</style>
 </head>
 <body>
+
 <table>
 
-    <tr class="title-row">
-        <td colspan="{% if can_view_value %}9{% else %}8{% endif %}">
-            PO ITEM REPORT — Suntech ERP
+    <!-- Title -->
+    <tr class="title">
+        <td colspan="{% if can_view_value %}12{% else %}11{% endif %}">
+            PURCHASE ORDER ITEM REPORT — Suntech ERP
         </td>
     </tr>
-    <tr><td colspan="{% if can_view_value %}9{% else %}8{% endif %}" style="height:6px;"></td></tr>
 
-    {% regroup items by purchase_order as po_groups %}
-
-    {% for po_group in po_groups %}
-    {% with po=po_group.grouper %}
-
-    <!-- PO Header Band -->
-    <tr class="po-header-row">
-        <td colspan="3">PO: {{ po.po_number }} / OA: {{ po.oa_number }}</td>
-        <td colspan="2">Company: {{ po.company }}</td>
-        <td colspan="2">Date: {{ po.po_date }} | Delivery: {{ po.delivery_date|default:"—" }}</td>
-        <td colspan="{% if can_view_value %}2{% else %}1{% endif %}">
-            Status: {{ po.get_po_status_display }} | Dept: {{ po.department|default:"—" }}
-        </td>
-    </tr>
+    <!-- Spacer -->
+    <tr><td colspan="{% if can_view_value %}12{% else %}11{% endif %}"
+            style="height:4px; background:#fff;"></td></tr>
 
     <!-- Column Headers -->
-    <tr class="col-header-row">
+    <tr class="col-header">
         <th style="width:35px;">#</th>
+        <th style="width:120px;">PO Number</th>
+        <th style="width:120px;">OA Number</th>
+        <th style="width:180px;">Company</th>
+        <th style="width:90px;">Department</th>
+        <th style="width:85px;">PO Date</th>
+        <th style="width:85px;">Delivery Date</th>
+        <th style="width:75px;">PO Status</th>
         <th style="width:110px;">Material Code</th>
         <th>Material Description</th>
-        <th style="width:90px;">Quantity</th>
-        <th style="width:60px;">UOM</th>
+        <th style="width:80px;">Qty</th>
+        <th style="width:55px;">UOM</th>
         {% if can_view_value %}
-        <th style="width:100px;">Value</th>
+        <th style="width:100px;">Value (₹)</th>
         {% endif %}
-        <th style="width:100px;">Item Status</th>
-        <th>Created By</th>
+        <th style="width:90px;">Item Status</th>
     </tr>
 
-    <!-- Items -->
-    {% for item in po_group.list %}
+    <!-- Data Rows — one row per item, PO fields repeated for filterability -->
+    {% for item in items %}
     <tr class="data-row">
         <td style="text-align:center;">{{ forloop.counter }}</td>
+        <td>{{ item.purchase_order.po_number }}</td>
+        <td>{{ item.purchase_order.oa_number }}</td>
+        <td>{{ item.purchase_order.company.name }}</td>
+        <td style="text-align:center;">{{ item.purchase_order.department|default:"—" }}</td>
+        <td style="text-align:center;">{{ item.purchase_order.po_date }}</td>
+        <td style="text-align:center;">{{ item.purchase_order.delivery_date|default:"" }}</td>
+        <td style="text-align:center;"
+            class="{% if item.purchase_order.po_status == 'COMPLETED' %}status-completed{% else %}status-pending{% endif %}">
+            {{ item.purchase_order.get_po_status_display }}
+        </td>
         <td>{{ item.material_code|default:"—" }}</td>
         <td>{{ item.material_description }}</td>
-        <td style="text-align:center;">{{ item.quantity_value|floatformat:2 }}</td>
+        <td style="text-align:right;">{{ item.quantity_value|floatformat:3 }}</td>
         <td style="text-align:center;">{{ item.uom }}</td>
         {% if can_view_value %}
-        <td style="text-align:right;">{{ item.material_value|floatformat:2 }}</td>
+        <td style="text-align:right;">{{ item.material_value|floatformat:2|default:"" }}</td>
         {% endif %}
-        <td style="text-align:center;">{{ item.get_status_display }}</td>
-        <td>{{ item.purchase_order.created_by|default:"—" }}</td>
+        <td style="text-align:center;"
+            class="{% if item.status == 'COMPLETED' %}status-completed{% elif item.status == 'INPROCESS' %}status-inprocess{% else %}status-pending{% endif %}">
+            {{ item.get_status_display }}
+        </td>
     </tr>
     {% empty %}
-    <tr class="no-items">
-        <td colspan="{% if can_view_value %}8{% else %}7{% endif %}"
-            style="text-align:center;">No items.</td>
+    <tr>
+        <td colspan="{% if can_view_value %}14{% else %}13{% endif %}"
+            style="text-align:center; padding:12px; color:#888; font-style:italic;">
+            No items found for the selected filters.
+        </td>
     </tr>
-    {% endfor %}
-
-    <!-- Spacer between POs -->
-    <tr class="spacer-row">
-        <td colspan="{% if can_view_value %}9{% else %}8{% endif %}"></td>
-    </tr>
-
-    {% endwith %}
     {% endfor %}
 
     <!-- Grand Total -->
     {% if grand_totals %}
     <tr class="total-row">
-        <td colspan="3" style="text-align:right;">Grand Total:</td>
-        <td style="text-align:center;">{{ grand_totals.total_quantity|floatformat:2 }}</td>
+        <td colspan="{% if can_view_value %}10{% else %}9{% endif %}"
+            style="text-align:right;">
+            GRAND TOTAL:
+        </td>
+        <td style="text-align:right;">
+            {{ grand_totals.total_quantity|floatformat:3 }}
+        </td>
         <td></td>
         {% if can_view_value %}
-        <td style="text-align:right;">{{ grand_totals.total_value|floatformat:2 }}</td>
+        <td style="text-align:right;">
+            {{ grand_totals.total_value|floatformat:2 }}
+        </td>
         {% endif %}
-        <td colspan="2"></td>
+        <td></td>
     </tr>
     {% endif %}
 
