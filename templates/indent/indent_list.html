@@ -4,18 +4,35 @@
 {% block content %}
 <div class="container-fluid">
 
-    <!-- ================= HEADER ================= -->
     <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
             <h4 class="mb-0">Indent List</h4>
             <small class="text-muted">Total Indents: {{ page_obj.paginator.count }}</small>
         </div>
         <a href="{% url 'indent:indent_create' %}" class="btn btn-primary">
-            + Create Indent
+            <i class="fa fa-plus"></i> Create Indent
         </a>
     </div>
 
-    <!-- ================= SEARCH ================= -->
+    <!-- ================= MESSAGES via SweetAlert ================= -->
+    {% if messages %}
+    {% for message in messages %}
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        Swal.fire({
+            icon: "{% if message.tags == 'success' %}success{% elif message.tags == 'error' %}error{% else %}info{% endif %}",
+            title: "{% if message.tags == 'success' %}Done!{% elif message.tags == 'error' %}Error{% else %}Notice{% endif %}",
+            text: "{{ message }}",
+            timer: 10000,
+            timerProgressBar: true,
+            showConfirmButton: true,
+            confirmButtonText: "OK",
+        });
+    });
+    </script>
+    {% endfor %}
+    {% endif %}
+
     <form method="get" class="mb-3">
         <div class="row g-2">
             <div class="col-md-4">
@@ -26,7 +43,9 @@
                        placeholder="Search indent no / PO / OA / process / user">
             </div>
             <div class="col-md-auto">
-                <button type="submit" class="btn btn-primary">Search</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa fa-search"></i> Search
+                </button>
             </div>
             {% if q %}
             <div class="col-md-auto">
@@ -38,7 +57,6 @@
         </div>
     </form>
 
-    <!-- ================= TABLE ================= -->
     <div class="card">
         <div class="card-body p-0">
             <table class="table table-bordered table-striped table-sm mb-0">
@@ -50,8 +68,10 @@
                         <th>PO No</th>
                         <th>OA No</th>
                         <th>Production Process</th>
+                        <th class="text-center" style="width:70px;">Items</th>
+                        <th class="text-center" style="width:80px;">Sub-Items</th>
                         <th>Created By</th>
-                        <th style="width:130px;" class="text-center">Action</th>
+                        <th style="width:130px;" class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -67,22 +87,42 @@
                         <td>{{ indent.purchase_order.po_number }}</td>
                         <td>{{ indent.purchase_order.oa_number }}</td>
                         <td>{{ indent.po_process.department_process.name }}</td>
+
+                        <!-- Item count -->
+                        <td class="text-center">
+                            {% if indent.item_count > 0 %}
+                            <span class="badge badge-secondary">{{ indent.item_count }}</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Sub-item count -->
+                        <td class="text-center">
+                            {% if indent.sub_item_count > 0 %}
+                            <span class="badge badge-info">{{ indent.sub_item_count }}</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+
                         <td>{{ indent.created_by|default:"—" }}</td>
+
                         <td class="text-center">
                             <a href="{% url 'indent:indent_detail' indent.id %}"
-                               class="btn btn-sm btn-info"
-                               title="View">
+                               class="btn btn-sm btn-info" title="View">
                                 <i class="fa fa-eye"></i>
                             </a>
                             <a href="{% url 'indent:indent_update' indent.id %}"
-                               class="btn btn-sm btn-primary ms-1"
-                               title="Edit">
+                               class="btn btn-sm btn-primary" title="Edit">
                                 <i class="fa fa-pencil"></i>
                             </a>
                             <form method="post"
                                   action="{% url 'indent:indent_delete' indent.id %}"
                                   class="d-inline swal-delete-form"
-                                  data-name="{{ indent.indent_number }}">
+                                  data-name="{{ indent.indent_number }}"
+                                  data-items="{{ indent.item_count }}"
+                                  data-subitems="{{ indent.sub_item_count }}">
                                 {% csrf_token %}
                                 <button type="button"
                                         class="btn btn-sm btn-danger swal-delete-btn"
@@ -94,7 +134,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-3">
+                        <td colspan="10" class="text-center text-muted py-3">
                             No indents found.
                         </td>
                     </tr>
@@ -104,7 +144,6 @@
         </div>
     </div>
 
-    <!-- ================= PAGINATION ================= -->
     {% include "components/pagination.html" %}
 
 </div>
@@ -115,11 +154,23 @@
 document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".swal-delete-btn").forEach(function (btn) {
         btn.addEventListener("click", function () {
-            var form = btn.closest(".swal-delete-form");
-            var name = form.getAttribute("data-name");
+            var form      = btn.closest(".swal-delete-form");
+            var name      = form.getAttribute("data-name");
+            var items     = parseInt(form.getAttribute("data-items") || "0");
+            var subitems  = parseInt(form.getAttribute("data-subitems") || "0");
+
+            var detail = "";
+            if (items > 0 || subitems > 0) {
+                detail = "<br><small class='text-muted'>This will also delete <strong>"
+                    + items + " item" + (items !== 1 ? "s" : "")
+                    + "</strong> and <strong>"
+                    + subitems + " sub-item" + (subitems !== 1 ? "s" : "")
+                    + "</strong>.</small>";
+            }
+
             Swal.fire({
                 title: "Delete " + name + "?",
-                html: "This will permanently delete the indent and all its items and sub-items.<br><small class='text-muted'>This action cannot be undone.</small>",
+                html: "This action cannot be undone." + detail,
                 icon: "warning",
                 showCancelButton: true,
                 confirmButtonColor: "#dc3545",
@@ -127,9 +178,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 confirmButtonText: '<i class="fa fa-trash"></i> Yes, Delete',
                 cancelButtonText: "Cancel",
                 reverseButtons: true,
-            }).then(function (result) {
-                if (result.isConfirmed) form.submit();
-            });
+            }).then(function (r) { if (r.isConfirmed) form.submit(); });
         });
     });
 });

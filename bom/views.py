@@ -19,9 +19,9 @@ from django.http import HttpResponse
 @login_required
 def bom_list(request):
     q = request.GET.get("q", "").strip()
-
+ 
     qs = BOM.objects.select_related("po", "created_by")
-
+ 
     if q:
         qs = qs.filter(
             Q(bom_no__icontains=q)
@@ -29,12 +29,17 @@ def bom_list(request):
             | Q(po__oa_number__icontains=q)
             | Q(created_by__username__icontains=q)
         )
-
-    qs = qs.order_by("-id")
-
+ 
+    qs = qs.annotate(
+        # Count how many IndentSubItems reference any BOMItem of this BOM
+        # items = related_name on BOMItem → bom
+        # indent_sub_items = related_name on IndentSubItem → bom_item
+        indent_link_count=Count("items__indent_sub_items", distinct=True),
+    ).order_by("-id")
+ 
     paginator = Paginator(qs, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
-
+ 
     return render(request, "bom/bom_list.html", {"page_obj": page_obj, "q": q})
 
 
@@ -94,7 +99,20 @@ def bom_detail(request, pk):
     bom = get_object_or_404(BOM.objects.select_related("po", "created_by"), pk=pk)
     items = bom.items.all()
 
-    return render(request, "bom/bom_detail.html", {"bom": bom, "items": items})
+    # Count how many IndentSubItems reference any BOMItem of this BOM
+    from indent.models import IndentSubItem
+
+    indent_link_count = IndentSubItem.objects.filter(bom_item__bom=bom).count()
+
+    return render(
+        request,
+        "bom/bom_detail.html",
+        {
+            "bom": bom,
+            "items": items,
+            "indent_link_count": indent_link_count,
+        },
+    )
 
 
 # ======================================================
@@ -137,10 +155,20 @@ def bom_edit(request, pk):
 @login_required
 def bom_delete(request, pk):
     bom = get_object_or_404(BOM, pk=pk)
+ 
     if request.method == "POST":
+        from indent.models import IndentSubItem
+        if IndentSubItem.objects.filter(bom_item__bom=bom).exists():
+            messages.error(
+                request,
+                f"Cannot delete BOM {bom.bom_no} — indent sub-items are linked to it."
+            )
+            return redirect("bom:bom_list")
+ 
         bom_no = bom.bom_no
         bom.delete()
         messages.success(request, f"BOM {bom_no} deleted successfully.")
+ 
     return redirect("bom:bom_list")
 
 

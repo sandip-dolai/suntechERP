@@ -4,23 +4,42 @@
 {% block content %}
 <div class="container-fluid">
 
-    <!-- ================= PAGE HEADER ================= -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0">BOM Details — {{ bom.bom_no }}</h4>
         <div class="d-flex gap-2">
             <a href="{% url 'bom:bom_list' %}" class="btn btn-secondary btn-sm">
                 Back to List
             </a>
+            <a href="{% url 'bom:bom_print' bom.id %}"
+               class="btn btn-outline-secondary btn-sm" target="_blank">
+                <i class="fa fa-print"></i> Print
+            </a>
             <a href="{% url 'bom:bom_edit' bom.id %}" class="btn btn-primary btn-sm">
                 <i class="fa fa-pencil"></i> Edit
             </a>
-            <form method="post" action="{% url 'bom:bom_delete' bom.id %}" class="d-inline" data-name="{{ bom.bom_no }}">
+
+            {% if indent_link_count > 0 %}
+            <!-- Locked — indent sub-items reference this BOM -->
+            <button type="button"
+                    class="btn btn-secondary btn-sm"
+                    disabled
+                    title="Cannot delete — {{ indent_link_count }} indent sub-item{{ indent_link_count|pluralize }} linked to this BOM">
+                <i class="fa fa-lock"></i>
+                Locked
+            </button>
+            {% else %}
+            <!-- Safe to delete -->
+            <form method="post"
+                  action="{% url 'bom:bom_delete' bom.id %}"
+                  class="d-inline swal-delete-form"
+                  data-name="{{ bom.bom_no }}">
                 {% csrf_token %}
-                <button type="button" class="btn btn-sm btn-danger swal-delete-btn"
-                        title="Delete">
+                <button type="button"
+                        class="btn btn-danger btn-sm swal-delete-btn">
                     <i class="fa fa-trash"></i> Delete
                 </button>
             </form>
+            {% endif %}
         </div>
     </div>
 
@@ -51,6 +70,15 @@
                     <small class="text-muted d-block">Created By</small>
                     <strong>{{ bom.created_by }}</strong>
                 </div>
+                {% if indent_link_count > 0 %}
+                <div class="col-md-4">
+                    <small class="text-muted d-block">Indent Links</small>
+                    <span class="badge badge-warning text-dark">
+                        <i class="fa fa-link"></i>
+                        {{ indent_link_count }} indent sub-item{{ indent_link_count|pluralize }} reference this BOM
+                    </span>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -59,16 +87,18 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <strong>BOM Items</strong>
-            <span class="badge bg-secondary">{{ items|length }} item{{ items|length|pluralize }}</span>
+            <span class="badge badge-secondary">
+                {{ items|length }} item{{ items|length|pluralize }}
+            </span>
         </div>
         <div class="card-body p-0">
-            <table class="table table-bordered table-striped table-sm mb-0">
-                <thead class="table-light">
+            <table class="table table-bordered table-sm mb-0">
+                <thead class="thead-light">
                     <tr>
-                        <th style="width:40px;">#</th>
-                        <th>Item</th>
+                        <th style="width:40px;" class="text-center">#</th>
+                        <th>Item / Component</th>
                         <th style="width:130px;">Size</th>
-                        <th style="width:110px;">Quantity</th>
+                        <th style="width:90px;" class="text-center">Quantity</th>
                         <th>Material</th>
                         <th>Remarks</th>
                     </tr>
@@ -76,18 +106,16 @@
                 <tbody>
                     {% for item in items %}
                     <tr>
-                        <td>{{ forloop.counter }}</td>
+                        <td class="text-center">{{ forloop.counter }}</td>
                         <td>{{ item.item }}</td>
                         <td>{{ item.size|default:"—" }}</td>
-                        <td>{{ item.quantity }}</td>
+                        <td class="text-center">{{ item.quantity }}</td>
                         <td>{{ item.material }}</td>
                         <td>{{ item.remarks|default:"—" }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-3">
-                            No BOM items found.
-                        </td>
+                        <td colspan="6" class="text-center text-muted py-3">No items.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -97,28 +125,27 @@
 
 </div>
 {% endblock %}
+
 {% block extra_js %}
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        document.querySelectorAll(".swal-delete-btn").forEach(function (btn) {
-            btn.addEventListener("click", function () {
-                var form = btn.closest("form");
-                var name = form.getAttribute("data-name");
-                Swal.fire({
-                    title: "Delete " + name + "?",
-                    text: "This cannot be undone.",
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonColor: "#dc3545",
-                    cancelButtonColor: "#6c757d",
-                    confirmButtonText: "Yes, Delete",
-                    cancelButtonText: "Cancel",
-                    reverseButtons: true,
-                }).then(function (result) {
-                    if (result.isConfirmed) form.submit();
-                });
-            });
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".swal-delete-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var form = btn.closest(".swal-delete-form");
+            var name = form.getAttribute("data-name");
+            Swal.fire({
+                title: "Delete " + name + "?",
+                html: "This will permanently delete the BOM and all its items.<br><small class='text-muted'>This cannot be undone.</small>",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#dc3545",
+                cancelButtonColor: "#6c757d",
+                confirmButtonText: '<i class="fa fa-trash"></i> Yes, Delete',
+                cancelButtonText: "Cancel",
+                reverseButtons: true,
+            }).then(function (r) { if (r.isConfirmed) form.submit(); });
         });
     });
+});
 </script>
 {% endblock %}

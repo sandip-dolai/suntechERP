@@ -5,15 +5,11 @@
 
 {% block content %}
 
-<!-- ================= HEADER ================= -->
 <div class="d-flex justify-content-between align-items-center mb-2">
     <div>
         <h2 class="mb-0">Company Master</h2>
-        <small class="text-muted">
-            Total Companies: {{ page_obj.paginator.count }}
-        </small>
+        <small class="text-muted">Total Companies: {{ page_obj.paginator.count }}</small>
     </div>
-
     {% if is_admin %}
     <a href="{% url 'master:company_create' %}" class="btn btn-primary">
         <i class="fa fa-plus"></i> Add Company
@@ -21,20 +17,27 @@
     {% endif %}
 </div>
 
-<!-- ================= MESSAGES ================= -->
+<!-- ================= MESSAGES via SweetAlert ================= -->
 {% if messages %}
-    {% for message in messages %}
-    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    {% endfor %}
+{% for message in messages %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    Swal.fire({
+        icon: "{% if message.tags == 'success' %}success{% elif message.tags == 'error' %}error{% else %}info{% endif %}",
+        title: "{% if message.tags == 'success' %}Done!{% elif message.tags == 'error' %}Error{% else %}Notice{% endif %}",
+        text: "{{ message }}",
+        timer: 10000,
+        timerProgressBar: true,
+        showConfirmButton: true,
+        confirmButtonText: "OK",
+    });
+});
+</script>
+{% endfor %}
 {% endif %}
 
-<!-- ================= SEARCH ================= -->
 {% include "components/search_box.html" %}
 
-<!-- ================= TABLE ================= -->
 <table class="table table-hover table-bordered">
     <thead class="table-primary">
         <tr>
@@ -44,11 +47,11 @@
             <th>Contact Person</th>
             <th>Phone</th>
             <th>Email</th>
-            <th class="text-center">Actions</th>
+            <th class="text-center" style="width:80px;">POs</th>
+            <th class="text-center" style="width:100px;">Actions</th>
         </tr>
     </thead>
     <tbody>
-
         {% for company in page_obj %}
         <tr>
             <td><strong>{{ company.code }}</strong></td>
@@ -57,13 +60,34 @@
             <td>{{ company.contact_person|default:"—" }}</td>
             <td>{{ company.phone|default:"—" }}</td>
             <td>{{ company.email|default:"—" }}</td>
+
+            <!-- PO count badge -->
             <td class="text-center">
-                {% if is_admin  %}
-                <a href="{% url 'master:company_edit' company.pk %}" class="btn btn-sm btn-primary">
+                {% if company.po_count > 0 %}
+                <span class="badge badge-info">{{ company.po_count }}</span>
+                {% else %}
+                <span class="text-muted small">—</span>
+                {% endif %}
+            </td>
+
+            <td class="text-center">
+                {% if is_admin %}
+                <a href="{% url 'master:company_edit' company.pk %}"
+                   class="btn btn-sm btn-primary"
+                   title="Edit">
                     <i class="fa fa-edit"></i>
                 </a>
-                {% endif %}
-                {% if is_admin  %}
+
+                {% if company.po_count > 0 %}
+                <!-- Locked — POs exist for this company -->
+                <button type="button"
+                        class="btn btn-sm btn-secondary"
+                        disabled
+                        title="Cannot delete — {{ company.po_count }} PO{{ company.po_count|pluralize }} exist for this company">
+                    <i class="fa fa-lock"></i>
+                </button>
+                {% else %}
+                <!-- Delete — safe to delete -->
                 <form method="post"
                       action="{% url 'master:company_delete' company.pk %}"
                       class="d-inline swal-delete-form"
@@ -76,23 +100,22 @@
                     </button>
                 </form>
                 {% endif %}
+
+                {% endif %}
             </td>
         </tr>
         {% empty %}
         <tr>
-            <td colspan="7" class="text-center text-muted">
-                No companies found.
-            </td>
+            <td colspan="8" class="text-center text-muted">No companies found.</td>
         </tr>
         {% endfor %}
-
     </tbody>
 </table>
 
-<!-- ================= PAGINATION ================= -->
 {% include "components/pagination.html" %}
 
 {% endblock %}
+
 {% block extra_js %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {

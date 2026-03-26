@@ -2,20 +2,35 @@
 {% block content %}
 <div class="container-fluid">
 
-    <!-- ================= HEADER ================= -->
     <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
             <h4 class="mb-0">BOM List</h4>
-            <small class="text-muted">
-                Total BOMs: {{ page_obj.paginator.count }}
-            </small>
+            <small class="text-muted">Total BOMs: {{ page_obj.paginator.count }}</small>
         </div>
         <a href="{% url 'bom:bom_create' %}" class="btn btn-primary">
-            + Create BOM
+            <i class="fa fa-plus"></i> Create BOM
         </a>
     </div>
 
-    <!-- ================= SEARCH ================= -->
+    <!-- ================= MESSAGES via SweetAlert ================= -->
+    {% if messages %}
+    {% for message in messages %}
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        Swal.fire({
+            icon: "{% if message.tags == 'success' %}success{% elif message.tags == 'error' %}error{% else %}info{% endif %}",
+            title: "{% if message.tags == 'success' %}Done!{% elif message.tags == 'error' %}Error{% else %}Notice{% endif %}",
+            text: "{{ message }}",
+            timer: 10000,
+            timerProgressBar: true,
+            showConfirmButton: true,
+            confirmButtonText: "OK",
+        });
+    });
+    </script>
+    {% endfor %}
+    {% endif %}
+
     <form method="get" class="mb-3">
         <div class="row g-2">
             <div class="col-md-4">
@@ -26,19 +41,18 @@
                        placeholder="Search BOM No / PO No / OA No / User">
             </div>
             <div class="col-md-auto">
-                <button class="btn btn-primary">Search</button>
+                <button class="btn btn-primary">
+                    <i class="fa fa-search"></i> Search
+                </button>
             </div>
             {% if q %}
             <div class="col-md-auto">
-                <a href="{% url 'bom:bom_list' %}" class="btn btn-outline-secondary">
-                    Clear
-                </a>
+                <a href="{% url 'bom:bom_list' %}" class="btn btn-outline-secondary">Clear</a>
             </div>
             {% endif %}
         </div>
     </form>
 
-    <!-- ================= TABLE ================= -->
     <div class="card">
         <div class="card-body p-0">
             <table class="table table-bordered table-sm mb-0">
@@ -50,7 +64,8 @@
                         <th>PO No</th>
                         <th>OA No</th>
                         <th>Created By</th>
-                        <th style="width: 130px;" class="text-center">Action</th>
+                        <th class="text-center" style="width:80px;">Indent Links</th>
+                        <th class="text-center" style="width:130px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -58,40 +73,62 @@
                     <tr>
                         <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
                         <td>
-                            <a href="{% url 'bom:bom_detail' bom.id %}">
-                                {{ bom.bom_no }}
-                            </a>
+                            <a href="{% url 'bom:bom_detail' bom.id %}">{{ bom.bom_no }}</a>
                         </td>
                         <td>{{ bom.bom_date }}</td>
                         <td>{{ bom.po.po_number }}</td>
                         <td>{{ bom.po.oa_number }}</td>
                         <td>{{ bom.created_by }}</td>
+
+                        <!-- Indent link count -->
+                        <td class="text-center">
+                            {% if bom.indent_link_count > 0 %}
+                            <span class="badge badge-warning text-dark"
+                                  title="{{ bom.indent_link_count }} indent sub-item{{ bom.indent_link_count|pluralize }} linked">
+                                {{ bom.indent_link_count }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+
                         <td class="text-center">
                             <a href="{% url 'bom:bom_detail' bom.id %}"
-                               class="btn btn-sm btn-info"
-                               title="View">
+                               class="btn btn-sm btn-info" title="View">
                                 <i class="fa fa-eye"></i>
                             </a>
                             <a href="{% url 'bom:bom_edit' bom.id %}"
-                               class="btn btn-sm btn-primary ms-1"
-                               title="Edit">
+                               class="btn btn-sm btn-primary" title="Edit">
                                 <i class="fa fa-pencil"></i>
                             </a>
-                            <form method="post" action="{% url 'bom:bom_delete' bom.id %}"
-                                class="d-inline" data-name="{{ bom.bom_no }}">
+
+                            {% if bom.indent_link_count > 0 %}
+                            <!-- Locked — indent sub-items reference this BOM -->
+                            <button type="button"
+                                    class="btn btn-sm btn-secondary"
+                                    disabled
+                                    title="Cannot delete — {{ bom.indent_link_count }} indent sub-item{{ bom.indent_link_count|pluralize }} linked to this BOM">
+                                <i class="fa fa-lock"></i>
+                            </button>
+                            {% else %}
+                            <!-- Safe to delete -->
+                            <form method="post"
+                                  action="{% url 'bom:bom_delete' bom.id %}"
+                                  class="d-inline swal-delete-form"
+                                  data-name="{{ bom.bom_no }}">
                                 {% csrf_token %}
-                                <button type="button" class="btn btn-sm btn-danger swal-delete-btn"
+                                <button type="button"
+                                        class="btn btn-sm btn-danger swal-delete-btn"
                                         title="Delete">
                                     <i class="fa fa-trash"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-3">
-                            No BOMs found.
-                        </td>
+                        <td colspan="8" class="text-center text-muted py-3">No BOMs found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -99,7 +136,6 @@
         </div>
     </div>
 
-    <!-- ================= PAGINATION ================= -->
     {% include "components/pagination.html" %}
 
 </div>
@@ -107,26 +143,24 @@
 
 {% block extra_js %}
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        document.querySelectorAll(".swal-delete-btn").forEach(function (btn) {
-            btn.addEventListener("click", function () {
-                var form = btn.closest("form");
-                var name = form.getAttribute("data-name");
-                Swal.fire({
-                    title: "Delete " + name + "?",
-                    text: "This cannot be undone.",
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonColor: "#dc3545",
-                    cancelButtonColor: "#6c757d",
-                    confirmButtonText: "Yes, Delete",
-                    cancelButtonText: "Cancel",
-                    reverseButtons: true,
-                }).then(function (result) {
-                    if (result.isConfirmed) form.submit();
-                });
-            });
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".swal-delete-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var form = btn.closest(".swal-delete-form");
+            var name = form.getAttribute("data-name");
+            Swal.fire({
+                title: "Delete " + name + "?",
+                html: "This will permanently delete the BOM and all its items.<br><small class='text-muted'>This cannot be undone.</small>",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#dc3545",
+                cancelButtonColor: "#6c757d",
+                confirmButtonText: '<i class="fa fa-trash"></i> Yes, Delete',
+                cancelButtonText: "Cancel",
+                reverseButtons: true,
+            }).then(function (r) { if (r.isConfirmed) form.submit(); });
         });
     });
+});
 </script>
 {% endblock %}

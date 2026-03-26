@@ -23,14 +23,14 @@ INDENT_PROCESS_IDS = [13, 18, 23]
 @login_required
 def indent_list(request):
     q = request.GET.get("q", "").strip()
-
+ 
     qs = Indent.objects.select_related(
         "purchase_order",
         "po_process",
         "po_process__department_process",
         "created_by",
     )
-
+ 
     if q:
         qs = qs.filter(
             Q(indent_number__icontains=q)
@@ -39,12 +39,15 @@ def indent_list(request):
             | Q(po_process__department_process__name__icontains=q)
             | Q(created_by__username__icontains=q)
         )
-
-    qs = qs.order_by("-id")
-
+ 
+    qs = qs.annotate(
+        item_count=Count("items", distinct=True),
+        sub_item_count=Count("items__sub_items", distinct=True),
+    ).order_by("-id")
+ 
     paginator = Paginator(qs, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
-
+ 
     return render(request, "indent/indent_list.html", {"page_obj": page_obj, "q": q})
 
 
@@ -65,8 +68,18 @@ def indent_detail(request, pk):
         ),
         pk=pk,
     )
-
-    return render(request, "indent/indent_detail.html", {"indent": indent})
+ 
+    # Count for the delete warning in SweetAlert
+    item_count     = indent.items.count()
+    sub_item_count = IndentSubItem.objects.filter(
+        indent_item__indent=indent
+    ).count()
+ 
+    return render(request, "indent/indent_detail.html", {
+        "indent":         indent,
+        "item_count":     item_count,
+        "sub_item_count": sub_item_count,
+    })
 
 
 # ======================================================

@@ -11,7 +11,7 @@ from .models import (
     ProcessStatusMaster,
     DepartmentProcessMaster,
 )
-
+from django.db.models import Q, Count
 from .forms import (
     CompanyMasterForm,
     ProcessStatusMasterForm,
@@ -22,15 +22,19 @@ from .utils import apply_master_search_pagination
 # ======================  COMPANY MASTER  ======================
 @admin_required
 def company_list(request):
-    queryset = CompanyMaster.objects.all().order_by("code")
-
+    queryset = (
+        CompanyMaster.objects.all()
+        .annotate(po_count=Count("purchase_orders", distinct=True))
+        .order_by("code")
+    )
+ 
     context = apply_master_search_pagination(
         request,
         queryset,
         search_fields=["code", "code2", "name"],
         page_size=20,
     )
-
+ 
     return render(
         request,
         "master/company_master/company_list.html",
@@ -71,13 +75,21 @@ def company_edit(request, pk):
 
 
 @admin_required
-@admin_required
 def company_delete(request, pk):
     obj = get_object_or_404(CompanyMaster, pk=pk)
+ 
     if request.method == "POST":
+        if obj.purchase_orders.exists():
+            messages.error(
+                request,
+                f"Cannot delete '{obj.name}' — purchase orders exist for this company."
+            )
+            return redirect("master:company_list")
+ 
         name = obj.name
         obj.delete()
         messages.success(request, f"Company '{name}' deleted successfully.")
+ 
     return redirect("master:company_list")
 
 
