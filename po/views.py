@@ -87,7 +87,7 @@ def po_create(request):
 # ------------------------------
 # PO EDIT (header + items)
 # ------------------------------
-@login_required_view
+@admin_required
 def po_edit(request, pk):
     po = get_object_or_404(PurchaseOrder, pk=pk)
 
@@ -121,7 +121,7 @@ def po_edit(request, pk):
 # detele po
 
 
-@login_required_view
+@admin_required
 def po_delete(request, pk):
     if not is_admin(request.user):
         messages.error(request, "Permission denied.")
