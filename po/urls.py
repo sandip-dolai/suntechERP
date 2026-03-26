@@ -23,6 +23,7 @@ urlpatterns = [
         name="po_report_item_excel",
     ),
     path("<int:pk>/print/", views.po_print, name="po_print"),
+    path("<int:pk>/ajax-items/", views.ajax_po_items_list, name="ajax_po_items_list"),
     # ------------------------------
     # PO PROCESS ROUTES
     # ------------------------------

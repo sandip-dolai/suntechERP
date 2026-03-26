@@ -1,7 +1,50 @@
 {% extends 'base/base.html' %}
 {% load static %}
 {% block title %}{{ title }} - Suntech ERP{% endblock %}
+{% block extra_css %}
+<!-- ================= STYLES ================= -->
+<style>
+    input[type="checkbox"][name$="-DELETE"] {
+        display: none;
+    }
 
+    #items-table td {
+        vertical-align: middle;
+        padding: 6px 8px;
+    }
+
+    #items-table td input,
+    #items-table td textarea {
+        font-size: 12px;
+    }
+
+    #items-table td textarea {
+        min-height: 46px;
+        resize: vertical;
+    }
+
+    /* Select2 height fix to match Bootstrap form-control */
+    .select2-container--default .select2-selection--single {
+        height: 38px !important;
+        border: 1px solid #ced4da !important;
+        border-radius: 4px !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 36px !important;
+        padding-left: 10px !important;
+        color: #495057;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__clear {
+        margin-top: 8px;
+    }
+</style>
+{% endblock %}
 {% block content %}
 <div class="container-fluid">
 
@@ -9,96 +52,108 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0">{{ title }}</h4>
         <a href="{% url 'po:po_list' %}" class="btn btn-secondary btn-sm">
-            Back to List
+            <i class="fa fa-arrow-left"></i> Back to List
         </a>
     </div>
-
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
 
     <form method="post" novalidate id="po-form">
         {% csrf_token %}
 
-        <!-- ================= PO HEADER ================= -->
+        <!-- ================= PO DETAILS CARD ================= -->
         <div class="card mb-3">
-            <div class="card-header"><strong>PO Details</strong></div>
+            <div class="card-header">
+                <strong><i class="fa fa-file-text-o mr-1"></i> PO Details</strong>
+            </div>
             <div class="card-body">
 
                 {% if form.non_field_errors %}
-                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                <div class="alert alert-danger mb-3">
+                    <i class="fa fa-exclamation-triangle"></i>
+                    {{ form.non_field_errors }}
+                </div>
                 {% endif %}
 
-                <div class="row g-3">
-
-                    <div class="col-md-3">
-                        <label class="form-label">PO Number <span class="text-danger">*</span></label>
+                <!-- Row 1 -->
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label font-weight-bold">
+                            PO Number <span class="text-danger">*</span>
+                        </label>
                         {{ form.po_number }}
                         {% if form.po_number.errors %}
-                            <div class="text-danger small">{{ form.po_number.errors|striptags }}</div>
+                        <div class="text-danger small mt-1">{{ form.po_number.errors|striptags }}</div>
                         {% endif %}
                     </div>
 
-                    <div class="col-md-3">
-                        <label class="form-label">OA Number <span class="text-danger">*</span></label>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label font-weight-bold">
+                            OA Number <span class="text-danger">*</span>
+                        </label>
                         {{ form.oa_number }}
                         {% if form.oa_number.errors %}
-                            <div class="text-danger small">{{ form.oa_number.errors|striptags }}</div>
+                        <div class="text-danger small mt-1">{{ form.oa_number.errors|striptags }}</div>
                         {% endif %}
                     </div>
 
-                    <div class="col-md-3">
-                        <label class="form-label">PO Date <span class="text-danger">*</span></label>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label font-weight-bold">
+                            PO Date <span class="text-danger">*</span>
+                        </label>
                         {{ form.po_date }}
                         {% if form.po_date.errors %}
-                            <div class="text-danger small">{{ form.po_date.errors|striptags }}</div>
+                        <div class="text-danger small mt-1">{{ form.po_date.errors|striptags }}</div>
                         {% endif %}
                     </div>
 
-                    <div class="col-md-3">
-                        <label class="form-label">Delivery Date</label>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label font-weight-bold">Delivery Date</label>
                         {{ form.delivery_date }}
                         {% if form.delivery_date.errors %}
-                            <div class="text-danger small">{{ form.delivery_date.errors|striptags }}</div>
+                        <div class="text-danger small mt-1">{{ form.delivery_date.errors|striptags }}</div>
                         {% endif %}
                     </div>
+                </div>
 
-                    <div class="col-md-6">
-                        <label class="form-label">Supplier / Customer <span class="text-danger">*</span></label>
+                <!-- Row 2 -->
+                <div class="row">
+                    <div class="col-md-5 mb-3">
+                        <label class="form-label font-weight-bold">
+                            Supplier / Customer <span class="text-danger">*</span>
+                        </label>
                         {{ form.company }}
                         {% if form.company.errors %}
-                            <div class="text-danger small">{{ form.company.errors|striptags }}</div>
+                        <div class="text-danger small mt-1">{{ form.company.errors|striptags }}</div>
                         {% endif %}
                     </div>
 
-                    <div class="col-md-3">
-                        <label class="form-label">Department</label>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label font-weight-bold">Department</label>
                         {{ form.department }}
                         {% if form.department.errors %}
-                            <div class="text-danger small">{{ form.department.errors|striptags }}</div>
+                        <div class="text-danger small mt-1">{{ form.department.errors|striptags }}</div>
                         {% endif %}
                     </div>
 
                     {% if form.instance.pk %}
-                    <div class="col-md-3">
-                        <label class="form-label">PO Status</label>
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label font-weight-bold">PO Status</label>
                         {{ form.po_status }}
                         {% if form.po_status.errors %}
-                            <div class="text-danger small">{{ form.po_status.errors|striptags }}</div>
+                        <div class="text-danger small mt-1">{{ form.po_status.errors|striptags }}</div>
                         {% endif %}
                     </div>
+                    {% else %}
+                    {{ form.po_status }}
                     {% endif %}
-
                 </div>
+
             </div>
         </div>
 
-        <!-- ================= PO ITEMS ================= -->
+        <!-- ================= PO ITEMS CARD ================= -->
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <strong>PO Items</strong>
+                <strong><i class="fa fa-list mr-1"></i> PO Items</strong>
                 <button type="button" id="add-item" class="btn btn-sm btn-outline-primary">
                     <i class="fa fa-plus"></i> Add Item
                 </button>
@@ -108,56 +163,80 @@
                 {{ formset.management_form }}
 
                 {% if formset.non_form_errors %}
-                <div class="alert alert-danger m-3">{{ formset.non_form_errors }}</div>
+                <div class="alert alert-danger m-3">
+                    <i class="fa fa-exclamation-triangle"></i>
+                    {{ formset.non_form_errors }}
+                </div>
                 {% endif %}
 
                 <div class="table-responsive">
-                    <table class="table table-bordered table-sm align-middle mb-0" id="items-table">
-                        <thead class="table-light">
+                    <table class="table table-bordered table-sm mb-0" id="items-table">
+                        <thead class="thead-light">
                             <tr>
                                 <th style="width:40px;" class="text-center">#</th>
-                                <th style="width:120px;">Material Code</th>
+                                <th style="width:130px;">Material Code</th>
                                 <th>Material Description</th>
                                 <th style="width:100px;" class="text-center">Qty</th>
                                 <th style="width:80px;" class="text-center">UOM</th>
                                 {% if is_admin %}
                                 <th style="width:110px;" class="text-center">Value</th>
                                 {% endif %}
-                                <th style="width:50px;" class="text-center">Del</th>
+                                <th style="width:55px;" class="text-center">Del</th>
                             </tr>
                         </thead>
                         <tbody id="items-body">
                             {% for f in formset.forms %}
                             <tr class="item-row">
-                                {{ f.id }}
-                                <td class="text-center row-index">{{ forloop.counter }}</td>
-                                <td>
+                                <td class="text-center row-index align-middle">
+                                    {{ f.id }}
+                                    {{ forloop.counter }}
+                                </td>
+                                <td class="align-middle">
                                     {{ f.material_code }}
-                                    {{ f.material_code.errors }}
+                                    {% if f.material_code.errors %}
+                                    <div class="text-danger small">{{ f.material_code.errors|striptags }}</div>
+                                    {% endif %}
                                 </td>
-                                <td>
+                                <td class="align-middle">
                                     {{ f.material_description }}
-                                    {{ f.material_description.errors }}
+                                    {% if f.material_description.errors %}
+                                    <div class="text-danger small">{{ f.material_description.errors|striptags }}</div>
+                                    {% endif %}
                                 </td>
-                                <td class="text-center">
+                                <td class="align-middle">
                                     {{ f.quantity_value }}
-                                    {{ f.quantity_value.errors }}
+                                    {% if f.quantity_value.errors %}
+                                    <div class="text-danger small">{{ f.quantity_value.errors|striptags }}</div>
+                                    {% endif %}
                                 </td>
-                                <td class="text-center">
+                                <td class="align-middle">
                                     {{ f.uom }}
-                                    {{ f.uom.errors }}
+                                    {% if f.uom.errors %}
+                                    <div class="text-danger small">{{ f.uom.errors|striptags }}</div>
+                                    {% endif %}
                                 </td>
                                 {% if is_admin %}
-                                <td class="text-center">
+                                <td class="align-middle">
                                     {{ f.material_value }}
-                                    {{ f.material_value.errors }}
+                                    {% if f.material_value.errors %}
+                                    <div class="text-danger small">{{ f.material_value.errors|striptags }}</div>
+                                    {% endif %}
                                 </td>
                                 {% endif %}
-                                <td class="text-center">
+                                <td class="text-center align-middle">
                                     {{ f.DELETE }}
-                                    <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                                    <button type="button" class="btn btn-sm btn-outline-danger remove-item"
+                                        title="Remove">
                                         <i class="fa fa-trash"></i>
                                     </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr id="empty-items-row">
+                                <td colspan="{% if is_admin %}7{% else %}6{% endif %}"
+                                    class="text-center text-muted py-4">
+                                    <i class="fa fa-info-circle"></i>
+                                    No items yet. Click "+ Add Item" to start.
                                 </td>
                             </tr>
                             {% endfor %}
@@ -168,8 +247,8 @@
         </div>
 
         <!-- ================= ACTIONS ================= -->
-        <div class="d-flex justify-content-end gap-2">
-            <a href="{% url 'po:po_list' %}" class="btn btn-secondary">Cancel</a>
+        <div class="d-flex justify-content-end">
+            <a href="{% url 'po:po_list' %}" class="btn btn-secondary mr-2">Cancel</a>
             <button type="submit" class="btn btn-primary">
                 <i class="fa fa-save"></i> Save PO
             </button>
@@ -178,72 +257,151 @@
     </form>
 </div>
 
-<style>
-    input[type="checkbox"][name$="-DELETE"] { display: none; }
-    #items-table td input, #items-table td textarea, #items-table td select {
-        font-size: 12px;
-    }
-    #items-table td textarea { min-height: 50px; resize: vertical; }
-</style>
+{% endblock %}
 
+
+{% block extra_js %}
+<!-- ================= JS ================= -->
 <script>
-$(document).ready(function () {
+    $(document).ready(function () {
 
-    const prefix = "items";
-
-    function updateIndexes() {
-        $("#items-body tr.item-row:visible").each(function (i) {
-            $(this).find(".row-index").text(i + 1);
-        });
-    }
-
-    // ── ADD ITEM ──
-    $("#add-item").on("click", function () {
-        let total = parseInt($("#id_" + prefix + "-TOTAL_FORMS").val());
-        let newRow = $("#items-body tr.item-row:last").clone(false);
-
-        newRow.find("input, textarea, select").each(function () {
-            let name = $(this).attr("name");
-            let id   = $(this).attr("id");
-
-            if (!name) return;
-            if (name.endsWith("-id")) { $(this).remove(); return; }
-
-            name = name.replace(/-\d+-/, `-${total}-`);
-            id   = id   ? id.replace(/-\d+-/, `-${total}-`) : id;
-
-            $(this).attr({ name, id }).val("");
-            // default UOM
-            if (name.endsWith("-uom")) $(this).val("SET");
-        });
-
-        newRow.find('input[type="checkbox"]').prop("checked", false);
-        newRow.find(".row-index").text(total + 1);
-
-        $("#items-body").append(newRow);
-        $("#id_" + prefix + "-TOTAL_FORMS").val(total + 1);
-        updateIndexes();
-    });
-
-    // ── REMOVE ITEM ──
-    $(document).on("click", ".remove-item", function () {
-        let row        = $(this).closest("tr");
-        let deleteBox  = row.find('input[type="checkbox"][name$="-DELETE"]');
-        let idField    = row.find('input[type="hidden"][name$="-id"]');
-
-        if (idField.length && idField.val()) {
-            deleteBox.prop("checked", true);
-            row.hide();
-        } else {
-            row.remove();
-            let total = parseInt($("#id_" + prefix + "-TOTAL_FORMS").val());
-            $("#id_" + prefix + "-TOTAL_FORMS").val(total - 1);
+        // ── Select2 on company dropdown ──────────────────────────────
+        // Destroy any existing instance first to avoid double-init
+        if ($("#id_company").data("select2")) {
+            $("#id_company").select2("destroy");
         }
-        updateIndexes();
-    });
+        $("#id_company").select2({
+            width: "100%",
+            placeholder: "— Select Company —",
+            allowClear: true,
+        });
 
-    // Init select2 for company
-    $('#id_company').select2({ width: '100%' });
+        // ── Formset prefix ───────────────────────────────────────────
+        var prefix = "items";
+
+        function updateIndexes() {
+            $("#items-body tr.item-row:visible").each(function (i) {
+                $(this).find(".row-index").text(i + 1);
+            });
+        }
+
+        // ── ADD ITEM ──────────────────────────────────────────────────
+        $("#add-item").on("click", function () {
+            $("#empty-items-row").remove();
+
+            var total = parseInt($("#id_" + prefix + "-TOTAL_FORMS").val());
+            var $rows = $("#items-body tr.item-row");
+            var newRow;
+
+            if ($rows.length > 0) {
+                newRow = $rows.last().clone(false);
+
+                newRow.find("input, textarea, select").each(function () {
+                    var name = $(this).attr("name");
+                    var id = $(this).attr("id");
+
+                    if (!name) return;
+                    if (name.endsWith("-id")) {
+                        name = name.replace(/-\d+-/, "-" + total + "-");
+                        id = id ? id.replace(/-\d+-/, "-" + total + "-") : "";
+
+                        $(this).attr({ name: name, id: id }).val("");
+                        return;
+                    }
+
+                    name = name.replace(/-\d+-/, "-" + total + "-");
+                    id = id ? id.replace(/-\d+-/, "-" + total + "-") : "";
+
+                    $(this).attr({ name: name, id: id }).val("");
+                    if (name.endsWith("-uom")) $(this).val("SET");
+                });
+                newRow.find('input[type="checkbox"]').prop("checked", false);
+                newRow.show();
+
+            } else {
+                newRow = buildFreshRow(total);
+            }
+
+            newRow.find(".row-index").text(total + 1);
+            $("#items-body").append(newRow);
+            $("#id_" + prefix + "-TOTAL_FORMS").val(total + 1);
+            updateIndexes();
+            newRow.find("input:first").focus();
+        });
+
+        function buildFreshRow(idx) {
+            var valCell = "";
+            {% if is_admin %}
+            valCell = "<td>" +
+                "<input type='number' name='items-" + idx + "-material_value' " +
+                "id='id_items-" + idx + "-material_value' " +
+                "class='form-control form-control-sm' step='0.01' placeholder='0.00'>" +
+                "</td>";
+            {% endif %}
+
+            var html =
+                "<tr class='item-row'>" +
+                "<td class='text-center row-index align-middle'>" +
+                "<input type='hidden' name='items-" + idx + "-id' id='id_items-" + idx + "-id'>" +
+                (idx + 1) +
+                "</td>" +
+                "<td>" +
+                "<input type='text' name='items-" + idx + "-material_code' " +
+                "id='id_items-" + idx + "-material_code' " +
+                "class='form-control form-control-sm' placeholder='Code'>" +
+                "</td>" +
+                "<td>" +
+                "<textarea name='items-" + idx + "-material_description' " +
+                "id='id_items-" + idx + "-material_description' " +
+                "class='form-control form-control-sm' rows='2' " +
+                "placeholder='Material description'></textarea>" +
+                "</td>" +
+                "<td>" +
+                "<input type='number' name='items-" + idx + "-quantity_value' " +
+                "id='id_items-" + idx + "-quantity_value' " +
+                "class='form-control form-control-sm' step='0.001' placeholder='0.000'>" +
+                "</td>" +
+                "<td>" +
+                "<input type='text' name='items-" + idx + "-uom' " +
+                "id='id_items-" + idx + "-uom' " +
+                "class='form-control form-control-sm' value='SET'>" +
+                "</td>" +
+                valCell +
+                "<td class='text-center align-middle'>" +
+                "<input type='checkbox' name='items-" + idx + "-DELETE' " +
+                "id='id_items-" + idx + "-DELETE' style='display:none;'>" +
+                "<button type='button' class='btn btn-sm btn-outline-danger remove-item' title='Remove'>" +
+                "<i class='fa fa-trash'></i></button>" +
+                "</td>" +
+                "</tr>";
+
+            return $(html);
+        }
+
+        // ── REMOVE ITEM ───────────────────────────────────────────────
+        $(document).on("click", ".remove-item", function () {
+            var $row = $(this).closest("tr");
+            var $delBox = $row.find('input[type="checkbox"][name$="-DELETE"]');
+            var $idField = $row.find('input[type="hidden"][name$="-id"]');
+
+            if ($idField.length && $idField.val()) {
+                $delBox.prop("checked", true);
+                $row.hide();
+            } else {
+                $row.remove();
+            }
+            updateIndexes();
+
+            if ($("#items-body tr.item-row:visible").length === 0) {
+                var cols = {% if is_admin %} 7{% else %} 6{% endif %};
+            $("#items-body").append(
+                "<tr id='empty-items-row'><td colspan='" + cols +
+                "' class='text-center text-muted py-4'>" +
+                "<i class='fa fa-info-circle'></i> " +
+                "No items yet. Click \"+ Add Item\" to start.</td></tr>"
+            );
+        }
+    });
 
     updateIndexes();
 });

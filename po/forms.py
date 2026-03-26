@@ -21,6 +21,49 @@ class PurchaseOrderForm(forms.ModelForm):
             "department",
             "po_status",
         ]
+        widgets = {
+            "po_number": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "e.g. PO-0001",
+                }
+            ),
+            "oa_number": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "e.g. OA-0001",
+                }
+            ),
+            "po_date": forms.DateInput(
+                attrs={
+                    "class": "form-control",
+                    "type": "date",
+                }
+            ),
+            "delivery_date": forms.DateInput(
+                attrs={
+                    "class": "form-control",
+                    "type": "date",
+                }
+            ),
+            # company rendered as select — select2 applied via JS
+            "company": forms.Select(
+                attrs={
+                    "class": "form-control",
+                    "id": "id_company",
+                }
+            ),
+            "department": forms.Select(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+            "po_status": forms.Select(
+                attrs={
+                    "class": "form-control",
+                }
+            ),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -48,30 +91,78 @@ class PurchaseOrderItemForm(forms.ModelForm):
             "material_value",
         ]
         widgets = {
-            "material_code": forms.TextInput(attrs={"class": "form-control"}),
-            "material_description": forms.Textarea(
-                attrs={"class": "form-control", "rows": 2}
+            "material_code": forms.TextInput(
+                attrs={
+                    "class": "form-control form-control-sm",
+                    "placeholder": "Code",
+                }
             ),
-            "quantity_value": forms.TextInput(attrs={"class": "form-control"}),
+            "material_description": forms.Textarea(
+                attrs={
+                    "class": "form-control form-control-sm",
+                    "rows": 2,
+                    "placeholder": "Material description",
+                }
+            ),
+            "quantity_value": forms.NumberInput(
+                attrs={
+                    "class": "form-control form-control-sm",
+                    "step": "0.001",
+                    "placeholder": "0.000",
+                }
+            ),
+            "uom": forms.TextInput(
+                attrs={
+                    "class": "form-control form-control-sm",
+                    "placeholder": "SET",
+                }
+            ),
             "material_value": forms.NumberInput(
-                attrs={"class": "form-control", "step": "0.01"}
+                attrs={
+                    "class": "form-control form-control-sm",
+                    "step": "0.01",
+                    "placeholder": "0.00",
+                }
             ),
         }
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.quantity = (
+            str(instance.quantity_value) if instance.quantity_value is not None else "0"
+        )
+        if commit:
+            instance.save()
+        return instance
 
 
 # ------------------------------
 # PURCHASE ORDER ITEM FORMSET
 # ------------------------------
 class BasePurchaseOrderItemFormSet(BaseInlineFormSet):
+
+    def save_new(self, form, commit=True):
+        """Called when saving a brand new item (not an existing one)."""
+        instance = super().save_new(form, commit=False)
+        instance.quantity = str(instance.quantity_value) if instance.quantity_value else "0"
+        if commit:
+            instance.save()
+        return instance
+
+    def save_existing(self, form, instance, commit=True):
+        """Called when saving an existing item."""
+        instance = super().save_existing(form, instance, commit=False)
+        instance.quantity = str(instance.quantity_value) if instance.quantity_value else "0"
+        if commit:
+            instance.save()
+        return instance
+
     def clean(self):
         super().clean()
-
         non_deleted_forms = [
-            form
-            for form in self.forms
+            form for form in self.forms
             if form.cleaned_data and not form.cleaned_data.get("DELETE", False)
         ]
-
         if not non_deleted_forms:
             raise forms.ValidationError("At least one PO item is required.")
 
@@ -96,19 +187,18 @@ def check_and_update_po_status(po):
     If any is not completed → set PO back to PENDING.
     Saves silently with no messages.
     """
-    # Get all processes that count towards completion
-    relevant_processes = po.processes.filter(
-        department_process__excludes_from_completion=False
-    )
+    from master.models import DepartmentProcessMaster
 
-    # Check if any relevant process is NOT completed
-    all_completed = not relevant_processes.exclude(
-        current_status__is_completed=True
-    ).exists()
+    processes = po.processes.select_related(
+        "department_process", "current_status"
+    ).filter(department_process__excludes_from_completion=False)
 
-    # Update PO status accordingly
+    if not processes.exists():
+        return
+
+    all_completed = all(p.current_status.is_completed for p in processes)
+
     new_status = "COMPLETED" if all_completed else "PENDING"
-
     if po.po_status != new_status:
         po.po_status = new_status
         po.save(update_fields=["po_status"])

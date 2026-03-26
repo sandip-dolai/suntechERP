@@ -118,27 +118,25 @@ def po_edit(request, pk):
     return render(request, "po/po_form.html", context)
 
 
-# ======================================================
-# PO DELETE — update in po/views.py
-# Replace the existing po_delete view with this
-# ======================================================
+# detele po
+
+
 @login_required_view
 def po_delete(request, pk):
-    po = get_object_or_404(PurchaseOrder, pk=pk)
-
     if not is_admin(request.user):
-        return JsonResponse(
-            {"success": False, "error": "Permission denied."}, status=403
-        )
+        messages.error(request, "Permission denied.")
+        return redirect("po:po_list")
+
+    po = get_object_or_404(PurchaseOrder, pk=pk)
 
     if request.method == "POST":
         po_number = po.po_number
         po.delete()
-        return JsonResponse(
-            {"success": True, "message": f"PO {po_number} deleted successfully."}
-        )
+        messages.success(request, f"PO {po_number} deleted successfully.")
+        return redirect("po:po_list")
 
-    return JsonResponse({"success": False, "error": "Invalid request."}, status=400)
+    # GET request — just redirect back (no delete page needed)
+    return redirect("po:po_list")
 
 
 # ==============================================================
@@ -917,6 +915,10 @@ def po_list(request):
                 Value(0),
                 output_field=DecimalField(max_digits=12, decimal_places=2),
             ),
+            # True (>0) if any BOM exists for this PO
+            has_bom=Count("boms", distinct=True),
+            # True (>0) if any Indent exists for this PO
+            has_indent=Count("indents", distinct=True),
         )
         .distinct()
         .order_by("-id")
@@ -949,4 +951,48 @@ def po_print(request, pk):
             "po": po,
             "can_view_value": can_view_value(request.user),
         },
+    )
+
+
+@login_required_view
+def ajax_po_items_list(request, pk):
+    """
+    Returns PO items as JSON for the items modal in po_list.
+    GET /po/<pk>/ajax-items/
+    """
+    po = get_object_or_404(PurchaseOrder, pk=pk)
+    show_value = can_view_value(request.user)
+
+    items_qs = po.items.values(
+        "material_code",
+        "material_description",
+        "quantity_value",
+        "uom",
+        "material_value",
+        "status",
+    )
+
+    # Build status display map from model choices
+    status_map = dict(PurchaseOrderItem.STATUS_CHOICES)
+
+    data = []
+    for item in items_qs:
+        row = {
+            "code": item["material_code"] or "—",
+            "description": item["material_description"],
+            "quantity": str(item["quantity_value"] or 0),
+            "uom": item["uom"],
+            "status": status_map.get(item["status"], item["status"]),
+        }
+        if show_value:
+            val = item["material_value"]
+            row["value"] = "{:.2f}".format(val) if val is not None else "—"
+        data.append(row)
+
+    return JsonResponse(
+        {
+            "items": data,
+            "show_value": show_value,
+            "po_number": po.po_number,
+        }
     )
