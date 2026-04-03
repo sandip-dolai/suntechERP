@@ -23,14 +23,14 @@ INDENT_PROCESS_IDS = [13, 18, 23]
 @login_required
 def indent_list(request):
     q = request.GET.get("q", "").strip()
- 
+
     qs = Indent.objects.select_related(
         "purchase_order",
         "po_process",
         "po_process__department_process",
         "created_by",
     )
- 
+
     if q:
         qs = qs.filter(
             Q(indent_number__icontains=q)
@@ -39,15 +39,15 @@ def indent_list(request):
             | Q(po_process__department_process__name__icontains=q)
             | Q(created_by__username__icontains=q)
         )
- 
+
     qs = qs.annotate(
         item_count=Count("items", distinct=True),
         sub_item_count=Count("items__sub_items", distinct=True),
     ).order_by("-id")
- 
+
     paginator = Paginator(qs, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
- 
+
     return render(request, "indent/indent_list.html", {"page_obj": page_obj, "q": q})
 
 
@@ -68,18 +68,19 @@ def indent_detail(request, pk):
         ),
         pk=pk,
     )
- 
-    # Count for the delete warning in SweetAlert
-    item_count     = indent.items.count()
-    sub_item_count = IndentSubItem.objects.filter(
-        indent_item__indent=indent
-    ).count()
- 
-    return render(request, "indent/indent_detail.html", {
-        "indent":         indent,
-        "item_count":     item_count,
-        "sub_item_count": sub_item_count,
-    })
+
+    item_count = indent.items.count()
+    sub_item_count = IndentSubItem.objects.filter(indent_item__indent=indent).count()
+
+    return render(
+        request,
+        "indent/indent_detail.html",
+        {
+            "indent": indent,
+            "item_count": item_count,
+            "sub_item_count": sub_item_count,
+        },
+    )
 
 
 # ======================================================
@@ -108,10 +109,10 @@ def indent_create(request):
                 indent.save()
 
                 formset.instance = indent
-                saved_items = formset.save()
+                formset.save()
 
-                # Save sub-items for each saved indent item
-                _save_sub_items(request.POST, indent, saved_items, is_create=True)
+                # Save sub-items using formset directly
+                _save_sub_items(request.POST, formset, is_create=True)
 
                 messages.success(
                     request, f"Indent {indent.indent_number} created successfully."
@@ -155,7 +156,7 @@ def indent_update(request, pk):
         if form.is_valid() and formset.is_valid():
             try:
                 form.save()
-                saved_items = formset.save()
+                formset.save()
 
                 # Delete sub-items for any indent items that were deleted
                 deleted_item_ids = [
@@ -168,8 +169,8 @@ def indent_update(request, pk):
                         indent_item_id__in=deleted_item_ids
                     ).delete()
 
-                # Replace sub-items for all remaining/updated items
-                _save_sub_items(request.POST, indent, saved_items, is_create=False)
+                # Save sub-items using formset directly
+                _save_sub_items(request.POST, formset, is_create=False)
 
                 messages.success(request, "Indent updated successfully.")
                 return redirect("indent:indent_detail", pk=indent.id)
@@ -268,13 +269,20 @@ def ajax_load_boms_for_po(request):
 
 
 # ======================================================
-# AJAX — Load BOM Items for a BOM
+# AJAX — Load BOM Items for a BOM filtered by PO Item
 # ======================================================
 @login_required
 def ajax_load_bom_items(request):
-    bom_id = request.GET.get("bom_id")
+    bom_id = request.GET.get("bom_id", "").strip()
+    po_item_id = request.GET.get("po_item_id", "").strip()
 
-    items = BOMItem.objects.filter(bom_id=bom_id)
+    if not bom_id:
+        return JsonResponse([], safe=False)
+
+    qs = BOMItem.objects.filter(bom_id=bom_id).select_related("po_item")
+
+    if po_item_id:
+        qs = qs.filter(po_item_id=po_item_id)
 
     data = [
         {
@@ -284,8 +292,10 @@ def ajax_load_bom_items(request):
             "quantity": str(item.quantity),
             "material": item.material,
             "remarks": item.remarks,
+            "po_item_id": item.po_item_id,
+            "po_item_label": f"{item.po_item.material_code or '—'} | {item.po_item.material_description[:50]}",
         }
-        for item in items
+        for item in qs
     ]
 
     return JsonResponse(data, safe=False)
@@ -304,7 +314,6 @@ def indent_report(request):
     indent_no = request.GET.get("indent_no", "").strip()
 
     filters = {"indent_date__range": [date_from, date_to]}
-
     if po_id:
         filters["purchase_order_id"] = po_id
     if indent_no:
@@ -348,15 +357,15 @@ def indent_report(request):
 
 
 # ======================================================
-# INDENT REPORT EXCEL  — replace the existing view
+# INDENT REPORT EXCEL
 # ======================================================
 @login_required
 def indent_report_excel(request):
     today = datetime.today().date()
 
     date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
-    date_to   = request.GET.get("date_to")   or today.strftime("%Y-%m-%d")
-    po_id     = request.GET.get("purchase_order", "")
+    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
+    po_id = request.GET.get("purchase_order", "")
     indent_no = request.GET.get("indent_no", "").strip()
 
     filters = {"indent_date__range": [date_from, date_to]}
@@ -398,34 +407,32 @@ def indent_report_excel(request):
 # ======================================================
 # HELPER — Save sub-items from POST arrays
 # ======================================================
-def _save_sub_items(post_data, indent, saved_items, is_create):
+def _save_sub_items(post_data, formset, is_create):
     """
-    Sub-items are submitted as indexed POST arrays per indent item:
-
-      sub_item_count-{item_form_index}   → number of sub-rows for that item
-      sub_bom_item_id-{idx}-{sub_idx}    → BOMItem pk or "" (manual)
-      sub_item-{idx}-{sub_idx}           → item name
-      sub_size-{idx}-{sub_idx}           → size
-      sub_quantity-{idx}-{sub_idx}       → quantity
-      sub_material-{idx}-{sub_idx}       → material
-      sub_remarks-{idx}-{sub_idx}        → remarks
-
-    `saved_items` is the list returned by formset.save() — these are the
-    IndentItem instances that were created/updated in this submission.
-
-    On edit, existing sub-items for each saved IndentItem are deleted
-    first, then re-created fresh from POST (clean replace strategy).
+    Iterates over formset.forms using their actual index position
+    so POST key names (sub_item-{idx}-{sub_idx}) always match.
     """
-    for form_index, indent_item in enumerate(saved_items):
-        # On edit, wipe existing sub-items for this item before re-saving
-        if not is_create:
-            indent_item.sub_items.all().delete()
+    for form_index, form in enumerate(formset.forms):
+
+        # Skip deleted forms
+        if form in formset.deleted_forms:
+            continue
+
+        indent_item = form.instance
+        if not indent_item.pk:
+            continue
 
         count_key = f"sub_item_count-{form_index}"
         try:
             count = int(post_data.get(count_key, 0))
         except (ValueError, TypeError):
             count = 0
+
+        # On edit: only wipe and re-save if sub-item rows were submitted
+        if not is_create:
+            if count == 0:
+                continue  # nothing submitted for this row — leave existing untouched
+            indent_item.sub_items.all().delete()
 
         to_create = []
         for sub_idx in range(count):

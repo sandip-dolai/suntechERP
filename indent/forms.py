@@ -119,6 +119,9 @@ class IndentItemForm(forms.ModelForm):
         )
 
     def clean_required_quantity(self):
+        # Skip validation on empty forms (no PO item selected)
+        if not self.cleaned_data.get("purchase_order_item"):
+            return self.cleaned_data.get("required_quantity")
         qty = self.cleaned_data.get("required_quantity")
         if qty is None or qty <= 0:
             raise forms.ValidationError("Required quantity must be greater than zero.")
@@ -129,12 +132,15 @@ class IndentItemForm(forms.ModelForm):
 # INDENT ITEM FORMSET
 # ======================================================
 class BaseIndentItemFormSet(BaseInlineFormSet):
+
     def clean(self):
         super().clean()
         valid_forms = [
             form
             for form in self.forms
-            if form.cleaned_data and not form.cleaned_data.get("DELETE", False)
+            if form.cleaned_data
+            and not form.cleaned_data.get("DELETE", False)
+            and form.cleaned_data.get("purchase_order_item")
         ]
         if not valid_forms:
             raise forms.ValidationError("At least one indent item is required.")
@@ -145,6 +151,6 @@ IndentItemFormSet = inlineformset_factory(
     IndentItem,
     form=IndentItemForm,
     formset=BaseIndentItemFormSet,
-    extra=1,
+    extra=0,
     can_delete=True,
 )

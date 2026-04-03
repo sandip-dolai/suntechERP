@@ -89,12 +89,12 @@
 
                             <div class="flex-fill row g-2 mb-0">
                                 <div class="col-md-5">
-                                    <label class="form-label form-label-sm mb-0">PO Item</label>
+                                    <label class="form-label form-label-sm mb-0">PO Item <span class="text-danger">*</span></label>
                                     {{ item_form.purchase_order_item }}
                                     {{ item_form.purchase_order_item.errors }}
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label form-label-sm mb-0">Required Qty</label>
+                                    <label class="form-label form-label-sm mb-0">Required Qty <span class="text-danger">*</span></label>
                                     {{ item_form.required_quantity }}
                                     {{ item_form.required_quantity.errors }}
                                 </div>
@@ -121,10 +121,10 @@
                             </button>
                         </div>
 
-                        <!-- ── Sub-Items Card ── -->
+                        <!-- ── Sub-Items Section ── -->
                         <div class="sub-items-section px-3 pt-2 pb-3">
 
-                            <!-- BOM Picker row -->
+                            <!-- BOM Select + Manual Add -->
                             <div class="row g-2 mb-2 align-items-end">
                                 <div class="col-md-4">
                                     <label class="form-label form-label-sm mb-0">
@@ -135,20 +135,7 @@
                                         <option value="">— Pick a BOM —</option>
                                     </select>
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label form-label-sm mb-0">BOM Item</label>
-                                    <select class="form-control form-control-sm bom-item-select"
-                                            data-form-index="{{ idx }}">
-                                        <option value="">— Select BOM first —</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-auto">
-                                    <button type="button"
-                                            class="btn btn-sm btn-outline-success add-from-bom"
-                                            data-form-index="{{ idx }}"
-                                            title="Add selected BOM item as sub-item">
-                                        <i class="fa fa-plus"></i> Add from BOM
-                                    </button>
+                                <div class="col-md-auto d-flex align-items-end">
                                     <button type="button"
                                             class="btn btn-sm btn-outline-secondary add-manual-sub"
                                             data-form-index="{{ idx }}"
@@ -240,7 +227,7 @@
                                     {% if not mode == "edit" or not item_form.instance.pk %}
                                     <tr class="sub-empty-row">
                                         <td colspan="8" class="text-center text-muted py-2">
-                                            No sub-items yet. Add from BOM or manually.
+                                            Select BOM then PO Item to auto-load items, or add manually.
                                         </td>
                                     </tr>
                                     {% endif %}
@@ -312,10 +299,10 @@ $(document).ready(function () {
 
     const prefix      = "items";
     let poItemsCache  = [];
-    let bomsCache     = [];  // [{id, bom_no}, ...]
-    let bomItemsCache = {};  // {bom_id: [{id, item, size, quantity, material, remarks}, ...]}
+    let bomsCache     = [];
+    let bomItemsCache = {};  // cache key: bomId_poItemId
 
-    // ── AJAX URLs (injected safely) ──────────────────────────────────────
+    // ── AJAX URLs ────────────────────────────────────────────────────────
     const URL_PROCESSES = "{% url 'indent:ajax_po_processes' %}";
     const URL_PO_ITEMS  = "{% url 'indent:ajax_po_items' %}";
     const URL_BOMS      = "{% url 'indent:ajax_boms_for_po' %}";
@@ -324,7 +311,6 @@ $(document).ready(function () {
     // ====================================================================
     // UTILITIES
     // ====================================================================
-
     function updateItemIndexes() {
         $(".indent-item-block:visible").each(function (i) {
             $(this).find(".row-index").first().text(i + 1);
@@ -337,17 +323,11 @@ $(document).ready(function () {
         });
     }
 
-    function getFormIndex(el) {
-        return parseInt($(el).closest("[data-form-index]").attr("data-form-index"));
-    }
-
-    // Renumber all sub-item input names for a given form index and tbody
     function renameSubInputs(tbody, formIdx) {
         tbody.find("tr.sub-item-row").each(function (subIdx) {
             $(this).find("input").each(function () {
                 let name = $(this).attr("name");
                 if (!name) return;
-                // Replace the last number segment: sub_item-{formIdx}-{subIdx}
                 name = name.replace(/-\d+$/, "-" + subIdx);
                 $(this).attr("name", name);
             });
@@ -355,24 +335,29 @@ $(document).ready(function () {
     }
 
     // ====================================================================
+    // STAMP data-form-index on Django-rendered po-item-selects
+    // ====================================================================
+    $(".indent-item-block").each(function () {
+        let idx = $(this).data("form-index");
+        $(this).find(".po-item-select").attr("data-form-index", idx);
+    });
+
+    // ====================================================================
     // PO CHANGE — load processes, PO items, and BOMs
     // ====================================================================
     $("#id_purchase_order").on("change", function () {
         let poId = $(this).val();
 
-        // Reset
-        poItemsCache = [];
-        bomsCache    = [];
+        poItemsCache  = [];
+        bomsCache     = [];
         bomItemsCache = {};
 
         $("#id_po_process").html('<option value="">---------</option>');
         $(".po-item-select").html('<option value="">---------</option>');
         $(".bom-select").html('<option value="">— Pick a BOM —</option>');
-        $(".bom-item-select").html('<option value="">— Select BOM first —</option>');
 
         if (!poId) return;
 
-        // Load processes
         $.get(URL_PROCESSES, { po_id: poId }, function (data) {
             let opts = '<option value="">---------</option>';
             $.each(data, function (_, p) {
@@ -381,13 +366,11 @@ $(document).ready(function () {
             $("#id_po_process").html(opts);
         });
 
-        // Load PO items
         $.get(URL_PO_ITEMS, { po_id: poId }, function (data) {
             poItemsCache = data;
             refreshPoItemDropdowns();
         });
 
-        // Load BOMs for this PO
         $.get(URL_BOMS, { po_id: poId }, function (data) {
             bomsCache = data;
             let opts = '<option value="">— Pick a BOM —</option>';
@@ -432,84 +415,83 @@ $(document).ready(function () {
         });
     }
 
-    // Auto-fill UOM when PO item is selected
+    // ====================================================================
+    // PO ITEM CHANGE — auto-fill UOM + fetch BOM items if BOM selected
+    // ====================================================================
     $(document).on("change", ".po-item-select", function () {
-        let option = $(this).find(":selected");
-        let uom    = option.data("uom") || "";
-        let block  = $(this).closest(".indent-item-block");
+        let option   = $(this).find(":selected");
+        let uom      = option.data("uom") || "";
+        let block    = $(this).closest(".indent-item-block");
+        let formIdx  = block.data("form-index");
+        let poItemId = $(this).val();
+
+        // Auto-fill UOM
         block.find("input[name$='-uom']").val(uom);
         refreshPoItemDropdowns();
+
+        // If BOM is already selected — auto-fetch BOM items for this PO item
+        let bomId = block.find(".bom-select").val();
+        if (bomId && poItemId) {
+            fetchAndPushBomItems(formIdx, bomId, poItemId);
+        }
     });
 
     // ====================================================================
-    // BOM SELECT — load BOM items into bom-item-select
+    // BOM SELECT — if PO item already selected, auto-fetch immediately
     // ====================================================================
     $(document).on("change", ".bom-select", function () {
         let bomId    = $(this).val();
         let formIdx  = $(this).data("form-index");
-        let itemSel  = $(`.bom-item-select[data-form-index="${formIdx}"]`);
+        let block    = $(this).closest(".indent-item-block");
+        let poItemId = block.find(".po-item-select").val() || "";
 
-        itemSel.html('<option value="">— Loading... —</option>');
+        if (!bomId) return;
 
-        if (!bomId) {
-            itemSel.html('<option value="">— Select BOM first —</option>');
-            return;
+        // Only fetch if PO item is also selected
+        if (poItemId) {
+            fetchAndPushBomItems(formIdx, bomId, poItemId);
         }
-
-        // Use cache if available
-        if (bomItemsCache[bomId]) {
-            populateBomItemSelect(itemSel, bomItemsCache[bomId]);
-            return;
-        }
-
-        $.get(URL_BOM_ITEMS, { bom_id: bomId }, function (data) {
-            bomItemsCache[bomId] = data;
-            populateBomItemSelect(itemSel, data);
-        });
+        // If no PO item selected yet, just wait — PO item change will trigger fetch
     });
 
-    function populateBomItemSelect(select, items) {
-        let opts = '<option value="">— Select item —</option>';
-        $.each(items, function (_, it) {
-            opts += `<option value="${it.id}"
-                data-item="${it.item}"
-                data-size="${it.size}"
-                data-qty="${it.quantity}"
-                data-material="${it.material}"
-                data-remarks="${it.remarks}">${it.item} — ${it.material}</option>`;
+    // ====================================================================
+    // FETCH BOM ITEMS AND PUSH INTO SUB-ITEMS TABLE
+    // ====================================================================
+    function fetchAndPushBomItems(formIdx, bomId, poItemId) {
+        let cacheKey = `${bomId}_${poItemId}`;
+
+        if (bomItemsCache[cacheKey]) {
+            pushBomItemsToTable(formIdx, bomItemsCache[cacheKey]);
+            return;
+        }
+
+        $.get(URL_BOM_ITEMS, { bom_id: bomId, po_item_id: poItemId }, function (data) {
+            bomItemsCache[cacheKey] = data;
+            pushBomItemsToTable(formIdx, data);
         });
-        select.html(opts);
     }
 
-    // ====================================================================
-    // ADD FROM BOM
-    // ====================================================================
-    $(document).on("click", ".add-from-bom", function () {
-        let formIdx  = $(this).data("form-index");
-        let itemSel  = $(`.bom-item-select[data-form-index="${formIdx}"]`);
-        let option   = itemSel.find(":selected");
-        let bomItemId = itemSel.val();
-
-        if (!bomItemId) {
-            alert("Please select a BOM item first.");
+    function pushBomItemsToTable(formIdx, items) {
+        if (!items || items.length === 0) {
+            alert("No BOM items found for this PO item.");
             return;
         }
 
-        let rowData = {
-            bom_item_id : bomItemId,
-            item        : option.data("item")     || "",
-            size        : option.data("size")     || "",
-            quantity    : option.data("qty")      || "",
-            material    : option.data("material") || "",
-            remarks     : option.data("remarks")  || "",
-            is_bom      : true,
-        };
+        $.each(items, function (_, it) {
+            addSubRow(formIdx, {
+                bom_item_id : it.id,
+                item        : it.item,
+                size        : it.size || "",
+                quantity    : it.quantity,
+                material    : it.material,
+                remarks     : it.remarks || "",
+                is_bom      : true,
+            });
+        });
 
-        addSubRow(formIdx, rowData);
-
-        // Reset BOM item picker after adding
-        itemSel.val("");
-    });
+        // Reset BOM select after loading
+        $(`.indent-item-block[data-form-index="${formIdx}"] .bom-select`).val("");
+    }
 
     // ====================================================================
     // ADD MANUAL SUB-ITEM
@@ -531,8 +513,8 @@ $(document).ready(function () {
     // BUILD SUB-ITEM ROW HTML
     // ====================================================================
     function addSubRow(formIdx, data) {
-        let tbody   = $(`.sub-items-table[data-form-index="${formIdx}"] .sub-items-body`);
-        let subIdx  = tbody.find("tr.sub-item-row").length;
+        let tbody  = $(`.sub-items-table[data-form-index="${formIdx}"] .sub-items-body`);
+        let subIdx = tbody.find("tr.sub-item-row").length;
 
         tbody.find(".sub-empty-row").remove();
 
@@ -603,17 +585,16 @@ $(document).ready(function () {
     // REMOVE SUB-ITEM ROW
     // ====================================================================
     $(document).on("click", ".remove-sub-row", function () {
-        let block  = $(this).closest(".indent-item-block");
-        let tbody  = $(this).closest("tbody");
+        let block   = $(this).closest(".indent-item-block");
+        let tbody   = $(this).closest("tbody");
         let formIdx = block.data("form-index");
 
         $(this).closest("tr").remove();
 
-        // Show empty message if no rows left
         if (tbody.find("tr.sub-item-row").length === 0) {
             tbody.append(`<tr class="sub-empty-row">
                 <td colspan="8" class="text-center text-muted py-2">
-                    No sub-items yet. Add from BOM or manually.
+                    Select BOM then PO Item to auto-load items, or add manually.
                 </td>
             </tr>`);
         }
@@ -629,17 +610,14 @@ $(document).ready(function () {
         let totalForms = parseInt($("#id_" + prefix + "-TOTAL_FORMS").val());
         let newIdx     = totalForms;
 
-        // Remove empty state message
         $("#empty-items-msg").remove();
 
-        // Clone last block if available, else build fresh
         let existingBlocks = $(".indent-item-block");
         let newBlock;
 
         if (existingBlocks.length > 0) {
             newBlock = existingBlocks.last().clone(false);
 
-            // Reset formset field names/ids in the cloned block
             newBlock.find("input, select, textarea").each(function () {
                 let name = $(this).attr("name");
                 let id   = $(this).attr("id");
@@ -652,29 +630,26 @@ $(document).ready(function () {
 
             newBlock.find('input[type="checkbox"]').prop("checked", false);
 
-            // Reset sub-items section
             newBlock.find(".sub-items-body").html(`
                 <tr class="sub-empty-row">
                     <td colspan="8" class="text-center text-muted py-2">
-                        No sub-items yet. Add from BOM or manually.
+                        Select BOM then PO Item to auto-load items, or add manually.
                     </td>
                 </tr>`);
+
             newBlock.find(".sub-item-count").val(0).attr("name", `sub_item_count-${newIdx}`);
             newBlock.find(".bom-select").attr("data-form-index", newIdx);
-            newBlock.find(".bom-item-select").attr("data-form-index", newIdx);
-            newBlock.find(".add-from-bom").attr("data-form-index", newIdx);
             newBlock.find(".add-manual-sub").attr("data-form-index", newIdx);
             newBlock.find(".sub-items-table").attr("data-form-index", newIdx);
+            newBlock.find(".po-item-select").attr("data-form-index", newIdx);
 
         } else {
-            // No existing blocks — build fresh HTML
             newBlock = buildFreshItemBlock(newIdx);
         }
 
         newBlock.attr("data-form-index", newIdx).removeAttr("data-item-id");
         newBlock.show();
 
-        // Repopulate BOM select if BOMs are already loaded
         if (bomsCache.length > 0) {
             let opts = '<option value="">— Pick a BOM —</option>';
             $.each(bomsCache, function (_, b) {
@@ -697,19 +672,22 @@ $(document).ready(function () {
                     <span class="row-index me-2 text-muted fw-bold"></span>
                     <div class="flex-fill row g-2 mb-0">
                         <div class="col-md-5">
-                            <label class="form-label form-label-sm mb-0">PO Item</label>
+                            <label class="form-label form-label-sm mb-0">PO Item <span class="text-danger">*</span></label>
                             <select name="items-${idx}-purchase_order_item"
                                     id="id_items-${idx}-purchase_order_item"
-                                    class="form-control po-item-select">
+                                    class="form-control po-item-select"
+                                    data-form-index="${idx}"
+                                    required>
                                 <option value="">---------</option>
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label form-label-sm mb-0">Required Qty</label>
-                            <input type="number" step="0.001"
+                            <label class="form-label form-label-sm mb-0">Required Qty <span class="text-danger">*</span></label>
+                            <input type="number" step="0.001" min="0.001"
                                    name="items-${idx}-required_quantity"
                                    id="id_items-${idx}-required_quantity"
-                                   class="form-control">
+                                   class="form-control"
+                                   required>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label form-label-sm mb-0">UOM</label>
@@ -742,19 +720,7 @@ $(document).ready(function () {
                                 <option value="">— Pick a BOM —</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label form-label-sm mb-0">BOM Item</label>
-                            <select class="form-control form-control-sm bom-item-select"
-                                    data-form-index="${idx}">
-                                <option value="">— Select BOM first —</option>
-                            </select>
-                        </div>
-                        <div class="col-md-auto">
-                            <button type="button"
-                                    class="btn btn-sm btn-outline-success add-from-bom"
-                                    data-form-index="${idx}">
-                                <i class="fa fa-plus"></i> Add from BOM
-                            </button>
+                        <div class="col-md-auto d-flex align-items-end">
                             <button type="button"
                                     class="btn btn-sm btn-outline-secondary add-manual-sub"
                                     data-form-index="${idx}">
@@ -779,7 +745,7 @@ $(document).ready(function () {
                         <tbody class="sub-items-body">
                             <tr class="sub-empty-row">
                                 <td colspan="8" class="text-center text-muted py-2">
-                                    No sub-items yet. Add from BOM or manually.
+                                    Select BOM then PO Item to auto-load items, or add manually.
                                 </td>
                             </tr>
                         </tbody>
@@ -800,11 +766,9 @@ $(document).ready(function () {
         let idField     = block.find('input[type="hidden"][name$="-id"]');
 
         if (idField.length && idField.val()) {
-            // Existing saved row — mark for deletion
             deleteField.prop("checked", true);
             block.hide();
         } else {
-            // New unsaved row — remove DOM + decrement TOTAL_FORMS
             block.remove();
             let total = parseInt($("#id_" + prefix + "-TOTAL_FORMS").val());
             $("#id_" + prefix + "-TOTAL_FORMS").val(total - 1);
@@ -814,12 +778,11 @@ $(document).ready(function () {
     });
 
     // ====================================================================
-    // PRE-SUBMIT — update all sub_item_count hidden fields
+    // PRE-SUBMIT — update all sub_item_count hidden fields only
     // ====================================================================
     $("#indent-form").on("submit", function () {
         $(".indent-item-block:visible").each(function () {
-            let formIdx = $(this).data("form-index");
-            let count   = $(this).find("tr.sub-item-row").length;
+            let count = $(this).find("tr.sub-item-row").length;
             $(this).find(".sub-item-count").val(count);
         });
     });
@@ -843,8 +806,6 @@ $(document).ready(function () {
 
         $.get(URL_PO_ITEMS, { po_id: poId }, function (data) {
             poItemsCache = data;
-            // Don't call refreshPoItemDropdowns here on edit —
-            // dropdowns already have their saved values rendered by Django
         });
     })();
     {% endif %}
