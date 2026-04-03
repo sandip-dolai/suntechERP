@@ -18,7 +18,7 @@
         </a>
     </div>
 
-    <form method="post">
+    <form method="post" id="bom-form">
         {% csrf_token %}
 
         <!-- ================= HEADER ================= -->
@@ -44,6 +44,9 @@
                                 </option>
                             {% endfor %}
                         </select>
+                        {% if mode == "edit" %}
+                            <input type="hidden" name="purchase_order" value="{{ bom.po.id }}">
+                        {% endif %}
                     </div>
 
                     <div class="col-md-3">
@@ -76,10 +79,12 @@
             </div>
 
             <div class="card-body p-0">
+                <div class="table-responsive">
                 <table class="table table-bordered table-striped table-sm mb-0">
                     <thead class="table-light">
                         <tr>
                             <th style="width:40px;">#</th>
+                            <th style="width:220px;">PO Item <span class="text-danger">*</span></th>
                             <th>Item <span class="text-danger">*</span></th>
                             <th style="width:130px;">Size</th>
                             <th style="width:120px;">Quantity <span class="text-danger">*</span></th>
@@ -94,6 +99,19 @@
                             {% for item in items %}
                             <tr>
                                 <td class="row-index">{{ forloop.counter }}</td>
+                                <td>
+                                    <select name="po_item_id[]"
+                                            class="form-control po-item-select"
+                                            required>
+                                        <option value="">— Select PO Item —</option>
+                                        {% for pi in po_items %}
+                                            <option value="{{ pi.id }}"
+                                                {% if item.po_item_id == pi.id %}selected{% endif %}>
+                                                {{ pi.material_code|default:"—" }} | {{ pi.material_description|truncatechars:50 }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
                                 <td>
                                     <input type="text"
                                            name="item[]"
@@ -140,7 +158,7 @@
                             {% endfor %}
                         {% else %}
                             <tr class="empty-row">
-                                <td colspan="7" class="text-center text-muted py-3">
+                                <td colspan="8" class="text-center text-muted py-3">
                                     Click "+ Add Item" to add BOM items
                                 </td>
                             </tr>
@@ -148,6 +166,7 @@
 
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
 
@@ -168,16 +187,88 @@
 <script>
 $(document).ready(function () {
 
+    const URL_PO_ITEMS = "{% url 'bom:bom_po_items' %}";
+    let cachedPoItems  = [];  // cached after first AJAX load
+
+    // ===============================================================
+    // BUILD PO ITEM OPTIONS HTML from cached list
+    // ===============================================================
+    function buildOptions(selectedId) {
+        let html = '<option value="">— Select PO Item —</option>';
+        $.each(cachedPoItems, function (_, pi) {
+            let sel = (String(pi.id) === String(selectedId)) ? "selected" : "";
+            html += `<option value="${pi.id}" ${sel}>${pi.label}</option>`;
+        });
+        return html;
+    }
+
+    // ===============================================================
+    // LOAD PO ITEMS VIA AJAX
+    // ===============================================================
+    function loadPoItems(poId, callback) {
+        if (!poId) {
+            cachedPoItems = [];
+            callback([]);
+            return;
+        }
+        $.get(URL_PO_ITEMS, { po_id: poId }, function (data) {
+            cachedPoItems = data.items || [];
+            callback(cachedPoItems);
+        });
+    }
+
+    // ===============================================================
+    // REFRESH ALL PO ITEM SELECTS IN EXISTING ROWS
+    // ===============================================================
+    function refreshAllPoItemSelects() {
+        $("#bom-items-body .po-item-select").each(function () {
+            let current = $(this).val();
+            $(this).html(buildOptions(current));
+        });
+    }
+
+    // ===============================================================
+    // PO DROPDOWN CHANGE — reload PO items and refresh all selects
+    // ===============================================================
+    $("#id_purchase_order").on("change", function () {
+        let poId = $(this).val();
+        loadPoItems(poId, function () {
+            refreshAllPoItemSelects();
+        });
+    });
+
+    // ===============================================================
+    // ON PAGE LOAD — if PO is already selected (edit mode), load items
+    // ===============================================================
+    let initialPoId = $("#id_purchase_order").val();
+    if (initialPoId) {
+        loadPoItems(initialPoId, function () {
+            // In edit mode the options are already server-rendered, no refresh needed
+        });
+    }
+
+    // ===============================================================
+    // ROW INDEX
+    // ===============================================================
     function updateRowIndexes() {
         $("#bom-items-body tr:visible").each(function (i) {
             $(this).find(".row-index").text(i + 1);
         });
     }
 
+    // ===============================================================
+    // NEW ROW TEMPLATE
+    // ===============================================================
     function newRow() {
+        let poOptions = buildOptions("");
         return `
             <tr>
                 <td class="row-index"></td>
+                <td>
+                    <select name="po_item_id[]" class="form-control po-item-select" required>
+                        ${poOptions}
+                    </select>
+                </td>
                 <td>
                     <input type="text"
                            name="item[]"
@@ -224,22 +315,30 @@ $(document).ready(function () {
         `;
     }
 
-    // ================= ADD ROW =================
+    // ===============================================================
+    // ADD ROW
+    // ===============================================================
     $("#add-row").on("click", function () {
+        let poId = $("#id_purchase_order").val();
+        if (!poId) {
+            alert("Please select a Purchase Order first.");
+            return;
+        }
         $(".empty-row").remove();
         $("#bom-items-body").append(newRow());
         updateRowIndexes();
-        // Focus the first input of the new row
         $("#bom-items-body tr:last input:first").focus();
     });
 
-    // ================= REMOVE ROW =================
+    // ===============================================================
+    // REMOVE ROW
+    // ===============================================================
     $(document).on("click", ".remove-row", function () {
         $(this).closest("tr").remove();
         if ($("#bom-items-body tr").length === 0) {
             $("#bom-items-body").html(`
                 <tr class="empty-row">
-                    <td colspan="7" class="text-center text-muted py-3">
+                    <td colspan="8" class="text-center text-muted py-3">
                         Click "+ Add Item" to add BOM items
                     </td>
                 </tr>
@@ -248,10 +347,26 @@ $(document).ready(function () {
         updateRowIndexes();
     });
 
-    // ================= SUBMIT GUARD =================
-    $("form").on("submit", function () {
+    // ===============================================================
+    // SUBMIT GUARD
+    // ===============================================================
+    $("#bom-form").on("submit", function () {
         if ($("#bom-items-body tr.empty-row").length) {
             alert("Please add at least one BOM item before saving.");
+            return false;
+        }
+        // Check all po_item selects are filled
+        let missing = false;
+        $(".po-item-select").each(function () {
+            if (!$(this).val()) {
+                missing = true;
+                $(this).addClass("is-invalid");
+            } else {
+                $(this).removeClass("is-invalid");
+            }
+        });
+        if (missing) {
+            alert("Please select a PO Item for every row.");
             return false;
         }
     });

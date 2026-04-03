@@ -82,6 +82,7 @@
     <!-- ════ COLUMN HEADERS ════ -->
     <tr class="col-header-row">
         <th style="width:35px;">#</th>
+        <th style="width:150px;">PO Item</th>
         <th>Item / Component</th>
         <th style="width:120px;">Size</th>
         <th style="width:90px;">Quantity</th>
@@ -99,6 +100,7 @@
         {% for item in items %}
         <tr class="data-row">
             <td style="text-align:center;">{{ forloop.counter }}</td>
+            <td>{{ item.po_item.material_code|default:"—" }} | {{ item.po_item.material_description|truncatechars:50 }}</td>
             <td>{{ item.item }}</td>
             <td style="text-align:center;">{{ item.size|default:"" }}</td>
             <td style="text-align:center;">{{ item.quantity }}</td>
@@ -112,7 +114,7 @@
     {% else %}
         <tr class="no-items-row">
             <td style="text-align:center;">—</td>
-            <td colspan="8" style="text-align:center;">No items in this BOM.</td>
+            <td colspan="9" style="text-align:center;">No items in this BOM.</td>
         </tr>
     {% endif %}
     {% endwith %}

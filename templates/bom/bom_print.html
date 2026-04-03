@@ -257,9 +257,10 @@
         <thead>
             <tr>
                 <th style="width:40px;">#</th>
+                <th style="width:160px;">PO Item</th>
                 <th>Item</th>
-                <th style="width:130px;">Size</th>
-                <th style="width:100px;">Quantity</th>
+                <th style="width:110px;">Size</th>
+                <th style="width:80px;">Quantity</th>
                 <th>Material</th>
                 <th>Remarks</th>
             </tr>
@@ -268,6 +269,10 @@
             {% for item in items %}
             <tr>
                 <td class="center">{{ forloop.counter }}</td>
+                <td>
+                    <span style="font-size:11px;color:#555;">{{ item.po_item.material_code|default:"—" }}</span><br>
+                    {{ item.po_item.material_description|truncatechars:50 }}
+                </td>
                 <td>{{ item.item }}</td>
                 <td>{{ item.size|default:"—" }}</td>
                 <td>{{ item.quantity }}</td>
@@ -276,7 +281,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="6" style="text-align:center; color:#888; padding: 16px;">
+                <td colspan="7" style="text-align:center; color:#888; padding: 16px;">
                     No items in this BOM.
                 </td>
             </tr>

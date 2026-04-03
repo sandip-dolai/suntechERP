@@ -1,7 +1,7 @@
 from django.db import models, transaction
 from django.contrib.auth import get_user_model
 
-from po.models import PurchaseOrder
+from po.models import PurchaseOrder, PurchaseOrderItem
 
 User = get_user_model()
 
@@ -32,10 +32,7 @@ class BOM(models.Model):
         """
         with transaction.atomic():
             last_bom = (
-                cls.objects.select_for_update()
-                .filter(po=po)
-                .order_by("-id")
-                .first()
+                cls.objects.select_for_update().filter(po=po).order_by("-id").first()
             )
 
             last_no = 0
@@ -51,11 +48,17 @@ class BOM(models.Model):
 
 class BOMItem(models.Model):
     """
-    BOM Line Items — free-form materials required to complete the PO.
-    Not linked to PO items; entered manually per BOM.
+    BOM Line Items — materials required to complete a specific PO Item.
+    Each BOM item must be linked to a PurchaseOrderItem of the parent PO.
     """
 
     bom = models.ForeignKey(BOM, on_delete=models.CASCADE, related_name="items")
+    po_item = models.ForeignKey(
+        PurchaseOrderItem,
+        on_delete=models.PROTECT,
+        related_name="bom_items",
+        help_text="The PO line item this BOM material belongs to",
+    )
     item = models.CharField(max_length=255)
     size = models.CharField(max_length=100, blank=True)
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
@@ -63,10 +66,11 @@ class BOMItem(models.Model):
     remarks = models.TextField(blank=True)
 
     class Meta:
-        ordering = ["id"]
+        ordering = ["po_item", "id"]
         indexes = [
             models.Index(fields=["bom"]),
+            models.Index(fields=["po_item"]),
         ]
 
     def __str__(self):
-        return f"{self.bom.bom_no} — {self.item} ({self.material})"
+        return f"{self.bom.bom_no} — [{self.po_item_id}] {self.item} ({self.material})"

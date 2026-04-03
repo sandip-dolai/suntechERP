@@ -5,9 +5,9 @@ from django.db import transaction
 from django.contrib import messages
 
 from .models import BOM, BOMItem
-from po.models import PurchaseOrder
+from po.models import PurchaseOrder, PurchaseOrderItem
 from django.core.paginator import Paginator
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Prefetch
 from datetime import datetime
 from django.template.loader import render_to_string
 from django.http import HttpResponse
@@ -19,9 +19,9 @@ from django.http import HttpResponse
 @login_required
 def bom_list(request):
     q = request.GET.get("q", "").strip()
- 
+
     qs = BOM.objects.select_related("po", "created_by")
- 
+
     if q:
         qs = qs.filter(
             Q(bom_no__icontains=q)
@@ -29,17 +29,17 @@ def bom_list(request):
             | Q(po__oa_number__icontains=q)
             | Q(created_by__username__icontains=q)
         )
- 
+
     qs = qs.annotate(
         # Count how many IndentSubItems reference any BOMItem of this BOM
         # items = related_name on BOMItem → bom
         # indent_sub_items = related_name on IndentSubItem → bom_item
         indent_link_count=Count("items__indent_sub_items", distinct=True),
     ).order_by("-id")
- 
+
     paginator = Paginator(qs, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
- 
+
     return render(request, "bom/bom_list.html", {"page_obj": page_obj, "q": q})
 
 
@@ -87,6 +87,7 @@ def bom_create(request):
             "bom": None,
             "items": [],
             "purchase_orders": purchase_orders,
+            "po_items": [],
         },
     )
 
@@ -97,7 +98,7 @@ def bom_create(request):
 @login_required
 def bom_detail(request, pk):
     bom = get_object_or_404(BOM.objects.select_related("po", "created_by"), pk=pk)
-    items = bom.items.all()
+    items = bom.items.select_related("po_item").all()
 
     # Count how many IndentSubItems reference any BOMItem of this BOM
     from indent.models import IndentSubItem
@@ -122,7 +123,7 @@ def bom_detail(request, pk):
 @transaction.atomic
 def bom_edit(request, pk):
     bom = get_object_or_404(BOM, pk=pk)
-    items = bom.items.all()
+    items = bom.items.select_related("po_item").all()
 
     if request.method == "POST":
         bom_date = request.POST.get("bom_date")
@@ -137,6 +138,9 @@ def bom_edit(request, pk):
         messages.success(request, "BOM updated successfully.")
         return redirect("bom:bom_detail", pk=bom.id)
 
+    # Load PO items for the current BOM's PO so edit form can pre-select them
+    po_items = PurchaseOrderItem.objects.filter(purchase_order=bom.po)
+
     return render(
         request,
         "bom/bom_form.html",
@@ -145,6 +149,7 @@ def bom_edit(request, pk):
             "bom": bom,
             "items": items,
             "purchase_orders": PurchaseOrder.objects.filter(id=bom.po.id),
+            "po_items": po_items,
         },
     )
 
@@ -155,20 +160,21 @@ def bom_edit(request, pk):
 @login_required
 def bom_delete(request, pk):
     bom = get_object_or_404(BOM, pk=pk)
- 
+
     if request.method == "POST":
         from indent.models import IndentSubItem
+
         if IndentSubItem.objects.filter(bom_item__bom=bom).exists():
             messages.error(
                 request,
-                f"Cannot delete BOM {bom.bom_no} — indent sub-items are linked to it."
+                f"Cannot delete BOM {bom.bom_no} — indent sub-items are linked to it.",
             )
             return redirect("bom:bom_list")
- 
+
         bom_no = bom.bom_no
         bom.delete()
         messages.success(request, f"BOM {bom_no} deleted successfully.")
- 
+
     return redirect("bom:bom_list")
 
 
@@ -244,7 +250,9 @@ def bom_report_excel(request):
 
     boms = (
         BOM.objects.select_related("po", "created_by")
-        .prefetch_related("items")
+        .prefetch_related(
+            Prefetch("items", queryset=BOMItem.objects.select_related("po_item"))
+        )
         .filter(**filters)
         .order_by("-id")
     )
@@ -270,11 +278,12 @@ def bom_report_excel(request):
 def _save_bom_items(request, bom):
     """
     Reads repeating POST arrays:
-      item[], size[], quantity[], material[], remarks[]
-    and bulk-creates BOMItem rows. Rows where item/quantity/material
-    are all blank are silently skipped.
+      po_item_id[], item[], size[], quantity[], material[], remarks[]
+    and bulk-creates BOMItem rows.
+    Rows where po_item_id/item/quantity/material are blank are skipped.
     """
     items_data = zip(
+        request.POST.getlist("po_item_id[]"),
         request.POST.getlist("item[]"),
         request.POST.getlist("size[]"),
         request.POST.getlist("quantity[]"),
@@ -283,18 +292,20 @@ def _save_bom_items(request, bom):
     )
 
     to_create = []
-    for item, size, quantity, material, remarks in items_data:
+    for po_item_id, item, size, quantity, material, remarks in items_data:
+        po_item_id = po_item_id.strip()
         item = item.strip()
         quantity = quantity.strip()
         material = material.strip()
 
-        # Skip entirely blank rows
-        if not item and not quantity and not material:
+        # Skip rows missing required fields
+        if not po_item_id or not item or not quantity or not material:
             continue
 
         to_create.append(
             BOMItem(
                 bom=bom,
+                po_item_id=po_item_id,
                 item=item,
                 size=size.strip(),
                 quantity=quantity or 0,
@@ -312,5 +323,35 @@ def bom_print(request, pk):
     bom = get_object_or_404(
         BOM.objects.select_related("po", "po__company", "created_by"), pk=pk
     )
-    items = bom.items.all()
+    items = bom.items.select_related("po_item").all()
     return render(request, "bom/bom_print.html", {"bom": bom, "items": items})
+
+
+# ======================================================
+# AJAX — PO ITEMS FOR BOM FORM
+# ======================================================
+@login_required
+def bom_po_items(request):
+    """
+    GET /bom/ajax-po-items/?po_id=<id>
+    Returns JSON list of PO items for the selected PO.
+    Used by the BOM form to populate the po_item dropdown per row.
+    """
+    po_id = request.GET.get("po_id", "").strip()
+
+    if not po_id:
+        return JsonResponse({"items": []})
+
+    items = PurchaseOrderItem.objects.filter(purchase_order_id=po_id).values(
+        "id", "material_code", "material_description"
+    )
+
+    data = [
+        {
+            "id": item["id"],
+            "label": f"{item['material_code'] or '—'} | {item['material_description'][:60]}",
+        }
+        for item in items
+    ]
+
+    return JsonResponse({"items": data})
