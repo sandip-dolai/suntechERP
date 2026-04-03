@@ -29,9 +29,6 @@ class CompanyMaster(models.Model):
     phone = models.CharField(
         max_length=20,
         blank=True,
-        validators=[
-            RegexValidator(r"^[0-9]+$", "Only digits allowed")
-        ],  # recommended improvement
     )
     email = models.EmailField(blank=True)
 
