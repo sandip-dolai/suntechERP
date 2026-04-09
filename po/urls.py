@@ -53,4 +53,12 @@ urlpatterns = [
         views.po_process_report_excel,
         name="po_process_report_excel",
     ),
+    # target
+    path("target/", views.po_target_list, name="po_target_list"),
+    path("target/<int:pk>/edit/", views.po_target_edit, name="po_target_edit"),
+    path(
+        "target-report/",
+        views.po_target_report,
+        name="po_target_report",
+    ),
 ]

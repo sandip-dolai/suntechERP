@@ -267,3 +267,24 @@ class POProcessItemStatus(models.Model):
             f"{self.po_process.department_process.name} | "
             f"{self.po_item.material_description[:30]}"
         )
+
+
+class POTarget(models.Model):
+    month = models.PositiveIntegerField(choices=[(i, i) for i in range(1, 13)])
+    year = models.PositiveIntegerField()
+
+    target_value = models.DecimalField(
+        max_digits=15, decimal_places=2, help_text="Monthly revenue target"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("month", "year")
+        ordering = ["-year", "-month"]
+        verbose_name = "PO Target"
+        verbose_name_plural = "PO Targets"
+
+    def __str__(self):
+        return f"{self.month}-{self.year} → {self.target_value}"

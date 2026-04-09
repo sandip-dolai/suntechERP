@@ -1,0 +1,237 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}PO Target & Revenue Report{% endblock %}
+
+{% block extra_css %}
+<style>
+    .summary-card {
+        border-left: 4px solid;
+        border-radius: 6px;
+    }
+    .blue { border-color: #007bff; }
+    .green { border-color: #28a745; }
+    .yellow { border-color: #ffc107; }
+
+    .select2-container { width: 100% !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- ================= HEADER ================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">PO Target & Revenue Report</h4>
+    </div>
+
+    <!-- ================= FILTER ================= -->
+    <form method="get">
+        <div class="card mb-3">
+            <div class="card-header">
+                <strong><i class="fa fa-filter"></i> Filters</strong>
+            </div>
+
+            <div class="card-body">
+
+                <div class="row">
+
+                    <!-- PO MULTI SELECT -->
+                    <div class="col-md-6">
+                        <label class="small font-weight-bold">Select POs</label>
+                        <select name="pos" multiple class="form-control" id="filter-po">
+                            {% for po in po_list %}
+                            <option value="{{ po.id }}"
+                                {% if po.id|stringformat:"s" in filters.pos %}selected{% endif %}>
+                                {{ po.po_number }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- YEAR -->
+                    <div class="col-md-3">
+                        <label class="small font-weight-bold">Year</label>
+                        <input type="number" name="year" class="form-control"
+                               value="{{ filters.year }}" placeholder="2026">
+                    </div>
+
+                    <!-- BUTTON -->
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button class="btn btn-primary w-100">
+                            <i class="fa fa-search"></i> Generate
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </form>
+
+    {% if filter_used %}
+
+    <!-- ================= KPI CARDS ================= -->
+    <div class="row mb-3">
+
+        <div class="col-md-4">
+            <div class="card summary-card blue p-3 text-center">
+                <div class="small text-muted">Total Target</div>
+                <h5 class="text-primary">₹ {{ total_target|floatformat:0 }}</h5>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card summary-card green p-3 text-center">
+                <div class="small text-muted">Total Revenue</div>
+                <h5 class="text-success">₹ {{ total_achieved|floatformat:0 }}</h5>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card summary-card yellow p-3 text-center">
+                <div class="small text-muted">Achievement %</div>
+                <h5 class="text-warning">{{ overall_percentage }}%</h5>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ================= GRAPH ================= -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <strong><i class="fa fa-bar-chart"></i> Monthly Target vs Revenue</strong>
+        </div>
+        <div class="card-body">
+            <canvas id="targetChart" height="80"></canvas>
+        </div>
+    </div>
+
+    <!-- ================= TABLE ================= -->
+    <div class="card">
+        <div class="card-body p-0">
+
+            <table class="table table-bordered table-sm mb-0">
+                <thead class="table-primary">
+                    <tr>
+                        <th>#</th>
+                        <th>Month</th>
+                        <th>Target</th>
+                        <th>Revenue</th>
+                        <th>Achievement %</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for row in data %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ row.month }}</td>
+
+                        <td>₹ {{ row.target|floatformat:2 }}</td>
+
+                        <td>
+                            <span class="text-success font-weight-bold">
+                                ₹ {{ row.achieved|floatformat:2 }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="badge
+                                {% if row.percentage >= 100 %}badge-success
+                                {% elif row.percentage >= 50 %}badge-warning text-dark
+                                {% else %}badge-danger{% endif %}">
+                                {{ row.percentage }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">
+                            No data found
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+    </div>
+
+    {% else %}
+
+    <!-- ================= EMPTY STATE ================= -->
+    <div class="text-center text-muted mt-5">
+        <i class="fa fa-info-circle"></i> Select filters to generate report
+    </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+$(document).ready(function () {
+
+    $("#filter-po").select2({
+        placeholder: "Select POs",
+        width: "100%"
+    });
+
+    {% if filter_used %}
+
+    var labels = [];
+    var targetData = [];
+    var revenueData = [];
+
+    {% for row in data %}
+        labels.push("{{ row.month }}");
+        targetData.push({{ row.target|default:0 }});
+        revenueData.push({{ row.achieved|default:0 }});
+    {% endfor %}
+
+    var ctx = document.getElementById('targetChart').getContext('2d');
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Target',
+                    data: targetData,
+                    backgroundColor: 'rgba(0, 123, 255, 0.7)'
+                },
+                {
+                    label: 'Revenue',
+                    data: revenueData,
+                    backgroundColor: 'rgba(40, 167, 69, 0.7)'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero: true
+                    }
+                }]
+            }
+        }
+    });
+
+    {% endif %}
+
+});
+</script>
+
+{% endblock %}

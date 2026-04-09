@@ -1,6 +1,12 @@
 from django import forms
 from django.forms import inlineformset_factory
-from .models import PurchaseOrder, PurchaseOrderItem, POProcess, POProcessHistory
+from .models import (
+    PurchaseOrder,
+    PurchaseOrderItem,
+    POProcess,
+    POProcessHistory,
+    POTarget,
+)
 from master.models import CompanyMaster, ProcessStatusMaster
 import datetime
 from django.forms import BaseInlineFormSet
@@ -144,7 +150,9 @@ class BasePurchaseOrderItemFormSet(BaseInlineFormSet):
     def save_new(self, form, commit=True):
         """Called when saving a brand new item (not an existing one)."""
         instance = super().save_new(form, commit=False)
-        instance.quantity = str(instance.quantity_value) if instance.quantity_value else "0"
+        instance.quantity = (
+            str(instance.quantity_value) if instance.quantity_value else "0"
+        )
         if commit:
             instance.save()
         return instance
@@ -152,7 +160,9 @@ class BasePurchaseOrderItemFormSet(BaseInlineFormSet):
     def save_existing(self, form, instance, commit=True):
         """Called when saving an existing item."""
         instance = super().save_existing(form, instance, commit=False)
-        instance.quantity = str(instance.quantity_value) if instance.quantity_value else "0"
+        instance.quantity = (
+            str(instance.quantity_value) if instance.quantity_value else "0"
+        )
         if commit:
             instance.save()
         return instance
@@ -160,7 +170,8 @@ class BasePurchaseOrderItemFormSet(BaseInlineFormSet):
     def clean(self):
         super().clean()
         non_deleted_forms = [
-            form for form in self.forms
+            form
+            for form in self.forms
             if form.cleaned_data and not form.cleaned_data.get("DELETE", False)
         ]
         if not non_deleted_forms:
@@ -340,3 +351,29 @@ class POProcessReadonlyForm(forms.ModelForm):
                 attrs={"class": "form-select", "disabled": True}
             )
         }
+
+
+# ------------------------------
+# PO TARGET FORM
+# ------------------------------
+class POTargetForm(forms.ModelForm):
+    class Meta:
+        model = POTarget
+        fields = ["month", "year", "target_value"]
+        widgets = {
+            "month": forms.Select(attrs={"class": "form-control"}),
+            "year": forms.NumberInput(attrs={"class": "form-control"}),
+            "target_value": forms.NumberInput(attrs={"class": "form-control"}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        month = cleaned_data.get("month")
+        year = cleaned_data.get("year")
+
+        if POTarget.objects.filter(month=month, year=year).exists():
+            raise forms.ValidationError(
+                "Target for this month and year already exists."
+            )
+
+        return cleaned_data

@@ -1,5 +1,4 @@
 from urllib import request
-
 from django.db.models import (
     F,
     Q,
@@ -17,15 +16,21 @@ from suntech_erp.permissions import admin_required, can_view_value, is_admin
 from django.contrib.auth.decorators import login_required as login_required_view
 from django.db import transaction, IntegrityError
 
-from django.db.models.functions import Concat, Coalesce
+from django.db.models.functions import Concat, Coalesce, TruncMonth
 from .models import (
     PurchaseOrder,
     PurchaseOrderItem,
     POProcess,
     POProcessHistory,
     POProcessItemStatus,
+    POTarget,
 )
-from .forms import PurchaseOrderForm, PurchaseOrderItemFormSet, POProcessUpdateForm
+from .forms import (
+    PurchaseOrderForm,
+    PurchaseOrderItemFormSet,
+    POProcessUpdateForm,
+    POTargetForm,
+)
 from master.models import CompanyMaster, ProcessStatusMaster, DepartmentProcessMaster
 from datetime import datetime
 from django.http import HttpResponseForbidden, HttpResponse, JsonResponse
@@ -1150,84 +1155,220 @@ def po_process_report_excel(request):
             "department_process",
             "current_status",
             "purchase_order__company",
-        ).filter(
-            department_process_id__in=processes
-        )
+        ).filter(department_process_id__in=processes)
 
         if date_from:
-            process_qs = process_qs.filter(
-                purchase_order__po_date__gte=date_from
-            )
+            process_qs = process_qs.filter(purchase_order__po_date__gte=date_from)
 
         if date_to:
-            process_qs = process_qs.filter(
-                purchase_order__po_date__lte=date_to
-            )
+            process_qs = process_qs.filter(purchase_order__po_date__lte=date_to)
 
         if po_status:
-            process_qs = process_qs.filter(
-                purchase_order__po_status=po_status
-            )
+            process_qs = process_qs.filter(purchase_order__po_status=po_status)
 
         if company:
-            process_qs = process_qs.filter(
-                purchase_order__company_id=company
-            )
+            process_qs = process_qs.filter(purchase_order__company_id=company)
 
         if po_number:
             process_qs = process_qs.filter(
                 purchase_order__po_number__icontains=po_number
             )
 
-        process_qs = process_qs.prefetch_related(
-            "purchase_order__items",
-            "item_statuses__status",
-            "item_statuses__po_item",
-        ).order_by(
-            "purchase_order__id",
-            "department_process__sequence",
-        ).distinct()
+        process_qs = (
+            process_qs.prefetch_related(
+                "purchase_order__items",
+                "item_statuses__status",
+                "item_statuses__po_item",
+            )
+            .order_by(
+                "purchase_order__id",
+                "department_process__sequence",
+            )
+            .distinct()
+        )
 
         for process in process_qs:
             po = process.purchase_order
             items = po.items.all()
 
-            status_map = {
-                s.po_item_id: s for s in process.item_statuses.all()
-            }
+            status_map = {s.po_item_id: s for s in process.item_statuses.all()}
 
             for item in items:
                 item_status_obj = status_map.get(item.id)
 
                 if process.department_process.has_item_tracking:
                     status_name = (
-                        item_status_obj.status.name
-                        if item_status_obj
-                        else item.status
+                        item_status_obj.status.name if item_status_obj else item.status
                     )
                 else:
                     status_name = process.current_status.name
 
-                rows.append({
-                    "po_number": po.po_number,
-                    "po_date": po.po_date,
-                    "company": po.company.name if po.company else "—",
-                    "process": process.department_process.name,
-                    "item_description": item.material_description,
-                    "quantity": item.quantity_value,
-                    "status": status_name,
-                })
+                rows.append(
+                    {
+                        "po_number": po.po_number,
+                        "po_date": po.po_date,
+                        "company": po.company.name if po.company else "—",
+                        "process": process.department_process.name,
+                        "item_description": item.material_description,
+                        "quantity": item.quantity_value,
+                        "status": status_name,
+                    }
+                )
 
     # ------------------------------
     # RENDER EXCEL
     # ------------------------------
-    html = render_to_string(
-        "po/po_process_report_excel.html",
-        {"rows": rows}
-    )
+    html = render_to_string("po/po_process_report_excel.html", {"rows": rows})
 
     response = HttpResponse(html)
     response["Content-Type"] = "application/vnd.ms-excel"
     response["Content-Disposition"] = "attachment; filename=po_process_report.xls"
 
     return response
+
+
+@login_required_view
+def po_target_list(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    targets = POTarget.objects.all()
+
+    edit_id = request.GET.get("edit")
+    instance = None
+
+    if edit_id:
+        instance = get_object_or_404(POTarget, pk=edit_id)
+
+    form = POTargetForm(instance=instance)
+
+    if request.method == "POST":
+        if instance:
+            form = POTargetForm(request.POST, instance=instance)
+        else:
+            form = POTargetForm(request.POST)
+
+        if form.is_valid():
+            form.save()
+            return redirect("po:po_target_list")
+
+    context = {
+        "targets": targets,
+        "form": form,
+        "edit_mode": bool(instance),
+    }
+
+    return render(request, "po/po_target_list.html", context)
+
+
+@login_required_view
+def po_target_edit(request, pk):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    target = get_object_or_404(POTarget, pk=pk)
+
+    form = POTargetForm(instance=target)
+
+    if request.method == "POST":
+        form = POTargetForm(request.POST, instance=target)
+        if form.is_valid():
+            form.save()
+            return redirect("po:po_target_list")
+
+    return render(request, "po/po_target_form.html", {"form": form})
+
+
+@login_required_view
+def po_target_report(request):
+    # ------------------------------
+    # ADMIN ONLY
+    # ------------------------------
+    if not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    # ------------------------------
+    # FILTERS
+    # ------------------------------
+    po_ids = request.GET.getlist("pos")
+    year = request.GET.get("year")
+
+    filter_used = bool(po_ids and year)
+
+    data = []
+    total_target = 0
+    total_achieved = 0
+
+    if filter_used:
+        # ------------------------------
+        # BASE QUERYSET
+        # ------------------------------
+        qs = PurchaseOrder.objects.filter(
+            id__in=po_ids, delivery_date__year=year, delivery_date__isnull=False
+        )
+
+        # ------------------------------
+        # GROUP BY MONTH
+        # ------------------------------
+        qs = (
+            qs.annotate(month=TruncMonth("delivery_date"))
+            .values("month")
+            .annotate(revenue=Sum("items__material_value"))
+            .order_by("month")
+        )
+
+        # ------------------------------
+        # PROCESS DATA
+        # ------------------------------
+        for row in qs:
+            month_date = row["month"]
+            month = month_date.month
+            year_val = month_date.year
+
+            revenue = row["revenue"] or 0
+
+            # ------------------------------
+            # TARGET FETCH
+            # ------------------------------
+            target_obj = POTarget.objects.filter(month=month, year=year_val).first()
+
+            target_value = target_obj.target_value if target_obj else 0
+
+            # ------------------------------
+            # ACHIEVEMENT %
+            # ------------------------------
+            percentage = (revenue / target_value) * 100 if target_value > 0 else 0
+
+            total_target += target_value
+            total_achieved += revenue
+
+            data.append(
+                {
+                    "month": month_date.strftime("%b %Y"),
+                    "target": target_value,
+                    "achieved": revenue,
+                    "percentage": round(percentage, 2),
+                }
+            )
+
+    # ------------------------------
+    # OVERALL %
+    # ------------------------------
+    overall_percentage = (
+        (total_achieved / total_target) * 100 if total_target > 0 else 0
+    )
+
+    context = {
+        "data": data,
+        "filter_used": filter_used,
+        "total_target": total_target,
+        "total_achieved": total_achieved,
+        "overall_percentage": round(overall_percentage, 2),
+        "filters": {
+            "pos": po_ids,
+            "year": year or "",
+        },
+        "po_list": PurchaseOrder.objects.order_by("-id")[:500],
+    }
+
+    return render(request, "po/po_target_report.html", context)

@@ -1,0 +1,117 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- ================= HEADER ================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>
+            {% if edit_mode %}
+                Update Target
+            {% else %}
+                Add Target
+            {% endif %}
+        </h4>
+    </div>
+
+    <!-- ================= FORM ================= -->
+    <div class="card mb-3">
+        <div class="card-body">
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="row">
+
+                    <div class="col-md-3">
+                        <label class="small font-weight-bold">Month</label>
+                        {{ form.month }}
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="small font-weight-bold">Year</label>
+                        {{ form.year }}
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="small font-weight-bold">Target Value</label>
+                        {{ form.target_value }}
+                    </div>
+
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button class="btn btn-primary w-100">
+                            {% if edit_mode %}
+                                <i class="fa fa-refresh"></i> Update
+                            {% else %}
+                                <i class="fa fa-save"></i> Save
+                            {% endif %}
+                        </button>
+                    </div>
+
+                </div>
+
+                {% if form.errors %}
+                <div class="alert alert-danger mt-2">
+                    {{ form.errors }}
+                </div>
+                {% endif %}
+
+            </form>
+
+        </div>
+    </div>
+
+    <!-- ================= LIST ================= -->
+    <div class="card">
+        <div class="card-body p-0">
+
+            <table class="table table-bordered table-sm mb-0">
+                <thead class="table-primary">
+                    <tr>
+                        <th>#</th>
+                        <th>Month</th>
+                        <th>Year</th>
+                        <th>Target</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for target in targets %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ target.month }}</td>
+                        <td>{{ target.year }}</td>
+                        <td>₹ {{ target.target_value|floatformat:2 }}</td>
+
+                        <td>
+                            <a href="?edit={{ target.id }}"
+                               class="btn btn-sm btn-warning">
+                                <i class="fa fa-pencil"></i>
+                            </a>
+
+                            {% if edit_mode %}
+                            <a href="{% url 'po:po_target_list' %}"
+                               class="btn btn-sm btn-secondary">
+                                Cancel
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">
+                            No targets available
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}
