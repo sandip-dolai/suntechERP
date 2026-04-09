@@ -1,0 +1,17 @@
+<table border="1">
+<tr>
+<th>PO</th>
+<th>Process</th>
+<th>Item</th>
+<th>Status</th>
+</tr>
+
+{% for row in rows %}
+<tr>
+<td>{{ row.po_number }}</td>
+<td>{{ row.process }}</td>
+<td>{{ row.item_description }}</td>
+<td>{{ row.status }}</td>
+</tr>
+{% endfor %}
+</table>

@@ -1,0 +1,124 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+.table thead th {
+    position: sticky;
+    top: 0;
+    background: #007bff;
+    color: #fff;
+}
+</style>
+
+<div class="container-fluid">
+
+<h4>PO Process Report</h4>
+
+<form method="get">
+<div class="card mb-3">
+<div class="card-body">
+
+<div class="row">
+<div class="col-md-3">
+<input type="date" name="date_from" class="form-control" value="{{ filters.date_from }}">
+</div>
+
+<div class="col-md-3">
+<input type="date" name="date_to" class="form-control" value="{{ filters.date_to }}">
+</div>
+
+<div class="col-md-3">
+<input type="text" name="po_number" class="form-control" placeholder="PO Number" value="{{ filters.po_number }}">
+</div>
+
+<div class="col-md-3">
+<select name="po_status" class="form-control">
+<option value="">All</option>
+<option value="PENDING">Pending</option>
+<option value="COMPLETED">Completed</option>
+</select>
+</div>
+</div>
+
+<div class="row mt-2">
+<div class="col-md-4">
+<select name="company" class="form-control">
+<option value="">All Companies</option>
+{% for c in companies %}
+<option value="{{ c.id }}">{{ c.name }}</option>
+{% endfor %}
+</select>
+</div>
+
+<div class="col-md-5">
+<select name="processes" multiple class="form-control">
+{% for p in process_list %}
+<option value="{{ p.id }}">{{ p.name }}</option>
+{% endfor %}
+</select>
+</div>
+
+<div class="col-md-3 text-right">
+<button class="btn btn-primary">Filter</button>
+<a href="{% url 'po:po_process_report' %}" class="btn btn-secondary">Reset</a>
+<a href="{% url 'po:po_process_report_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">Excel</a>
+</div>
+</div>
+
+</div>
+</div>
+</form>
+
+<div class="card">
+<div class="card-body p-0">
+
+<table class="table table-bordered table-sm">
+<thead>
+<tr>
+<th>#</th>
+<th>PO</th>
+<th>Process</th>
+<th>Item</th>
+<th>Status</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% if filter_used %}
+{% regroup rows by po_number as po_group %}
+
+{% for group in po_group %}
+<tr class="table-secondary">
+<td colspan="5"><b>{{ group.grouper }}</b></td>
+</tr>
+
+{% for row in group.list %}
+<tr>
+<td>{{ forloop.counter }}</td>
+<td>{{ row.po_number }}</td>
+<td>{{ row.process }}</td>
+<td>{{ row.item_description }}</td>
+<td>{{ row.status }}</td>
+</tr>
+{% endfor %}
+
+{% endfor %}
+{% else %}
+<tr><td colspan="5" class="text-center">Apply filters</td></tr>
+{% endif %}
+
+</tbody>
+</table>
+
+</div>
+</div>
+
+{% if page_obj %}
+{% include "components/pagination.html" with page_obj=page_obj %}
+{% endif %}
+
+</div>
+
+{% endblock %}

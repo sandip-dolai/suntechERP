@@ -17,7 +17,7 @@ from suntech_erp.permissions import admin_required, can_view_value, is_admin
 from django.contrib.auth.decorators import login_required as login_required_view
 from django.db import transaction, IntegrityError
 
-from django.db.models.functions import Concat, Coalesce, TruncMonth
+from django.db.models.functions import Concat, Coalesce
 from .models import (
     PurchaseOrder,
     PurchaseOrderItem,
@@ -26,7 +26,7 @@ from .models import (
     POProcessItemStatus,
 )
 from .forms import PurchaseOrderForm, PurchaseOrderItemFormSet, POProcessUpdateForm
-from master.models import CompanyMaster, ProcessStatusMaster
+from master.models import CompanyMaster, ProcessStatusMaster, DepartmentProcessMaster
 from datetime import datetime
 from django.http import HttpResponseForbidden, HttpResponse, JsonResponse
 from django.template.loader import render_to_string
@@ -386,10 +386,10 @@ def po_report(request):
 def po_report_summary_excel(request):
     today = datetime.today().date()
     date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
-    date_to   = request.GET.get("date_to")   or today.strftime("%Y-%m-%d")
- 
+    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
+
     base_filters = {"po_date__range": [date_from, date_to]}
- 
+
     if request.GET.get("po_number"):
         base_filters["po_number"] = request.GET["po_number"]
     if request.GET.get("oa_number"):
@@ -400,7 +400,7 @@ def po_report_summary_excel(request):
         base_filters["po_status"] = request.GET["po_status"]
     if request.GET.get("department"):
         base_filters["department"] = request.GET["department"]
- 
+
     pos = (
         PurchaseOrder.objects.select_related("company", "created_by")
         .prefetch_related("items")
@@ -419,7 +419,7 @@ def po_report_summary_excel(request):
         )
         .order_by("id")
     )
- 
+
     # Compute grand totals for template
     agg = pos.aggregate(
         total_qty=Coalesce(
@@ -433,23 +433,23 @@ def po_report_summary_excel(request):
             output_field=DecimalField(max_digits=12, decimal_places=2),
         ),
     )
- 
+
     html = render_to_string(
         "po/po_report_summary_excel.html",
         {
-            "pos":           pos,
-            "total_qty":     agg["total_qty"],
-            "total_value":   agg["total_value"],
+            "pos": pos,
+            "total_qty": agg["total_qty"],
+            "total_value": agg["total_value"],
             "can_view_value": can_view_value(request.user),
         },
     )
- 
+
     response = HttpResponse(html)
-    response["Content-Type"]        = "application/vnd.ms-excel"
+    response["Content-Type"] = "application/vnd.ms-excel"
     response["Content-Disposition"] = (
         f'attachment; filename="PO_Summary_{date_from}_to_{date_to}.xls"'
     )
-    response["Pragma"]  = "no-cache"
+    response["Pragma"] = "no-cache"
     response["Expires"] = "0"
     return response
 
@@ -461,10 +461,10 @@ def po_report_summary_excel(request):
 def po_report_item_excel(request):
     today = datetime.today().date()
     date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
-    date_to   = request.GET.get("date_to")   or today.strftime("%Y-%m-%d")
- 
+    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
+
     base_filters = {"purchase_order__po_date__range": [date_from, date_to]}
- 
+
     if request.GET.get("po_number"):
         base_filters["purchase_order__po_number"] = request.GET["po_number"]
     if request.GET.get("oa_number"):
@@ -475,7 +475,7 @@ def po_report_item_excel(request):
         base_filters["purchase_order__po_status"] = request.GET["po_status"]
     if request.GET.get("department"):
         base_filters["purchase_order__department"] = request.GET["department"]
- 
+
     items = (
         PurchaseOrderItem.objects.select_related(
             "purchase_order",
@@ -485,7 +485,7 @@ def po_report_item_excel(request):
         .filter(**base_filters)
         .order_by("purchase_order__id", "id")
     )
- 
+
     grand_totals = items.aggregate(
         total_quantity=Coalesce(
             Sum("quantity_value"),
@@ -498,22 +498,22 @@ def po_report_item_excel(request):
             output_field=DecimalField(max_digits=12, decimal_places=2),
         ),
     )
- 
+
     html = render_to_string(
         "po/po_report_item_excel.html",
         {
-            "items":          items,
-            "grand_totals":   grand_totals,
+            "items": items,
+            "grand_totals": grand_totals,
             "can_view_value": can_view_value(request.user),
         },
     )
- 
+
     response = HttpResponse(html)
-    response["Content-Type"]        = "application/vnd.ms-excel"
+    response["Content-Type"] = "application/vnd.ms-excel"
     response["Content-Disposition"] = (
         f'attachment; filename="PO_Items_{date_from}_to_{date_to}.xls"'
     )
-    response["Pragma"]  = "no-cache"
+    response["Pragma"] = "no-cache"
     response["Expires"] = "0"
     return response
 
@@ -1008,3 +1008,226 @@ def ajax_po_items_list(request, pk):
             "po_number": po.po_number,
         }
     )
+
+
+@login_required_view
+def po_process_report(request):
+    # ------------------------------
+    # FILTER INPUTS
+    # ------------------------------
+    date_from = request.GET.get("date_from")
+    date_to = request.GET.get("date_to")
+    processes = request.GET.getlist("processes")
+    po_status = request.GET.get("po_status")
+    company = request.GET.get("company")
+    po_number = request.GET.get("po_number")
+
+    # ------------------------------
+    # FILTER VALIDATION
+    # ------------------------------
+    filter_used = bool(processes and (date_from or date_to))
+
+    rows = []
+
+    if filter_used:
+        process_qs = POProcess.objects.select_related(
+            "purchase_order",
+            "department_process",
+            "current_status",
+            "purchase_order__company",
+        )
+
+        # PROCESS FILTER
+        process_qs = process_qs.filter(department_process_id__in=processes)
+
+        # DATE FILTER
+        if date_from:
+            process_qs = process_qs.filter(purchase_order__po_date__gte=date_from)
+
+        if date_to:
+            process_qs = process_qs.filter(purchase_order__po_date__lte=date_to)
+
+        # OTHER FILTERS
+        if po_status:
+            process_qs = process_qs.filter(purchase_order__po_status=po_status)
+
+        if company:
+            process_qs = process_qs.filter(purchase_order__company_id=company)
+
+        if po_number:
+            process_qs = process_qs.filter(
+                purchase_order__po_number__icontains=po_number
+            )
+
+        process_qs = (
+            process_qs.prefetch_related(
+                "purchase_order__items",
+                "item_statuses__status",
+                "item_statuses__po_item",
+            )
+            .order_by(
+                "purchase_order__id",
+                "department_process__sequence",
+            )
+            .distinct()
+        )
+
+        # BUILD ROWS
+        for process in process_qs:
+            po = process.purchase_order
+            items = po.items.all()
+
+            status_map = {s.po_item_id: s for s in process.item_statuses.all()}
+
+            for item in items:
+                item_status_obj = status_map.get(item.id)
+
+                if process.department_process.has_item_tracking:
+                    status_name = (
+                        item_status_obj.status.name if item_status_obj else item.status
+                    )
+                else:
+                    status_name = process.current_status.name
+
+                rows.append(
+                    {
+                        "po_id": po.id,
+                        "po_number": po.po_number,
+                        "po_date": po.po_date,
+                        "company": po.company.name if po.company else "—",
+                        "process": process.department_process.name,
+                        "department": process.department_process.department,
+                        "process_status": process.current_status.name,
+                        "item_description": item.material_description,
+                        "quantity": item.quantity_value,
+                        "uom": item.uom,
+                        "status": status_name,
+                    }
+                )
+
+    # ------------------------------
+    # PAGINATION
+    # ------------------------------
+    page_obj = None
+    if filter_used:
+        paginator = Paginator(rows, 50)
+        page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        "rows": page_obj,
+        "page_obj": page_obj,
+        "filter_used": filter_used,
+        "process_list": DepartmentProcessMaster.objects.filter(is_active=True),
+        "companies": CompanyMaster.objects.order_by("name"),
+        "filters": {
+            "date_from": date_from or "",
+            "date_to": date_to or "",
+            "processes": processes,
+            "po_status": po_status or "",
+            "company": company or "",
+            "po_number": po_number or "",
+        },
+    }
+
+    return render(request, "po/po_process_report.html", context)
+
+
+@login_required_view
+def po_process_report_excel(request):
+    date_from = request.GET.get("date_from")
+    date_to = request.GET.get("date_to")
+    processes = request.GET.getlist("processes")
+    po_status = request.GET.get("po_status")
+    company = request.GET.get("company")
+    po_number = request.GET.get("po_number")
+
+    rows = []
+
+    if processes and (date_from or date_to):
+
+        process_qs = POProcess.objects.select_related(
+            "purchase_order",
+            "department_process",
+            "current_status",
+            "purchase_order__company",
+        ).filter(
+            department_process_id__in=processes
+        )
+
+        if date_from:
+            process_qs = process_qs.filter(
+                purchase_order__po_date__gte=date_from
+            )
+
+        if date_to:
+            process_qs = process_qs.filter(
+                purchase_order__po_date__lte=date_to
+            )
+
+        if po_status:
+            process_qs = process_qs.filter(
+                purchase_order__po_status=po_status
+            )
+
+        if company:
+            process_qs = process_qs.filter(
+                purchase_order__company_id=company
+            )
+
+        if po_number:
+            process_qs = process_qs.filter(
+                purchase_order__po_number__icontains=po_number
+            )
+
+        process_qs = process_qs.prefetch_related(
+            "purchase_order__items",
+            "item_statuses__status",
+            "item_statuses__po_item",
+        ).order_by(
+            "purchase_order__id",
+            "department_process__sequence",
+        ).distinct()
+
+        for process in process_qs:
+            po = process.purchase_order
+            items = po.items.all()
+
+            status_map = {
+                s.po_item_id: s for s in process.item_statuses.all()
+            }
+
+            for item in items:
+                item_status_obj = status_map.get(item.id)
+
+                if process.department_process.has_item_tracking:
+                    status_name = (
+                        item_status_obj.status.name
+                        if item_status_obj
+                        else item.status
+                    )
+                else:
+                    status_name = process.current_status.name
+
+                rows.append({
+                    "po_number": po.po_number,
+                    "po_date": po.po_date,
+                    "company": po.company.name if po.company else "—",
+                    "process": process.department_process.name,
+                    "item_description": item.material_description,
+                    "quantity": item.quantity_value,
+                    "status": status_name,
+                })
+
+    # ------------------------------
+    # RENDER EXCEL
+    # ------------------------------
+    html = render_to_string(
+        "po/po_process_report_excel.html",
+        {"rows": rows}
+    )
+
+    response = HttpResponse(html)
+    response["Content-Type"] = "application/vnd.ms-excel"
+    response["Content-Disposition"] = "attachment; filename=po_process_report.xls"
+
+    return response
