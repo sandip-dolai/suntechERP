@@ -24,6 +24,7 @@ from .models import (
     POProcessHistory,
     POProcessItemStatus,
     POTarget,
+    POTargetItem,
 )
 from .forms import (
     PurchaseOrderForm,
@@ -1227,148 +1228,356 @@ def po_process_report_excel(request):
     return response
 
 
+# =====================================================================================
+# =====================================================================================
+# =====================================================================================
+# =====================================================================================
+# =====================================================================================
+
+
+# =====================================================================================
+# AJAX PO ITEMS FOR TARGET
+# =====================================================================================
+@login_required_view
+def ajax_po_items_for_target(request, po_id):
+    po = get_object_or_404(PurchaseOrder, pk=po_id)
+
+    # Get already targeted item ids for this PO if editing
+    target_id = request.GET.get("target_id")
+    selected_item_ids = []
+    if target_id:
+        selected_item_ids = list(
+            POTargetItem.objects.filter(po_target_id=target_id).values_list(
+                "po_item_id", flat=True
+            )
+        )
+
+    items = po.items.values(
+        "id",
+        "material_code",
+        "material_description",
+        "quantity_value",
+        "uom",
+        "material_value",
+    )
+    data = [
+        {
+            "id": item["id"],
+            "code": item["material_code"] or "—",
+            "description": item["material_description"],
+            "quantity": str(item["quantity_value"] or 0),
+            "uom": item["uom"],
+            "value": str(item["material_value"] or 0),
+            "selected": item["id"] in selected_item_ids,
+        }
+        for item in items
+    ]
+    return JsonResponse({"items": data})
+
+
+# =====================================================================================
+# PO TARGET LIST
+# =====================================================================================
 @login_required_view
 def po_target_list(request):
     if not request.user.is_superuser:
         return HttpResponseForbidden()
 
-    targets = POTarget.objects.all()
+    targets = (
+        POTarget.objects.select_related("purchase_order", "purchase_order__company")
+        .prefetch_related("target_items__po_item")
+        .order_by("-year", "-month")
+    )
 
-    edit_id = request.GET.get("edit")
-    instance = None
-
-    if edit_id:
-        instance = get_object_or_404(POTarget, pk=edit_id)
-
-    form = POTargetForm(instance=instance)
-
-    if request.method == "POST":
-        if instance:
-            form = POTargetForm(request.POST, instance=instance)
-        else:
-            form = POTargetForm(request.POST)
-
-        if form.is_valid():
-            form.save()
-            return redirect("po:po_target_list")
+    paginator = Paginator(targets, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
 
     context = {
-        "targets": targets,
-        "form": form,
-        "edit_mode": bool(instance),
+        "page_obj": page_obj,
     }
-
     return render(request, "po/po_target_list.html", context)
 
 
+# =====================================================================================
+# PO TARGET CREATE
+# =====================================================================================
+@login_required_view
+def po_target_create(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    form = POTargetForm()
+
+    if request.method == "POST":
+        form = POTargetForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            po = cd["purchase_order"]
+            month = cd["month"]
+            year = cd["year"]
+            item_ids = cd["item_ids"]
+
+            agg = PurchaseOrderItem.objects.filter(
+                id__in=item_ids, purchase_order=po
+            ).aggregate(
+                total=Coalesce(
+                    Sum("material_value"),
+                    Value(0),
+                    output_field=DecimalField(max_digits=15, decimal_places=2),
+                )
+            )
+
+            with transaction.atomic():
+                target = POTarget.objects.create(
+                    purchase_order=po,
+                    month=month,
+                    year=year,
+                    target_value=agg["total"],
+                )
+                POTargetItem.objects.bulk_create(
+                    [POTargetItem(po_target=target, po_item_id=iid) for iid in item_ids]
+                )
+
+            messages.success(request, "Target created successfully.")
+            return redirect("po:po_target_list")
+
+    context = {
+        "form": form,
+        "title": "Create Target",
+    }
+    return render(request, "po/po_target_form.html", context)
+
+
+# =====================================================================================
+# PO TARGET EDIT
+# =====================================================================================
 @login_required_view
 def po_target_edit(request, pk):
     if not request.user.is_superuser:
         return HttpResponseForbidden()
 
-    target = get_object_or_404(POTarget, pk=pk)
+    target = get_object_or_404(
+        POTarget.objects.select_related("purchase_order").prefetch_related(
+            "target_items__po_item"
+        ),
+        pk=pk,
+    )
 
-    form = POTargetForm(instance=target)
+    form = POTargetForm(
+        instance=target,
+        initial={
+            "month": target.month,
+            "year": target.year,
+        },
+    )
 
     if request.method == "POST":
         form = POTargetForm(request.POST, instance=target)
         if form.is_valid():
-            form.save()
+            cd = form.cleaned_data
+            month = cd["month"]
+            year = cd["year"]
+            item_ids = cd["item_ids"]
+
+            agg = PurchaseOrderItem.objects.filter(
+                id__in=item_ids,
+                purchase_order=target.purchase_order,
+            ).aggregate(
+                total=Coalesce(
+                    Sum("material_value"),
+                    Value(0),
+                    output_field=DecimalField(max_digits=15, decimal_places=2),
+                )
+            )
+
+            with transaction.atomic():
+                target.month = month
+                target.year = year
+                target.target_value = agg["total"]
+                target.save()
+
+                # Replace old items with new selection
+                target.target_items.all().delete()
+                POTargetItem.objects.bulk_create(
+                    [POTargetItem(po_target=target, po_item_id=iid) for iid in item_ids]
+                )
+
+            messages.success(request, "Target updated successfully.")
             return redirect("po:po_target_list")
 
-    return render(request, "po/po_target_form.html", {"form": form})
+    context = {
+        "form": form,
+        "target": target,
+        "title": f"Edit Target — {target.purchase_order.po_number}",
+    }
+    return render(request, "po/po_target_form.html", context)
 
 
+# =====================================================================================
+# PO TARGET DELETE
+# =====================================================================================
 @login_required_view
-def po_target_report(request):
-    # ------------------------------
-    # ADMIN ONLY
-    # ------------------------------
+def po_target_delete(request, pk):
     if not request.user.is_superuser:
         return HttpResponseForbidden()
 
-    # ------------------------------
-    # FILTERS
-    # ------------------------------
-    po_ids = request.GET.getlist("pos")
+    target = get_object_or_404(POTarget, pk=pk)
+
+    if request.method == "POST":
+        target.delete()
+        messages.success(request, "Target deleted successfully.")
+        return redirect("po:po_target_list")
+
+    return redirect("po:po_target_list")
+
+
+# =====================================================================================
+# PO TARGET REPORT
+# =====================================================================================
+@login_required_view
+def po_target_report(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    from .models import MONTH_CHOICES
+
+    month = request.GET.get("month")
     year = request.GET.get("year")
 
-    filter_used = bool(po_ids and year)
+    filter_used = bool(month and year)
 
     data = []
     total_target = 0
     total_achieved = 0
 
     if filter_used:
-        # ------------------------------
-        # BASE QUERYSET
-        # ------------------------------
-        qs = PurchaseOrder.objects.filter(
-            id__in=po_ids, delivery_date__year=year, delivery_date__isnull=False
-        )
-
-        # ------------------------------
-        # GROUP BY MONTH
-        # ------------------------------
         qs = (
-            qs.annotate(month=TruncMonth("delivery_date"))
-            .values("month")
-            .annotate(revenue=Sum("items__material_value"))
-            .order_by("month")
+            POTarget.objects.select_related("purchase_order", "purchase_order__company")
+            .prefetch_related("target_items__po_item")
+            .filter(month=month, year=year)
         )
 
-        # ------------------------------
-        # PROCESS DATA
-        # ------------------------------
-        for row in qs:
-            month_date = row["month"]
-            month = month_date.month
-            year_val = month_date.year
+        month_name_map = dict(MONTH_CHOICES)
 
-            revenue = row["revenue"] or 0
+        for target in qs:
+            po = target.purchase_order
 
-            # ------------------------------
-            # TARGET FETCH
-            # ------------------------------
-            target_obj = POTarget.objects.filter(month=month, year=year_val).first()
+            achieved = PurchaseOrderItem.objects.filter(
+                id__in=target.target_items.values_list("po_item_id", flat=True),
+                status="COMPLETED",
+            ).aggregate(
+                total=Coalesce(
+                    Sum("material_value"),
+                    Value(0),
+                    output_field=DecimalField(max_digits=15, decimal_places=2),
+                )
+            )[
+                "total"
+            ]
 
-            target_value = target_obj.target_value if target_obj else 0
+            target_val = target.target_value or 0
+            pct = (achieved / target_val * 100) if target_val > 0 else 0
 
-            # ------------------------------
-            # ACHIEVEMENT %
-            # ------------------------------
-            percentage = (revenue / target_value) * 100 if target_value > 0 else 0
-
-            total_target += target_value
-            total_achieved += revenue
+            total_target += target_val
+            total_achieved += achieved
 
             data.append(
                 {
-                    "month": month_date.strftime("%b %Y"),
-                    "target": target_value,
-                    "achieved": revenue,
-                    "percentage": round(percentage, 2),
+                    "po_number": po.po_number,
+                    "company": po.company.name if po.company else "—",
+                    "month": month_name_map.get(target.month, target.month),
+                    "year": target.year,
+                    "target": target_val,
+                    "achieved": achieved,
+                    "percentage": round(pct, 2),
+                    "items": [ti.po_item for ti in target.target_items.all()],
                 }
             )
 
-    # ------------------------------
-    # OVERALL %
-    # ------------------------------
-    overall_percentage = (
-        (total_achieved / total_target) * 100 if total_target > 0 else 0
-    )
+    overall_pct = (total_achieved / total_target * 100) if total_target > 0 else 0
 
     context = {
         "data": data,
         "filter_used": filter_used,
         "total_target": total_target,
         "total_achieved": total_achieved,
-        "overall_percentage": round(overall_percentage, 2),
+        "overall_percentage": round(overall_pct, 2),
         "filters": {
-            "pos": po_ids,
+            "month": month or "",
             "year": year or "",
         },
-        "po_list": PurchaseOrder.objects.order_by("-id")[:500],
+        "month_choices": MONTH_CHOICES,
     }
 
     return render(request, "po/po_target_report.html", context)
+
+
+# =====================================================================================
+# PO TARGET REPORT
+# =====================================================================================
+@login_required_view
+def po_target_report_excel(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    from .models import MONTH_CHOICES
+
+    month = request.GET.get("month")
+    year = request.GET.get("year")
+
+    data = []
+
+    if month and year:
+        qs = (
+            POTarget.objects.select_related("purchase_order", "purchase_order__company")
+            .prefetch_related("target_items__po_item")
+            .filter(month=month, year=year)
+        )
+
+        month_name_map = dict(MONTH_CHOICES)
+
+        for target in qs:
+            po = target.purchase_order
+
+            achieved = PurchaseOrderItem.objects.filter(
+                id__in=target.target_items.values_list("po_item_id", flat=True),
+                status="COMPLETED",
+            ).aggregate(
+                total=Coalesce(
+                    Sum("material_value"),
+                    Value(0),
+                    output_field=DecimalField(max_digits=15, decimal_places=2),
+                )
+            )[
+                "total"
+            ]
+
+            target_val = target.target_value or 0
+            pct = (achieved / target_val * 100) if target_val > 0 else 0
+
+            data.append(
+                {
+                    "po_number": po.po_number,
+                    "company": po.company.name if po.company else "—",
+                    "month": month_name_map.get(target.month, target.month),
+                    "year": target.year,
+                    "target": target_val,
+                    "achieved": achieved,
+                    "percentage": round(pct, 2),
+                    "items": [ti.po_item for ti in target.target_items.all()],
+                }
+            )
+
+    html = render_to_string(
+        "po/po_target_report_excel.html",
+        {"data": data},
+    )
+
+    response = HttpResponse(html)
+    response["Content-Type"] = "application/vnd.ms-excel"
+    response["Content-Disposition"] = (
+        f'attachment; filename="PO_Target_Report_{month}_{year}.xls"'
+    )
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    return response

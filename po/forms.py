@@ -6,6 +6,8 @@ from .models import (
     POProcess,
     POProcessHistory,
     POTarget,
+    POTargetItem,
+    MONTH_CHOICES,
 )
 from master.models import CompanyMaster, ProcessStatusMaster
 import datetime
@@ -356,24 +358,73 @@ class POProcessReadonlyForm(forms.ModelForm):
 # ------------------------------
 # PO TARGET FORM
 # ------------------------------
-class POTargetForm(forms.ModelForm):
-    class Meta:
-        model = POTarget
-        fields = ["month", "year", "target_value"]
-        widgets = {
-            "month": forms.Select(attrs={"class": "form-control"}),
-            "year": forms.NumberInput(attrs={"class": "form-control"}),
-            "target_value": forms.NumberInput(attrs={"class": "form-control"}),
-        }
+class POTargetForm(forms.Form):
+    purchase_order = forms.ModelChoiceField(
+        queryset=PurchaseOrder.objects.order_by("-id"),
+        empty_label="— Select PO —",
+        widget=forms.Select(attrs={"class": "form-control", "id": "id_po_select"}),
+    )
+    month = forms.ChoiceField(
+        choices=[("", "— Select Month —")] + list(MONTH_CHOICES),
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+    year = forms.IntegerField(
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "placeholder": "e.g. 2026",
+            "min": 2020,
+            "max": 2099,
+        }),
+    )
+    selected_items = forms.CharField(
+        widget=forms.HiddenInput(),
+        required=False,
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.instance = kwargs.pop("instance", None)
+        super().__init__(*args, **kwargs)
+
+        # On edit — make PO readonly
+        if self.instance:
+            self.fields["purchase_order"].widget.attrs["disabled"] = True
+            self.fields["purchase_order"].required = False
+            self.fields["purchase_order"].initial = self.instance.purchase_order
+
+    def clean_month(self):
+        value = self.cleaned_data.get("month")
+        if not value:
+            raise forms.ValidationError("Please select a month.")
+        return int(value)
 
     def clean(self):
         cleaned_data = super().clean()
         month = cleaned_data.get("month")
         year = cleaned_data.get("year")
+        selected_items_raw = cleaned_data.get("selected_items", "")
 
-        if POTarget.objects.filter(month=month, year=year).exists():
-            raise forms.ValidationError(
-                "Target for this month and year already exists."
-            )
+        # On edit, use instance PO; on create, use form PO
+        po = self.instance.purchase_order if self.instance else cleaned_data.get("purchase_order")
+
+        try:
+            item_ids = [int(i) for i in selected_items_raw.split(",") if i.strip()]
+        except ValueError:
+            item_ids = []
+
+        if not item_ids:
+            raise forms.ValidationError("Please select at least one PO item.")
+
+        cleaned_data["item_ids"] = item_ids
+        cleaned_data["purchase_order"] = po
+
+        # Duplicate check (exclude self on edit)
+        if po and month and year:
+            qs = POTarget.objects.filter(purchase_order=po, month=month, year=year)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(
+                    f"A target for PO {po.po_number} in this month/year already exists."
+                )
 
         return cleaned_data

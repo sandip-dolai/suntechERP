@@ -269,22 +269,66 @@ class POProcessItemStatus(models.Model):
         )
 
 
+MONTH_CHOICES = [
+    (1, "January"),
+    (2, "February"),
+    (3, "March"),
+    (4, "April"),
+    (5, "May"),
+    (6, "June"),
+    (7, "July"),
+    (8, "August"),
+    (9, "September"),
+    (10, "October"),
+    (11, "November"),
+    (12, "December"),
+]
+
+
 class POTarget(models.Model):
-    month = models.PositiveIntegerField(choices=[(i, i) for i in range(1, 13)])
-    year = models.PositiveIntegerField()
-
-    target_value = models.DecimalField(
-        max_digits=15, decimal_places=2, help_text="Monthly revenue target"
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="targets",
     )
-
+    month = models.PositiveIntegerField(choices=MONTH_CHOICES)
+    year = models.PositiveIntegerField()
+    target_value = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        help_text="Auto-computed from selected PO items",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("month", "year")
+        unique_together = ("purchase_order", "month", "year")
         ordering = ["-year", "-month"]
         verbose_name = "PO Target"
         verbose_name_plural = "PO Targets"
 
     def __str__(self):
-        return f"{self.month}-{self.year} → {self.target_value}"
+        month_name = dict(MONTH_CHOICES).get(self.month, self.month)
+        return f"PO {self.purchase_order.po_number} | {month_name} {self.year} → {self.target_value}"
+
+
+class POTargetItem(models.Model):
+    po_target = models.ForeignKey(
+        POTarget,
+        on_delete=models.CASCADE,
+        related_name="target_items",
+    )
+    po_item = models.ForeignKey(
+        PurchaseOrderItem,
+        on_delete=models.PROTECT,
+        related_name="target_entries",
+    )
+
+    class Meta:
+        unique_together = ("po_target", "po_item")
+        ordering = ["po_item"]
+        verbose_name = "PO Target Item"
+        verbose_name_plural = "PO Target Items"
+
+    def __str__(self):
+        return f"{self.po_target} | {self.po_item.material_description[:40]}"

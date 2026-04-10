@@ -53,12 +53,22 @@ urlpatterns = [
         views.po_process_report_excel,
         name="po_process_report_excel",
     ),
+    # ------------------------------
     # target
+    # ------------------------------
     path("target/", views.po_target_list, name="po_target_list"),
+    path("target/create/", views.po_target_create, name="po_target_create"),
     path("target/<int:pk>/edit/", views.po_target_edit, name="po_target_edit"),
+    path("target/<int:pk>/delete/", views.po_target_delete, name="po_target_delete"),
     path(
-        "target-report/",
-        views.po_target_report,
-        name="po_target_report",
+        "target/ajax-items/<int:po_id>/",
+        views.ajax_po_items_for_target,
+        name="ajax_po_items_for_target",
+    ),
+    path("target-report/", views.po_target_report, name="po_target_report"),
+    path(
+        "target-report/excel/",
+        views.po_target_report_excel,
+        name="po_target_report_excel",
     ),
 ]

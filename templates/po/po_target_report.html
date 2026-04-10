@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static %}
 
-{% block title %}PO Target & Revenue Report{% endblock %}
+{% block title %}Target Report - Suntech ERP{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -9,11 +9,9 @@
         border-left: 4px solid;
         border-radius: 6px;
     }
-    .blue { border-color: #007bff; }
-    .green { border-color: #28a745; }
-    .yellow { border-color: #ffc107; }
-
-    .select2-container { width: 100% !important; }
+    .summary-card.blue   { border-color: #007bff; }
+    .summary-card.green  { border-color: #28a745; }
+    .summary-card.yellow { border-color: #ffc107; }
 </style>
 {% endblock %}
 
@@ -22,49 +20,66 @@
 
     <!-- ================= HEADER ================= -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0">PO Target & Revenue Report</h4>
+        <h4 class="mb-0">Target & Revenue Report</h4>
+        <a href="{% url 'po:po_target_list' %}" class="btn btn-secondary btn-sm">
+            <i class="fa fa-arrow-left"></i> Back to List
+        </a>
     </div>
 
-    <!-- ================= FILTER ================= -->
+    <!-- ================= FILTER CARD ================= -->
     <form method="get">
         <div class="card mb-3">
             <div class="card-header">
-                <strong><i class="fa fa-filter"></i> Filters</strong>
+                <strong><i class="fa fa-filter mr-1"></i> Filters</strong>
             </div>
+            <div class="card-body pb-2">
+                <div class="row align-items-end">
 
-            <div class="card-body">
-
-                <div class="row">
-
-                    <!-- PO MULTI SELECT -->
-                    <div class="col-md-6">
-                        <label class="small font-weight-bold">Select POs</label>
-                        <select name="pos" multiple class="form-control" id="filter-po">
-                            {% for po in po_list %}
-                            <option value="{{ po.id }}"
-                                {% if po.id|stringformat:"s" in filters.pos %}selected{% endif %}>
-                                {{ po.po_number }}
+                    <!-- Month -->
+                    <div class="col-md-3 mb-2">
+                        <label class="small font-weight-bold">Month <span class="text-danger">*</span></label>
+                        <select name="month" class="form-control" id="filter-month">
+                            <option value="">— Select Month —</option>
+                            {% for num, name in month_choices %}
+                            <option value="{{ num }}"
+                                {% if filters.month == num|stringformat:"s" %}selected{% endif %}>
+                                {{ name }}
                             </option>
                             {% endfor %}
                         </select>
                     </div>
 
-                    <!-- YEAR -->
-                    <div class="col-md-3">
-                        <label class="small font-weight-bold">Year</label>
+                    <!-- Year -->
+                    <div class="col-md-3 mb-2">
+                        <label class="small font-weight-bold">Year <span class="text-danger">*</span></label>
                         <input type="number" name="year" class="form-control"
-                               value="{{ filters.year }}" placeholder="2026">
+                               value="{{ filters.year }}"
+                               placeholder="e.g. 2026"
+                               min="2020" max="2099">
                     </div>
 
-                    <!-- BUTTON -->
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button class="btn btn-primary w-100">
+                    <!-- Buttons -->
+                    <div class="col-md-6 mb-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary mr-1">
                             <i class="fa fa-search"></i> Generate
                         </button>
+                        <a href="{% url 'po:po_target_report' %}"
+                           class="btn btn-secondary mr-1">
+                            <i class="fa fa-refresh"></i> Reset
+                        </a>
+                        {% if filter_used %}
+                        <a href="{% url 'po:po_target_report_excel' %}?{{ request.GET.urlencode }}"
+                           class="btn btn-success mr-1">
+                            <i class="fa fa-file-excel-o"></i> Excel
+                        </a>
+                        <button type="button" class="btn btn-info"
+                                onclick="toggleGraph()">
+                            <i class="fa fa-bar-chart"></i> Graph
+                        </button>
+                        {% endif %}
                     </div>
 
                 </div>
-
             </div>
         </div>
     </form>
@@ -73,165 +88,290 @@
 
     <!-- ================= KPI CARDS ================= -->
     <div class="row mb-3">
-
-        <div class="col-md-4">
+        <div class="col-md-4 mb-2">
             <div class="card summary-card blue p-3 text-center">
                 <div class="small text-muted">Total Target</div>
-                <h5 class="text-primary">₹ {{ total_target|floatformat:0 }}</h5>
+                <h5 class="text-primary mb-0">₹ {{ total_target|floatformat:2 }}</h5>
             </div>
         </div>
-
-        <div class="col-md-4">
+        <div class="col-md-4 mb-2">
             <div class="card summary-card green p-3 text-center">
-                <div class="small text-muted">Total Revenue</div>
-                <h5 class="text-success">₹ {{ total_achieved|floatformat:0 }}</h5>
+                <div class="small text-muted">Total Achieved</div>
+                <h5 class="text-success mb-0">₹ {{ total_achieved|floatformat:2 }}</h5>
             </div>
         </div>
-
-        <div class="col-md-4">
+        <div class="col-md-4 mb-2">
             <div class="card summary-card yellow p-3 text-center">
-                <div class="small text-muted">Achievement %</div>
-                <h5 class="text-warning">{{ overall_percentage }}%</h5>
+                <div class="small text-muted">Overall Achievement</div>
+                <h5 class="text-warning mb-0">{{ overall_percentage }}%</h5>
             </div>
         </div>
-
     </div>
 
-    <!-- ================= GRAPH ================= -->
-    <div class="card mb-3">
-        <div class="card-header">
-            <strong><i class="fa fa-bar-chart"></i> Monthly Target vs Revenue</strong>
+    <!-- ================= GRAPH CARD ================= -->
+    <div class="card mb-3" id="graph-card" style="display:none;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong><i class="fa fa-bar-chart"></i> Target vs Achieved</strong>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-primary mr-1"
+                        id="btn-bar" onclick="switchChart('bar')">
+                    <i class="fa fa-bar-chart"></i> Bar
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success"
+                        id="btn-line" onclick="switchChart('line')">
+                    <i class="fa fa-line-chart"></i> Line
+                </button>
+            </div>
         </div>
         <div class="card-body">
-            <canvas id="targetChart" height="80"></canvas>
+            <canvas id="targetChart" height="100"></canvas>
         </div>
     </div>
 
     <!-- ================= TABLE ================= -->
     <div class="card">
         <div class="card-body p-0">
-
-            <table class="table table-bordered table-sm mb-0">
+            <table class="table table-bordered table-hover table-sm mb-0">
                 <thead class="table-primary">
                     <tr>
-                        <th>#</th>
-                        <th>Month</th>
-                        <th>Target</th>
-                        <th>Revenue</th>
-                        <th>Achievement %</th>
+                        <th class="text-center" style="width:40px;">#</th>
+                        <th>PO Number</th>
+                        <th>Company</th>
+                        <th class="text-center">Month</th>
+                        <th class="text-center">Year</th>
+                        <th class="text-right">Target (₹)</th>
+                        <th class="text-right">Achieved (₹)</th>
+                        <th class="text-center">Achievement %</th>
+                        <th class="text-center">Items</th>
                     </tr>
                 </thead>
-
                 <tbody>
-
                     {% for row in data %}
                     <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td>{{ row.month }}</td>
-
-                        <td>₹ {{ row.target|floatformat:2 }}</td>
-
-                        <td>
-                            <span class="text-success font-weight-bold">
-                                ₹ {{ row.achieved|floatformat:2 }}
-                            </span>
+                        <td class="text-center">{{ forloop.counter }}</td>
+                        <td>{{ row.po_number }}</td>
+                        <td>{{ row.company }}</td>
+                        <td class="text-center">{{ row.month }}</td>
+                        <td class="text-center">{{ row.year }}</td>
+                        <td class="text-right">{{ row.target|floatformat:2 }}</td>
+                        <td class="text-right">{{ row.achieved|floatformat:2 }}</td>
+                        <td class="text-center">
+                            <div class="progress" style="height:18px;">
+                                <div class="progress-bar
+                                    {% if row.percentage >= 100 %}bg-success
+                                    {% elif row.percentage >= 50 %}bg-warning
+                                    {% else %}bg-danger{% endif %}"
+                                    role="progressbar"
+                                    style="width:{{ row.percentage }}%"
+                                    aria-valuenow="{{ row.percentage }}"
+                                    aria-valuemin="0" aria-valuemax="100">
+                                    {{ row.percentage }}%
+                                </div>
+                            </div>
                         </td>
-
-                        <td>
-                            <span class="badge
-                                {% if row.percentage >= 100 %}badge-success
-                                {% elif row.percentage >= 50 %}badge-warning text-dark
-                                {% else %}badge-danger{% endif %}">
-                                {{ row.percentage }}%
-                            </span>
+                        <td class="text-center">
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-info"
+                                    onclick="toggleItems({{ forloop.counter }})"
+                                    id="btn-{{ forloop.counter }}">
+                                <i class="fa fa-chevron-down" id="icon-{{ forloop.counter }}"></i>
+                                {{ row.items|length }} item{{ row.items|length|pluralize }}
+                            </button>
                         </td>
                     </tr>
+
+                    <!-- Items accordion row -->
+                    <tr id="items-row-{{ forloop.counter }}" style="display:none;">
+                        <td colspan="9" class="p-0">
+                            <div style="background:#f8f9fa; padding:10px 16px;
+                                        border-top:1px solid #dee2e6;">
+                                <table class="table table-sm table-bordered mb-0"
+                                       style="background:#fff;">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th style="width:35px;" class="text-center">#</th>
+                                            <th>Code</th>
+                                            <th>Description</th>
+                                            <th class="text-center">Qty</th>
+                                            <th class="text-center">UOM</th>
+                                            <th class="text-right">Value (₹)</th>
+                                            <th class="text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in row.items %}
+                                        <tr>
+                                            <td class="text-center">{{ forloop.counter }}</td>
+                                            <td>{{ item.material_code|default:"—" }}</td>
+                                            <td>{{ item.material_description }}</td>
+                                            <td class="text-center">{{ item.quantity_value|floatformat:3 }}</td>
+                                            <td class="text-center">{{ item.uom }}</td>
+                                            <td class="text-right">{{ item.material_value|floatformat:2|default:"—" }}</td>
+                                            <td class="text-center">
+                                                <span class="badge
+                                                    {% if item.status == 'COMPLETED' %}badge-success
+                                                    {% elif item.status == 'INPROCESS' %}badge-warning text-dark
+                                                    {% else %}badge-secondary{% endif %}">
+                                                    {{ item.get_status_display }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted">
-                            No data found
+                        <td colspan="9" class="text-center text-muted py-3">
+                            No targets found for the selected month and year.
                         </td>
                     </tr>
                     {% endfor %}
-
                 </tbody>
-
             </table>
-
         </div>
     </div>
 
     {% else %}
-
-    <!-- ================= EMPTY STATE ================= -->
-    <div class="text-center text-muted mt-5">
-        <i class="fa fa-info-circle"></i> Select filters to generate report
+    <div class="alert alert-info">
+        <i class="fa fa-info-circle"></i> Select a month and year to generate the report.
     </div>
-
     {% endif %}
 
 </div>
 {% endblock %}
 
 {% block extra_js %}
-
-<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
 $(document).ready(function () {
-
-    $("#filter-po").select2({
-        placeholder: "Select POs",
-        width: "100%"
+    $("#filter-month").select2({
+        width: "100%",
+        placeholder: "— Select Month —",
+        allowClear: true,
     });
+});
 
-    {% if filter_used %}
+// ── Chart Data from Django ────────────────────────────────────────
+const chartLabels = [{% for row in data %}"{{ row.po_number }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+const chartTarget = [{% for row in data %}{{ row.target }}{% if not forloop.last %},{% endif %}{% endfor %}];
+const chartAchieved = [{% for row in data %}{{ row.achieved }}{% if not forloop.last %},{% endif %}{% endfor %}];
 
-    var labels = [];
-    var targetData = [];
-    var revenueData = [];
+let chartInstance = null;
+let currentType = "bar";
 
-    {% for row in data %}
-        labels.push("{{ row.month }}");
-        targetData.push({{ row.target|default:0 }});
-        revenueData.push({{ row.achieved|default:0 }});
-    {% endfor %}
+function buildChart(type) {
+    const ctx = document.getElementById("targetChart").getContext("2d");
 
-    var ctx = document.getElementById('targetChart').getContext('2d');
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
 
-    new Chart(ctx, {
-        type: 'bar',
+    chartInstance = new Chart(ctx, {
+        type: type,
         data: {
-            labels: labels,
+            labels: chartLabels,
             datasets: [
                 {
-                    label: 'Target',
-                    data: targetData,
-                    backgroundColor: 'rgba(0, 123, 255, 0.7)'
+                    label: "Target (₹)",
+                    data: chartTarget,
+                    backgroundColor: type === "bar" ? "rgba(0, 123, 255, 0.6)" : "transparent",
+                    borderColor: "rgba(0, 123, 255, 1)",
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 4,
                 },
                 {
-                    label: 'Revenue',
-                    data: revenueData,
-                    backgroundColor: 'rgba(40, 167, 69, 0.7)'
-                }
-            ]
+                    label: "Achieved (₹)",
+                    data: chartAchieved,
+                    backgroundColor: type === "bar" ? "rgba(40, 167, 69, 0.6)" : "transparent",
+                    borderColor: "rgba(40, 167, 69, 1)",
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 4,
+                },
+            ],
         },
         options: {
             responsive: true,
-            scales: {
-                yAxes: [{
-                    ticks: {
-                        beginAtZero: true
+            plugins: {
+                legend: { position: "top" },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            return context.dataset.label + ": ₹" +
+                                parseFloat(context.parsed.y).toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2
+                                });
+                        }
                     }
-                }]
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function (value) {
+                            return "₹" + value.toLocaleString("en-IN");
+                        }
+                    }
+                }
             }
         }
     });
 
-    {% endif %}
+    // Update active button style
+    document.getElementById("btn-bar").className =
+        type === "bar" ? "btn btn-sm btn-primary mr-1" : "btn btn-sm btn-outline-primary mr-1";
+    document.getElementById("btn-line").className =
+        type === "line" ? "btn btn-sm btn-success" : "btn btn-sm btn-outline-success";
 
-});
+    currentType = type;
+}
+
+function toggleGraph() {
+    const card = document.getElementById("graph-card");
+    if (card.style.display === "none") {
+        card.style.display = "block";
+        if (!chartInstance) {
+            buildChart("bar");
+        }
+    } else {
+        card.style.display = "none";
+    }
+}
+
+function switchChart(type) {
+    if (type !== currentType) {
+        buildChart(type);
+    }
+}
+
+// ── Accordion toggle ──────────────────────────────────────────────
+function toggleItems(idx) {
+    var row  = document.getElementById("items-row-" + idx);
+    var icon = document.getElementById("icon-" + idx);
+    var btn  = document.getElementById("btn-" + idx);
+    if (!row) return;
+
+    if (row.style.display === "none" || row.style.display === "") {
+        row.style.display = "table-row";
+        icon.className    = "fa fa-chevron-up";
+        btn.classList.remove("btn-outline-info");
+        btn.classList.add("btn-info");
+        btn.style.color   = "#fff";
+    } else {
+        row.style.display = "none";
+        icon.className    = "fa fa-chevron-down";
+        btn.classList.remove("btn-info");
+        btn.classList.add("btn-outline-info");
+        btn.style.color   = "";
+    }
+}
 </script>
-
 {% endblock %}

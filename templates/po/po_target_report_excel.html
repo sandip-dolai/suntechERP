@@ -1,0 +1,70 @@
+{% load static %}
+<table border="1" cellpadding="5" cellspacing="0">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>PO Number</th>
+            <th>Company</th>
+            <th>Month</th>
+            <th>Year</th>
+            <th>Target (Rs.)</th>
+            <th>Achieved (Rs.)</th>
+            <th>Achievement %</th>
+            <th>Item Code</th>
+            <th>Item Description</th>
+            <th>Qty</th>
+            <th>UOM</th>
+            <th>Item Value (Rs.)</th>
+            <th>Item Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in data %}
+        {% for item in row.items %}
+        <tr>
+            {% if forloop.first %}
+            <td>{{ forloop.parentloop.counter }}</td>
+            <td>{{ row.po_number }}</td>
+            <td>{{ row.company }}</td>
+            <td>{{ row.month }}</td>
+            <td>{{ row.year }}</td>
+            <td>{{ row.target }}</td>
+            <td>{{ row.achieved }}</td>
+            <td>{{ row.percentage }}%</td>
+            {% else %}
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            {% endif %}
+            <td>{{ item.material_code|default:"—" }}</td>
+            <td>{{ item.material_description }}</td>
+            <td>{{ item.quantity_value|floatformat:3 }}</td>
+            <td>{{ item.uom }}</td>
+            <td>{{ item.material_value|floatformat:2|default:"—" }}</td>
+            <td>{{ item.get_status_display }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ row.po_number }}</td>
+            <td>{{ row.company }}</td>
+            <td>{{ row.month }}</td>
+            <td>{{ row.year }}</td>
+            <td>{{ row.target }}</td>
+            <td>{{ row.achieved }}</td>
+            <td>{{ row.percentage }}%</td>
+            <td colspan="6">—</td>
+        </tr>
+        {% endfor %}
+        {% empty %}
+        <tr>
+            <td colspan="14">No data found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
