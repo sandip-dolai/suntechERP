@@ -59,9 +59,19 @@
                                 </div>
 
                                 <!-- REMARK -->
-                                <div class="col-md-7">
-                                    <label class="form-label fw-bold">Remark</label>
-                                    {{ form.remark|add_class:"form-control" }}
+                                <div class="col-md-6">
+                                    <label for="id_remark">
+                                        Remark <span class="text-danger">*</span>
+                                    </label>
+                                    <textarea name="remark" 
+                                            id="id_remark" 
+                                            class="form-control" 
+                                            rows="2" 
+                                            placeholder="Add remark (required)"
+                                            required>{{ form.remark.value|default:'' }}</textarea>
+                                    {% if form.remark.errors %}
+                                    <div class="text-danger small mt-1">{{ form.remark.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
 

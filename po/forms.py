@@ -277,12 +277,12 @@ class POProcessUpdateForm(forms.ModelForm):
     """
 
     remark = forms.CharField(
-        required=False,
+        required=True,
         widget=forms.Textarea(
             attrs={
                 "class": "form-control",
                 "rows": 2,
-                "placeholder": "Add remark (optional)",
+                "placeholder": "Add remark (required)",
             }
         ),
         label="Remark",

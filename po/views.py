@@ -260,7 +260,7 @@ def po_report(request):
         completed_count = po_qs.filter(po_status="COMPLETED").count()
         pending_count = total_count - completed_count
 
-        agg = po_qs.aggregate(
+        agg = PurchaseOrder.objects.filter(**base_filters).aggregate(
             total_value=Coalesce(
                 Sum("items__material_value"),
                 Value(0),
