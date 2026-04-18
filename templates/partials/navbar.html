@@ -27,7 +27,7 @@
       </li>
 
       <!-- ================= PURCHASE ORDER ================= -->
-      <li class="{% if current_url in 'po_list po_create po_edit po_report po_process_list po_process_update po_process_history po_process_report po_target_report po_target_list' %}active{% endif %}">
+      <li class="{% if current_url in 'po_target_yearly_report po_list po_create po_edit po_report po_process_list po_process_update po_process_history po_process_report po_target_report po_target_list' %}active{% endif %}">
         <a href="javascript:;">
           <i class="sidebar-item-icon fa fa-file-text-o"></i>
           <span class="nav-label">Purchase Orders</span>
@@ -58,6 +58,14 @@
               <i class="fa fa-circle{% if current_url != 'po_target_report' %}-thin{% endif %}"></i>
               &nbsp;&nbsp;&nbsp;Target & Revenue Report
             </a>
+          </li>
+          {% endif %}
+          {% if user.is_superuser %}
+          <li class="{% if current_url == 'po_target_yearly_report' %}active{% endif %}">
+              <a href="{% url 'po:po_target_yearly_report' %}">
+                  <i class="fa fa-circle{% if current_url != 'po_target_yearly_report' %}-thin{% endif %}"></i>
+                  &nbsp;&nbsp;&nbsp;Yearly Target Report
+              </a>
           </li>
           {% endif %}
           <hr/>

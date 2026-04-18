@@ -1,0 +1,347 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Yearly Target & Revenue Report - Suntech ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .summary-card {
+        border-left: 4px solid;
+        border-radius: 6px;
+    }
+    .summary-card.blue   { border-color: #007bff; }
+    .summary-card.green  { border-color: #28a745; }
+    .summary-card.yellow { border-color: #ffc107; }
+
+    #chartContainer { display: none; }
+
+    .progress { height: 6px; border-radius: 3px; }
+    .table thead th { white-space: nowrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- ================= HEADER ================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">
+            <i class="fa fa-bar-chart mr-1 text-primary"></i>
+            Yearly Target &amp; Revenue Report
+        </h4>
+        <a href="{% url 'po:po_target_list' %}" class="btn btn-secondary btn-sm">
+            <i class="fa fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    <!-- ================= FILTER CARD ================= -->
+    <form method="get" id="reportForm">
+        <div class="card mb-3">
+            <div class="card-header">
+                <strong><i class="fa fa-filter mr-1"></i> Filters</strong>
+            </div>
+            <div class="card-body pb-2">
+                <div class="row align-items-end">
+
+                    <!-- Year -->
+                    <div class="col-md-3 mb-2">
+                        <label class="small font-weight-bold">
+                            Year <span class="text-danger">*</span>
+                        </label>
+                        <input type="number" name="year" id="filterYear"
+                               class="form-control"
+                               value="{{ year }}"
+                               placeholder="e.g. 2026"
+                               min="2020" max="2099">
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="col-md-9 mb-2 d-flex align-items-end flex-wrap gap-1">
+
+                        <!-- Generate -->
+                        <button type="submit" class="btn btn-primary mr-1">
+                            <i class="fa fa-search"></i> Generate
+                        </button>
+
+                        <!-- Reset -->
+                        <a href="{% url 'po:po_target_yearly_report' %}"
+                           class="btn btn-secondary mr-1">
+                            <i class="fa fa-refresh"></i> Reset
+                        </a>
+
+                        {% if filter_used %}
+                        <!-- Excel -->
+                        <a href="{% url 'po:po_target_yearly_report_excel' %}?year={{ year }}"
+                           class="btn btn-success mr-1">
+                            <i class="fa fa-file-excel-o"></i> Excel
+                        </a>
+
+                        <!-- Graph toggle -->
+                        <button type="button" class="btn btn-info" id="btnToggleChart">
+                            <i class="fa fa-line-chart"></i> Graph
+                        </button>
+                        {% endif %}
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    {% if filter_used %}
+
+    <!-- ================= SUMMARY CARDS ================= -->
+    <div class="row mb-3">
+        <div class="col-md-4 mb-2">
+            <div class="card summary-card blue p-3">
+                <div class="small text-muted">Total Target</div>
+                <div class="h5 font-weight-bold text-primary">
+                    ₹ {{ total_target|floatformat:2 }}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card summary-card green p-3">
+                <div class="small text-muted">Total Achieved</div>
+                <div class="h5 font-weight-bold text-success">
+                    ₹ {{ total_achieved|floatformat:2 }}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card summary-card yellow p-3">
+                <div class="small text-muted">Overall Achievement</div>
+                <div class="h5 font-weight-bold text-warning">
+                    {{ overall_percentage }}%
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= CHART ================= -->
+    <div class="card mb-3" id="chartContainer">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong><i class="fa fa-area-chart mr-1"></i> Monthly Target vs Revenue — {{ year }}</strong>
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-primary active" id="btnBar">
+                    <i class="fa fa-bar-chart"></i> Bar
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="btnLine">
+                    <i class="fa fa-line-chart"></i> Line
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="btnMixed">
+                    <i class="fa fa-th"></i> Mixed
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <canvas id="targetChart" height="90"></canvas>
+        </div>
+    </div>
+
+    <!-- ================= DATA TABLE ================= -->
+    <div class="card">
+        <div class="card-header">
+            <strong><i class="fa fa-table mr-1"></i> Month-wise Report — {{ year }}</strong>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-bordered table-hover table-striped mb-0">
+                <thead class="thead-dark">
+                    <tr>
+                        <th class="text-center">#</th>
+                        <th>Month</th>
+                        <th class="text-center">Year</th>
+                        <th class="text-right">Target (₹)</th>
+                        <th class="text-right">Achieved (₹)</th>
+                        <th class="text-center">Achievement %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in data %}
+                    <tr>
+                        <td class="text-center">{{ forloop.counter }}</td>
+                        <td><strong>{{ row.month_name }}</strong></td>
+                        <td class="text-center">{{ row.year }}</td>
+                        <td class="text-right">₹ {{ row.target|floatformat:2 }}</td>
+                        <td class="text-right">₹ {{ row.achieved|floatformat:2 }}</td>
+                        <td class="text-center">
+                            {% if row.target > 0 %}
+                            <div class="d-flex align-items-center justify-content-center">
+                                <div class="mr-2" style="width:70px;">
+                                    <div class="progress">
+                                        <div class="progress-bar
+                                            {% if row.percentage >= 100 %}bg-success
+                                            {% elif row.percentage >= 60 %}bg-warning
+                                            {% else %}bg-danger{% endif %}"
+                                            style="width: {% if row.percentage > 100 %}100{% else %}{{ row.percentage }}{% endif %}%">
+                                        </div>
+                                    </div>
+                                </div>
+                                <span class="badge
+                                    {% if row.percentage >= 100 %}badge-success
+                                    {% elif row.percentage >= 60 %}badge-warning text-dark
+                                    {% else %}badge-danger{% endif %}">
+                                    {{ row.percentage }}%
+                                </span>
+                            </div>
+                            {% else %}
+                            <span class="text-muted small">No Target</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-light font-weight-bold">
+                    <tr>
+                        <td colspan="3" class="text-right">Total</td>
+                        <td class="text-right">₹ {{ total_target|floatformat:2 }}</td>
+                        <td class="text-right">₹ {{ total_achieved|floatformat:2 }}</td>
+                        <td class="text-center">
+                            <span class="badge
+                                {% if overall_percentage >= 100 %}badge-success
+                                {% elif overall_percentage >= 60 %}badge-warning text-dark
+                                {% else %}badge-danger{% endif %}">
+                                {{ overall_percentage }}%
+                            </span>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fa fa-info-circle"></i> Enter a year and click <strong>Generate</strong> to view the monthly report.
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// ── Chart data injected from Django ──────────────────────────────
+const chartLabels  = [{% for row in data %}"{{ row.month_name }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+const chartTarget  = [{% for row in data %}{{ row.target }}{% if not forloop.last %},{% endif %}{% endfor %}];
+const chartAchieved= [{% for row in data %}{{ row.achieved }}{% if not forloop.last %},{% endif %}{% endfor %}];
+const totalTarget  = {{ total_target|default:0 }};
+const totalAchieved= {{ total_achieved|default:0 }};
+
+let chartInstance  = null;
+let currentMode    = "bar";   // bar | line | mixed
+
+// ── Chart builder ─────────────────────────────────────────────────
+function buildChart(mode) {
+    currentMode = mode;
+    const ctx = document.getElementById("targetChart").getContext("2d");
+    if (chartInstance) chartInstance.destroy();
+
+    const isBar    = mode === "bar";
+    const isLine   = mode === "line";
+    const isMixed  = mode === "mixed";
+
+    chartInstance = new Chart(ctx, {
+        type: isLine ? "line" : "bar",
+        data: {
+            labels: chartLabels,
+            datasets: [
+                {
+                    label: "Target (₹)",
+                    data: chartTarget,
+                    type: isMixed ? "line" : (isLine ? "line" : "bar"),
+                    backgroundColor: "rgba(0, 123, 255, 0.5)",
+                    borderColor: "rgba(0, 123, 255, 1)",
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: isLine || isMixed ? 5 : 0,
+                    order: isMixed ? 1 : 0,
+                },
+                {
+                    label: "Achieved (₹)",
+                    data: chartAchieved,
+                    type: isMixed ? "bar" : (isLine ? "line" : "bar"),
+                    backgroundColor: "rgba(40, 167, 69, 0.55)",
+                    borderColor: "rgba(40, 167, 69, 1)",
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: isLine ? 5 : 0,
+                    order: isMixed ? 2 : 0,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+                legend: { position: "top" },
+                tooltip: {
+                    callbacks: {
+                        label: ctx =>
+                            ` ${ctx.dataset.label}: ₹ ${Number(ctx.parsed.y).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+                        afterBody: items => {
+                            const idx = items[0].dataIndex;
+                            const t = chartTarget[idx] || 0;
+                            const a = chartAchieved[idx] || 0;
+                            const pct = t > 0 ? ((a / t) * 100).toFixed(2) : "0.00";
+                            return [`Achievement: ${pct}%`];
+                        },
+                        footer: () =>
+                            [`Total Target: ₹ ${Number(totalTarget).toLocaleString("en-IN")}`,
+                             `Total Achieved: ₹ ${Number(totalAchieved).toLocaleString("en-IN")}`],
+                    },
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: v =>
+                            "₹ " + Number(v).toLocaleString("en-IN"),
+                    },
+                },
+            },
+        },
+    });
+}
+
+// ── Toggle chart visibility ───────────────────────────────────────
+const chartContainer = document.getElementById("chartContainer");
+const btnToggle      = document.getElementById("btnToggleChart");
+
+if (btnToggle) {
+    btnToggle.addEventListener("click", function () {
+        const visible = chartContainer.style.display === "block";
+        if (visible) {
+            chartContainer.style.display = "none";
+            this.classList.remove("active");
+        } else {
+            chartContainer.style.display = "block";
+            this.classList.add("active");
+            if (!chartInstance) buildChart("bar");
+        }
+    });
+}
+
+// ── Chart type switcher ───────────────────────────────────────────
+function setActiveBtn(id) {
+    ["btnBar","btnLine","btnMixed"].forEach(b => {
+        const el = document.getElementById(b);
+        if (el) el.classList.remove("active");
+    });
+    const active = document.getElementById(id);
+    if (active) active.classList.add("active");
+}
+
+const btnBar   = document.getElementById("btnBar");
+const btnLine  = document.getElementById("btnLine");
+const btnMixed = document.getElementById("btnMixed");
+
+if (btnBar)   btnBar.addEventListener("click",   () => { buildChart("bar");   setActiveBtn("btnBar");   });
+if (btnLine)  btnLine.addEventListener("click",  () => { buildChart("line");  setActiveBtn("btnLine");  });
+if (btnMixed) btnMixed.addEventListener("click", () => { buildChart("mixed"); setActiveBtn("btnMixed"); });
+</script>
+{% endblock %}

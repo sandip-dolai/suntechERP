@@ -71,4 +71,14 @@ urlpatterns = [
         views.po_target_report_excel,
         name="po_target_report_excel",
     ),
+    path(
+        "target-yearly-report/",
+        views.po_target_yearly_report,
+        name="po_target_yearly_report",
+    ),
+    path(
+        "target-yearly-report/excel/",
+        views.po_target_yearly_report_excel,
+        name="po_target_yearly_report_excel",
+    ),
 ]

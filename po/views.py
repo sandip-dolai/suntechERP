@@ -1,3 +1,4 @@
+from decimal import Decimal
 from urllib import request
 from django.db.models import (
     F,
@@ -297,7 +298,7 @@ def po_report(request):
     # ------------------------------
     page_obj = None
     if filter_used and view_mode == "summary":
-        paginator = Paginator(po_qs, 20)
+        paginator = Paginator(po_qs, 10)
         page_obj = paginator.get_page(request.GET.get("page"))
 
     # ------------------------------
@@ -1577,6 +1578,222 @@ def po_target_report_excel(request):
     response["Content-Type"] = "application/vnd.ms-excel"
     response["Content-Disposition"] = (
         f'attachment; filename="PO_Target_Report_{month}_{year}.xls"'
+    )
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    return response
+
+
+# =====================================================================================
+# PO TARGET YEARLY REPORT  (month-wise for a selected year)
+# Add these two functions inside po/views.py
+# =====================================================================================
+
+
+@login_required_view
+def po_target_yearly_report(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    year = request.GET.get("year", "").strip()
+    filter_used = bool(year)
+
+    SHORT_MONTHS = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
+
+    data = []
+    total_target = Decimal("0")
+    total_achieved = Decimal("0")
+
+    if filter_used:
+        try:
+            year_int = int(year)
+        except ValueError:
+            filter_used = False
+            year_int = None
+
+        if filter_used:
+            # Build a row for every month 1-12
+            for month_num in range(1, 13):
+                # Sum all POTarget rows for this month/year
+                targets_qs = POTarget.objects.filter(month=month_num, year=year_int)
+
+                month_target = targets_qs.aggregate(
+                    total=Coalesce(
+                        Sum("target_value"),
+                        Value(0),
+                        output_field=DecimalField(max_digits=15, decimal_places=2),
+                    )
+                )["total"]
+
+                # Sum achieved (COMPLETED items) linked to those targets
+                target_ids = targets_qs.values_list("id", flat=True)
+                item_ids = POTargetItem.objects.filter(
+                    po_target_id__in=target_ids
+                ).values_list("po_item_id", flat=True)
+
+                month_achieved = PurchaseOrderItem.objects.filter(
+                    id__in=item_ids, status="COMPLETED"
+                ).aggregate(
+                    total=Coalesce(
+                        Sum("material_value"),
+                        Value(0),
+                        output_field=DecimalField(max_digits=15, decimal_places=2),
+                    )
+                )[
+                    "total"
+                ]
+
+                pct = (
+                    round(month_achieved / month_target * 100, 2)
+                    if month_target > 0
+                    else 0
+                )
+
+                total_target += month_target
+                total_achieved += month_achieved
+
+                data.append(
+                    {
+                        "month_num": month_num,
+                        "month_name": SHORT_MONTHS[month_num - 1],
+                        "year": year_int,
+                        "target": month_target,
+                        "achieved": month_achieved,
+                        "percentage": pct,
+                    }
+                )
+
+    overall_pct = (
+        round(total_achieved / total_target * 100, 2) if total_target > 0 else 0
+    )
+
+    context = {
+        "data": data,
+        "filter_used": filter_used,
+        "year": year,
+        "total_target": total_target,
+        "total_achieved": total_achieved,
+        "overall_percentage": overall_pct,
+    }
+
+    return render(request, "po/po_target_yearly_report.html", context)
+
+
+# =====================================================================================
+# PO TARGET YEARLY REPORT — EXCEL EXPORT
+# =====================================================================================
+@login_required_view
+def po_target_yearly_report_excel(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden()
+
+    year = request.GET.get("year", "").strip()
+
+    SHORT_MONTHS = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
+
+    data = []
+    total_target = Decimal("0")
+    total_achieved = Decimal("0")
+
+    if year:
+        try:
+            year_int = int(year)
+        except ValueError:
+            year_int = None
+
+        if year_int:
+            for month_num in range(1, 13):
+                targets_qs = POTarget.objects.filter(month=month_num, year=year_int)
+
+                month_target = targets_qs.aggregate(
+                    total=Coalesce(
+                        Sum("target_value"),
+                        Value(0),
+                        output_field=DecimalField(max_digits=15, decimal_places=2),
+                    )
+                )["total"]
+
+                target_ids = targets_qs.values_list("id", flat=True)
+                item_ids = POTargetItem.objects.filter(
+                    po_target_id__in=target_ids
+                ).values_list("po_item_id", flat=True)
+
+                month_achieved = PurchaseOrderItem.objects.filter(
+                    id__in=item_ids, status="COMPLETED"
+                ).aggregate(
+                    total=Coalesce(
+                        Sum("material_value"),
+                        Value(0),
+                        output_field=DecimalField(max_digits=15, decimal_places=2),
+                    )
+                )[
+                    "total"
+                ]
+
+                pct = (
+                    round(month_achieved / month_target * 100, 2)
+                    if month_target > 0
+                    else 0
+                )
+
+                total_target += month_target
+                total_achieved += month_achieved
+
+                data.append(
+                    {
+                        "month_name": SHORT_MONTHS[month_num - 1],
+                        "year": year_int,
+                        "target": month_target,
+                        "achieved": month_achieved,
+                        "percentage": pct,
+                    }
+                )
+
+    overall_pct = (
+        round(total_achieved / total_target * 100, 2) if total_target > 0 else 0
+    )
+
+    html = render_to_string(
+        "po/po_target_yearly_report_excel.html",
+        {
+            "data": data,
+            "year": year,
+            "total_target": total_target,
+            "total_achieved": total_achieved,
+            "overall_percentage": overall_pct,
+        },
+    )
+
+    response = HttpResponse(html)
+    response["Content-Type"] = "application/vnd.ms-excel"
+    response["Content-Disposition"] = (
+        f'attachment; filename="Target_Revenue_Yearly_{year}.xls"'
     )
     response["Pragma"] = "no-cache"
     response["Expires"] = "0"
