@@ -75,7 +75,7 @@
                         <th class="text-center">Delivery Date</th>
                         <th class="text-center">Department</th>
                         <th class="text-center">Status</th>
-                        <th class="text-center" style="width:150px;">Actions</th>
+                        <th class="text-center" style="width:170px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -137,6 +137,16 @@
                             </a>
 
                             {% if is_admin %}
+
+                            <!-- ── Comment Button (Admin Only) ── -->
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-warning btn-comment-trigger"
+                                    data-po-id="{{ po.pk }}"
+                                    data-po-number="{{ po.po_number }}"
+                                    title="Comments for {{ po.po_number }}">
+                                <i class="fa fa-comment"></i>
+                            </button>
+
                             <a href="{% url 'po:po_edit' po.pk %}"
                                class="btn btn-sm btn-primary"
                                title="Edit">
@@ -144,7 +154,6 @@
                             </a>
 
                             {% if po.has_bom or po.has_indent %}
-                            <!-- Locked — BOM or Indent exists -->
                             <button type="button"
                                     class="btn btn-sm btn-secondary"
                                     disabled
@@ -152,7 +161,6 @@
                                 <i class="fa fa-lock"></i>
                             </button>
                             {% else %}
-                            <!-- Delete form — confirmed via SweetAlert -->
                             <form method="post"
                                   action="{% url 'po:po_delete' po.pk %}"
                                   class="d-inline delete-po-form"
@@ -260,6 +268,149 @@
 
 </div>
 
+
+<!-- =====================================================
+     PO COMMENT MODAL (Admin Only)
+====================================================== -->
+{% if is_admin %}
+<div class="modal fade" id="poCommentModal" tabindex="-1" role="dialog"
+     aria-labelledby="poCommentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="poCommentModalLabel">
+                    <i class="fa fa-comment"></i>
+                    Comments — <span id="modal-po-number"></span>
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body p-0">
+
+                <!-- Loading spinner -->
+                <div id="comment-loading" class="text-center py-5">
+                    <i class="fa fa-spinner fa-spin fa-2x text-muted"></i>
+                    <p class="text-muted mt-2">Loading items...</p>
+                </div>
+
+                <!-- Comment table — shown after load -->
+                <div id="comment-body" style="display:none;">
+                    <table class="table table-bordered table-sm mb-0" id="comment-table">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th style="width:35px;" class="text-center">#</th>
+                                <th style="width:120px;">Code</th>
+                                <th>Material Description</th>
+                                <th class="text-center" style="width:80px;">Qty</th>
+                                <th class="text-center" style="width:60px;">UOM</th>
+                                <th style="min-width:320px;">
+                                    Comment
+                                    <small class="text-muted font-weight-normal ml-1">
+                                        (click <i class="fa fa-microphone"></i> to dictate)
+                                    </small>
+                                </th>
+                                <th class="text-center" style="width:80px;">Save</th>
+                            </tr>
+                        </thead>
+                        <tbody id="comment-tbody">
+                            <!-- filled by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <small class="text-muted mr-auto">
+                    <i class="fa fa-info-circle"></i>
+                    Changes are saved per-item individually.
+                </small>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+<style>
+/* ── Comment modal styles ── */
+#comment-table td { vertical-align: middle; }
+
+.comment-input-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.comment-textarea {
+    flex: 1;
+    min-height: 60px;
+    font-size: 13px;
+    resize: vertical;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 6px 8px;
+    transition: border-color 0.2s;
+}
+
+.comment-textarea:focus {
+    outline: none;
+    border-color: #ffc107;
+    box-shadow: 0 0 0 2px rgba(255,193,7,0.25);
+}
+
+.mic-btn {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid #6c757d;
+    background: #fff;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 2px;
+}
+
+.mic-btn:hover {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.mic-btn.recording {
+    border-color: #dc3545;
+    background: #dc3545;
+    color: #fff;
+    animation: mic-pulse 1s infinite;
+}
+
+@keyframes mic-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(220,53,69,0.5); }
+    70%  { box-shadow: 0 0 0 8px rgba(220,53,69,0); }
+    100% { box-shadow: 0 0 0 0 rgba(220,53,69,0); }
+}
+
+.btn-save-comment {
+    white-space: nowrap;
+}
+
+.comment-saved-badge {
+    display: none;
+    font-size: 11px;
+}
+</style>
+
+
 <script>
 
 // ── Accordion toggle ──────────────────────────────────────────────
@@ -309,6 +460,283 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 });
+
+
+// =====================================================================
+//  PO COMMENT MODAL  (Admin only)
+// =====================================================================
+{% if is_admin %}
+(function () {
+
+    // Active speech recognition instance per row (keyed by item id)
+    var activeRecognizers = {};
+    var currentPoId = null;
+
+    // ── CSRF helper ──────────────────────────────────────────────
+    function getCsrf() {
+        var el = document.querySelector("[name=csrfmiddlewaretoken]");
+        return el ? el.value : "";
+    }
+
+    // ── Open modal on comment button click ───────────────────────
+    document.addEventListener("click", function (e) {
+        var btn = e.target.closest(".btn-comment-trigger");
+        if (!btn) return;
+
+        currentPoId        = btn.dataset.poId;
+        var poNumber       = btn.dataset.poNumber;
+
+        document.getElementById("modal-po-number").textContent = poNumber;
+        document.getElementById("comment-loading").style.display = "block";
+        document.getElementById("comment-body").style.display   = "none";
+        document.getElementById("comment-tbody").innerHTML       = "";
+
+        // Stop any active mics from previous session
+        Object.values(activeRecognizers).forEach(function (r) {
+            try { r.stop(); } catch(e) {}
+        });
+        activeRecognizers = {};
+
+        $("#poCommentModal").modal("show");
+        loadComments(currentPoId);
+    });
+
+    // ── Load items + existing comments via AJAX ──────────────────
+    function loadComments(poId) {
+        fetch("/po/" + poId + "/comments/", {
+            method: "GET",
+            credentials: "same-origin",
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            renderRows(data.items);
+            document.getElementById("comment-loading").style.display = "none";
+            document.getElementById("comment-body").style.display    = "block";
+        })
+        .catch(function () {
+            document.getElementById("comment-loading").innerHTML =
+                '<p class="text-danger p-3"><i class="fa fa-exclamation-triangle"></i> Failed to load comments.</p>';
+        });
+    }
+
+    // ── Render table rows ────────────────────────────────────────
+    function renderRows(items) {
+        var tbody = document.getElementById("comment-tbody");
+        tbody.innerHTML = "";
+
+        if (!items || items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No items found for this PO.</td></tr>';
+            return;
+        }
+
+        items.forEach(function (item, idx) {
+            var escaped = (item.comment || "").replace(/"/g, "&quot;");
+            var tr = document.createElement("tr");
+            tr.dataset.itemId = item.id;
+            tr.innerHTML = `
+                <td class="text-center text-muted">${idx + 1}</td>
+                <td><small>${item.material_code}</small></td>
+                <td style="font-size:13px;">${item.material_description}</td>
+                <td class="text-center">${parseFloat(item.quantity_value).toFixed(2)}</td>
+                <td class="text-center">${item.uom}</td>
+                <td>
+                    <div class="comment-input-wrap">
+                        <textarea
+                            class="comment-textarea"
+                            id="comment-${item.id}"
+                            placeholder="Add comment for this item..."
+                            rows="2"
+                        >${item.comment || ""}</textarea>
+                        <button type="button"
+                                class="mic-btn"
+                                id="mic-${item.id}"
+                                data-item-id="${item.id}"
+                                title="Click to dictate comment">
+                            <i class="fa fa-microphone"></i>
+                        </button>
+                    </div>
+                </td>
+                <td class="text-center">
+                    <button type="button"
+                            class="btn btn-sm btn-warning btn-save-comment"
+                            data-item-id="${item.id}">
+                        <i class="fa fa-save"></i> Save
+                    </button>
+                    <span class="badge badge-success comment-saved-badge" id="saved-${item.id}">
+                        <i class="fa fa-check"></i> Saved
+                    </span>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Attach save handlers
+        tbody.querySelectorAll(".btn-save-comment").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                saveComment(this.dataset.itemId);
+            });
+        });
+
+        // Attach mic handlers
+        tbody.querySelectorAll(".mic-btn").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                toggleMic(this.dataset.itemId);
+            });
+        });
+    }
+
+    // ── Save comment via POST ─────────────────────────────────────
+    function saveComment(itemId) {
+        var textarea = document.getElementById("comment-" + itemId);
+        var saveBtn  = document.querySelector('.btn-save-comment[data-item-id="' + itemId + '"]');
+        var badge    = document.getElementById("saved-" + itemId);
+
+        if (!textarea) return;
+
+        saveBtn.disabled    = true;
+        saveBtn.innerHTML   = '<i class="fa fa-spinner fa-spin"></i>';
+
+        fetch("/po/" + currentPoId + "/comments/", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCsrf(),
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            body: JSON.stringify({
+                po_item_id: itemId,
+                comment: textarea.value,
+            }),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            saveBtn.disabled  = false;
+            saveBtn.innerHTML = '<i class="fa fa-save"></i> Save';
+
+            if (data.success) {
+                badge.style.display = "inline-block";
+                setTimeout(function () { badge.style.display = "none"; }, 2500);
+            } else {
+                alert("Failed to save comment. Please try again.");
+            }
+        })
+        .catch(function () {
+            saveBtn.disabled  = false;
+            saveBtn.innerHTML = '<i class="fa fa-save"></i> Save';
+            alert("Network error. Please try again.");
+        });
+    }
+
+    // ── Speech-to-text ────────────────────────────────────────────
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+
+    function toggleMic(itemId) {
+        if (!SpeechRecognition) {
+            alert("Speech recognition is not supported in your browser.\nTry Chrome or Edge.");
+            return;
+        }
+
+        var micBtn   = document.getElementById("mic-" + itemId);
+        var textarea = document.getElementById("comment-" + itemId);
+
+        // If already recording this item — stop it
+        if (activeRecognizers[itemId]) {
+            try { activeRecognizers[itemId].stop(); } catch(e) {}
+            return;
+        }
+
+        // Stop any other active recognizer first
+        Object.keys(activeRecognizers).forEach(function (id) {
+            if (id !== itemId) {
+                try { activeRecognizers[id].stop(); } catch(e) {}
+                var otherMic = document.getElementById("mic-" + id);
+                if (otherMic) otherMic.classList.remove("recording");
+            }
+        });
+        activeRecognizers = {};
+
+        var recognition = new SpeechRecognition();
+        recognition.lang            = "en-US";
+        recognition.continuous      = true;
+        recognition.interimResults  = true;
+        recognition.maxAlternatives = 1;
+
+        var existingText = textarea.value;
+        var interimText  = "";
+
+        recognition.onstart = function () {
+            activeRecognizers[itemId] = recognition;
+            micBtn.classList.add("recording");
+            micBtn.title = "Recording... click to stop";
+        };
+
+        recognition.onresult = function (event) {
+            interimText = "";
+            var finalText = "";
+
+            for (var i = event.resultIndex; i < event.results.length; i++) {
+                if (event.results[i].isFinal) {
+                    finalText += event.results[i][0].transcript + " ";
+                } else {
+                    interimText += event.results[i][0].transcript;
+                }
+            }
+
+            if (finalText) {
+                existingText = existingText + finalText;
+            }
+
+            // Show combined: committed + interim preview
+            textarea.value = existingText + interimText;
+        };
+
+        recognition.onerror = function (event) {
+            if (event.error === "not-allowed" || event.error === "permission-denied") {
+                alert("Microphone permission denied.\nPlease allow microphone access in your browser settings.");
+            } else if (event.error !== "aborted") {
+                console.warn("Speech recognition error:", event.error);
+            }
+            stopMic(itemId);
+        };
+
+        recognition.onend = function () {
+            // Commit whatever was interim on natural end
+            textarea.value = existingText;
+            stopMic(itemId);
+        };
+
+        recognition.start();
+    }
+
+    function stopMic(itemId) {
+        delete activeRecognizers[itemId];
+        var micBtn = document.getElementById("mic-" + itemId);
+        if (micBtn) {
+            micBtn.classList.remove("recording");
+            micBtn.title = "Click to dictate comment";
+        }
+    }
+
+    // Stop all mics when modal closes
+    document.getElementById("poCommentModal").addEventListener("hidden.bs.modal", function () {
+        Object.keys(activeRecognizers).forEach(function (id) {
+            try { activeRecognizers[id].stop(); } catch(e) {}
+        });
+        activeRecognizers = {};
+    });
+
+    // Bootstrap 3 modal close event (your app uses Bootstrap 3/4 mix)
+    $("#poCommentModal").on("hidden.bs.modal", function () {
+        Object.keys(activeRecognizers).forEach(function (id) {
+            try { activeRecognizers[id].stop(); } catch(e) {}
+        });
+        activeRecognizers = {};
+    });
+
+})();
+{% endif %}
 
 </script>
 

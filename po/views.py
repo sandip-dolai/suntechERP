@@ -26,6 +26,7 @@ from .models import (
     POProcessItemStatus,
     POTarget,
     POTargetItem,
+    POComment,
 )
 from .forms import (
     PurchaseOrderForm,
@@ -1798,3 +1799,80 @@ def po_target_yearly_report_excel(request):
     response["Pragma"] = "no-cache"
     response["Expires"] = "0"
     return response
+
+
+# =====================================================================================
+# PO COMMENTS — LOAD & SAVE (Admin Only)
+# =====================================================================================
+
+
+@login_required_view
+def po_comments_api(request, po_id):
+    """
+    GET  → returns all items with their existing comments for this PO
+    POST → saves/updates a comment for a specific PO item
+    """
+    from suntech_erp.permissions import is_admin
+
+    if not is_admin(request.user):
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    po = get_object_or_404(PurchaseOrder, pk=po_id)
+
+    if request.method == "GET":
+        items = po.items.all().order_by("id")
+
+        # Build a map of po_item_id → comment
+        existing = {
+            c.po_item_id: {"id": c.id, "comment": c.comment}
+            for c in POComment.objects.filter(purchase_order=po)
+        }
+
+        data = [
+            {
+                "id": item.id,
+                "material_code": item.material_code or "—",
+                "material_description": item.material_description,
+                "quantity_value": str(item.quantity_value or 0),
+                "uom": item.uom,
+                "comment_id": existing.get(item.id, {}).get("id"),
+                "comment": existing.get(item.id, {}).get("comment", ""),
+            }
+            for item in items
+        ]
+
+        return JsonResponse({"po_number": po.po_number, "items": data})
+
+    if request.method == "POST":
+        try:
+            body = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        po_item_id = body.get("po_item_id")
+        comment_text = body.get("comment", "").strip()
+
+        if not po_item_id:
+            return JsonResponse({"error": "po_item_id is required"}, status=400)
+
+        po_item = get_object_or_404(PurchaseOrderItem, pk=po_item_id, purchase_order=po)
+
+        obj, created = POComment.objects.update_or_create(
+            purchase_order=po,
+            po_item=po_item,
+            defaults={
+                "comment": comment_text,
+                "commented_by": request.user,
+            },
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "created": created,
+                "comment_id": obj.id,
+                "comment": obj.comment,
+            }
+        )
+
+    return JsonResponse({"error": "Method not allowed"}, status=405)

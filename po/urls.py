@@ -81,4 +81,9 @@ urlpatterns = [
         views.po_target_yearly_report_excel,
         name="po_target_yearly_report_excel",
     ),
+    path(
+        "<int:po_id>/comments/",
+        views.po_comments_api,
+        name="po_comments_api",
+    ),
 ]
