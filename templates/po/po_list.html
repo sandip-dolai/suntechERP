@@ -719,14 +719,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    // Stop all mics when modal closes
-    document.getElementById("poCommentModal").addEventListener("hidden.bs.modal", function () {
-        Object.keys(activeRecognizers).forEach(function (id) {
-            try { activeRecognizers[id].stop(); } catch(e) {}
-        });
-        activeRecognizers = {};
-    });
-
     // Bootstrap 3 modal close event (your app uses Bootstrap 3/4 mix)
     $("#poCommentModal").on("hidden.bs.modal", function () {
         Object.keys(activeRecognizers).forEach(function (id) {

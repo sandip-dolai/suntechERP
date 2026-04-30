@@ -1,5 +1,4 @@
 from decimal import Decimal
-from urllib import request
 from django.db.models import (
     F,
     Q,
@@ -779,124 +778,6 @@ def po_process_excel(request, po_id):
 
 
 @login_required_view
-def po_report_summary_excel(request):
-    today = datetime.today().date()
-    date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
-    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
-
-    base_filters = {"po_date__range": [date_from, date_to]}
-
-    if request.GET.get("po_number"):
-        base_filters["po_number"] = request.GET["po_number"]
-
-    if request.GET.get("oa_number"):
-        base_filters["oa_number"] = request.GET["oa_number"]
-
-    if request.GET.get("company"):
-        base_filters["company_id"] = request.GET["company"]
-
-    if request.GET.get("po_status"):
-        base_filters["po_status"] = request.GET["po_status"]
-
-    pos = (
-        PurchaseOrder.objects.select_related("company", "created_by")
-        .filter(**base_filters)
-        .annotate(
-            total_quantity=Coalesce(
-                Sum("items__quantity_value"),
-                Value(0),
-                output_field=DecimalField(max_digits=12, decimal_places=3),
-            ),
-            total_value=Coalesce(
-                Sum("items__material_value"),
-                Value(0),
-                output_field=DecimalField(max_digits=12, decimal_places=2),
-            ),
-        )
-        .order_by("-id")
-    )
-
-    html = render_to_string(
-        "po/po_report_summary_excel.html",
-        {
-            "pos": pos,
-            "can_view_value": can_view_value(request.user),
-        },
-    )
-
-    response = HttpResponse(html)
-    response["Content-Type"] = "application/vnd.ms-excel"
-    response["Content-Disposition"] = (
-        f'attachment; filename="PO_Summary_Report_{date_from}_to_{date_to}.xls"'
-    )
-    response["Pragma"] = "no-cache"
-    response["Expires"] = "0"
-    return response
-
-
-@login_required_view
-def po_report_item_excel(request):
-    today = datetime.today().date()
-    date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
-    date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
-
-    base_filters = {"purchase_order__po_date__range": [date_from, date_to]}
-
-    if request.GET.get("po_number"):
-        base_filters["purchase_order_id"] = request.GET["po_number"]
-
-    if request.GET.get("oa_number"):
-        base_filters["purchase_order_id"] = request.GET["oa_number"]
-
-    if request.GET.get("company"):
-        base_filters["purchase_order__company_id"] = request.GET["company"]
-
-    if request.GET.get("po_status"):
-        base_filters["purchase_order__po_status"] = request.GET["po_status"]
-
-    items = (
-        PurchaseOrderItem.objects.select_related(
-            "purchase_order",
-            "purchase_order__company",
-            "purchase_order__created_by",
-        )
-        .filter(**base_filters)
-        .order_by("purchase_order__id")
-    )
-
-    grand_totals = items.aggregate(
-        total_quantity=Coalesce(
-            Sum("quantity_value"),
-            Value(0),
-            output_field=DecimalField(max_digits=12, decimal_places=3),
-        ),
-        total_value=Coalesce(
-            Sum("material_value"),
-            Value(0),
-            output_field=DecimalField(max_digits=12, decimal_places=2),
-        ),
-    )
-
-    html = render_to_string(
-        "po/po_report_item_excel.html",
-        {
-            "items": items,
-            "grand_totals": grand_totals,
-            "can_view_value": can_view_value(request.user),
-        },
-    )
-
-    response = HttpResponse(html)
-    response["Content-Type"] = "application/vnd.ms-excel"
-    response["Content-Disposition"] = (
-        f'attachment; filename="PO_Item_Report_{date_from}_to_{date_to}.xls"'
-    )
-    response["Pragma"] = "no-cache"
-    response["Expires"] = "0"
-    return response
-
-
-@login_required_view
 def po_list(request):
     query = request.GET.get("q", "").strip()
 
@@ -1228,13 +1109,6 @@ def po_process_report_excel(request):
     response["Content-Disposition"] = "attachment; filename=po_process_report.xls"
 
     return response
-
-
-# =====================================================================================
-# =====================================================================================
-# =====================================================================================
-# =====================================================================================
-# =====================================================================================
 
 
 # =====================================================================================

@@ -6,12 +6,6 @@ from bom.models import BOMItem
 
 User = get_user_model()
 
-INDENT_PROCESS_CODE_MAP = {
-    13: "RAW",
-    18: "ACC",
-    23: "PAC",
-}
-
 
 class Indent(models.Model):
     """
@@ -72,9 +66,12 @@ class Indent(models.Model):
         if not self.indent_number:
             process_id = self.po_process.department_process_id
 
-            indent_code = INDENT_PROCESS_CODE_MAP.get(process_id)
+            indent_code = self.po_process.department_process.code.strip().upper()
             if not indent_code:
-                raise ValueError("Invalid production process for indent numbering.")
+                raise ValueError(
+                    f"Process '{self.po_process.department_process.name}' has no code set. "
+                    "Please set a code in the Department Process Master."
+                )
 
             oa_number = self.purchase_order.oa_number
 

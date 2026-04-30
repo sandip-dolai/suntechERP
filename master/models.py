@@ -116,6 +116,11 @@ class DepartmentProcessMaster(models.Model):
         default=False,
         help_text="If True, this process is excluded from PO completion check",
     )
+    code = models.CharField(
+        max_length=10,
+        blank=True,
+        help_text="Short code used for indent numbering (e.g. RAW, ACC, PAC). Only required for Production processes.",
+    )
 
     class Meta:
         ordering = ["sequence"]

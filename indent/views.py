@@ -14,8 +14,6 @@ from django.db.models import Q, Count
 from django.template.loader import render_to_string
 from datetime import datetime
 
-INDENT_PROCESS_IDS = [13, 18, 23]
-
 
 # ======================================================
 # INDENT LIST
@@ -224,7 +222,8 @@ def ajax_load_po_processes(request):
 
     processes = POProcess.objects.filter(
         purchase_order_id=po_id,
-        department_process_id__in=INDENT_PROCESS_IDS,
+        department_process__code__isnull=False,
+        department_process__code__gt="",
         department_process__department="Production",
     ).select_related("department_process")
 
