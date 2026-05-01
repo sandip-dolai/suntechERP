@@ -109,4 +109,17 @@ urlpatterns = [
         views.po_task_delete,
         name="po_task_delete",
     ),
+    # ------------------------------
+    # PO COMMENTS REPORT
+    # ------------------------------
+    path(
+        "comments-report/",
+        views.po_comments_report,
+        name="po_comments_report",
+    ),
+    path(
+        "comments-report/excel/",
+        views.po_comments_report_excel,
+        name="po_comments_report_excel",
+    ),
 ]

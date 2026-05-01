@@ -1965,3 +1965,123 @@ def po_task_delete(request, po_id, task_id):
     task.delete()
 
     return JsonResponse({"success": True, "deleted_id": task_id})
+
+
+# ==============================================================
+# PO COMMENTS REPORT
+# ==============================================================
+@login_required_view
+def po_comments_report(request):
+    if not is_admin(request.user):
+        return HttpResponseForbidden()
+
+    # ── Filters ───────────────────────────────────────────────
+    po_number = request.GET.get("po_number", "").strip()
+    oa_number = request.GET.get("oa_number", "").strip()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+
+    filter_used = any([po_number, oa_number, date_from, date_to])
+
+    # ── Base queryset — all POs, no default date ───────────────
+    qs = (
+        PurchaseOrder.objects.select_related("company", "created_by")
+        .annotate(
+            notes_count=Count("notes", distinct=True),
+            tasks_count=Count("tasks", distinct=True),
+            comments_count=Count("comments", distinct=True),
+        )
+        .order_by("-id")
+    )
+
+    # ── Apply filters only if provided ────────────────────────
+    if po_number:
+        qs = qs.filter(po_number__icontains=po_number)
+
+    if oa_number:
+        qs = qs.filter(oa_number__icontains=oa_number)
+
+    if date_from:
+        qs = qs.filter(po_date__gte=date_from)
+
+    if date_to:
+        qs = qs.filter(po_date__lte=date_to)
+
+    # ── Pagination — 10 POs per page ──────────────────────────
+    paginator = Paginator(qs, 10)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        "page_obj": page_obj,
+        "filter_used": filter_used,
+        "filters": {
+            "po_number": po_number,
+            "oa_number": oa_number,
+            "date_from": date_from,
+            "date_to": date_to,
+        },
+    }
+
+    return render(request, "po/po_comments_report.html", context)
+
+
+# ==============================================================
+# PO COMMENTS REPORT EXCEL
+# ==============================================================
+@login_required_view
+def po_comments_report_excel(request):
+    if not is_admin(request.user):
+        return HttpResponseForbidden()
+
+    # ── Same filters as report view ────────────────────────────
+    po_number = request.GET.get("po_number", "").strip()
+    oa_number = request.GET.get("oa_number", "").strip()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+
+    # ── Base queryset — no pagination, prefetch all related ────
+    qs = (
+        PurchaseOrder.objects.select_related("company", "created_by")
+        .prefetch_related(
+            "notes__created_by",
+            "tasks__created_by",
+            "comments__po_item",
+            "comments__commented_by",
+            "items",
+        )
+        .order_by("-id")
+    )
+
+    if po_number:
+        qs = qs.filter(po_number__icontains=po_number)
+
+    if oa_number:
+        qs = qs.filter(oa_number__icontains=oa_number)
+
+    if date_from:
+        qs = qs.filter(po_date__gte=date_from)
+
+    if date_to:
+        qs = qs.filter(po_date__lte=date_to)
+
+    # ── Build filename ─────────────────────────────────────────
+    if date_from and date_to:
+        filename = f"PO_Comments_Report_{date_from}_to_{date_to}.xls"
+    elif date_from:
+        filename = f"PO_Comments_Report_from_{date_from}.xls"
+    elif date_to:
+        filename = f"PO_Comments_Report_to_{date_to}.xls"
+    else:
+        filename = "PO_Comments_Report_All.xls"
+
+    html = render_to_string(
+        "po/po_comments_report_excel.html",
+        {"pos": qs},
+    )
+
+    response = HttpResponse(html)
+    response["Content-Type"] = "application/vnd.ms-excel"
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    return response
