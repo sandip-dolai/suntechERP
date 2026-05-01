@@ -364,3 +364,55 @@ class POComment(models.Model):
 
     def __str__(self):
         return f"{self.purchase_order.po_number} | Item {self.po_item_id} | {self.commented_by}"
+
+
+class PONote(models.Model):
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="notes",
+    )
+    note = models.TextField()
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="po_notes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "PO Note"
+        verbose_name_plural = "PO Notes"
+
+    def __str__(self):
+        return f"{self.purchase_order.po_number} | {self.created_by}"
+
+
+class POTask(models.Model):
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="tasks",
+    )
+    task = models.CharField(max_length=500)
+    is_completed = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_po_tasks",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order", "created_at"]
+        verbose_name = "PO Task"
+        verbose_name_plural = "PO Tasks"
+
+    def __str__(self):
+        return f"{self.purchase_order.po_number} | {self.task[:50]}"
