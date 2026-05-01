@@ -822,6 +822,9 @@ def po_list(request):
             has_bom=Count("boms", distinct=True),
             # True (>0) if any Indent exists for this PO
             has_indent=Count("indents", distinct=True),
+            notes_count=Count("notes", distinct=True),
+            tasks_count=Count("tasks", distinct=True),
+            comments_count=Count("comments", distinct=True),
         )
         .distinct()
         .order_by("-id")

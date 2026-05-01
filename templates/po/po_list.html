@@ -41,7 +41,7 @@
         </div>
     </form>
 
-    <!-- ── Show Django success/error messages via SweetAlert ── -->
+    <!-- ── Django messages via SweetAlert ── -->
     {% if messages %}
     {% for message in messages %}
     <script>
@@ -138,12 +138,18 @@
 
                             {% if is_admin %}
 
-                            <!-- ── Comment Button (Admin Only) ── -->
+                            <!-- ── Single button — opens combined modal ── -->
                             <button type="button"
-                                    class="btn btn-sm btn-outline-warning btn-comment-trigger"
+                                    class="btn btn-sm 
+                                    {% if po.notes_count or po.tasks_count or po.comments_count %}
+                                        btn-warning
+                                    {% else %}
+                                        btn-outline-warning
+                                    {% endif %}
+                                    btn-comment-trigger"
                                     data-po-id="{{ po.pk }}"
                                     data-po-number="{{ po.po_number }}"
-                                    title="Comments for {{ po.po_number }}">
+                                    title="Comments, Notes &amp; Tasks — {{ po.po_number }}">
                                 <i class="fa fa-comment"></i>
                             </button>
 
@@ -270,7 +276,8 @@
 
 
 <!-- =====================================================
-     PO COMMENT MODAL (Admin Only)
+     COMBINED MODAL — Item Comments + Notes + Tasks
+     Triggered by the single yellow comment button.
 ====================================================== -->
 {% if is_admin %}
 <div class="modal fade" id="poCommentModal" tabindex="-1" role="dialog"
@@ -278,10 +285,11 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
         <div class="modal-content">
 
+            <!-- Header -->
             <div class="modal-header bg-warning">
                 <h5 class="modal-title" id="poCommentModalLabel">
                     <i class="fa fa-comment"></i>
-                    Comments — <span id="modal-po-number"></span>
+                    PO — <span id="modal-po-number"></span>
                 </h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -290,47 +298,159 @@
 
             <div class="modal-body p-0">
 
-                <!-- Loading spinner -->
-                <div id="comment-loading" class="text-center py-5">
+                <!-- Tab nav -->
+                <ul class="nav nav-tabs px-3 pt-2 bg-light border-bottom" id="poModalTabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="tab-comments"
+                           data-toggle="tab" href="#panel-comments" role="tab">
+                            <i class="fa fa-comment-o"></i> Item Comments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="tab-notes"
+                           data-toggle="tab" href="#panel-notes" role="tab">
+                            <i class="fa fa-sticky-note-o"></i> Notes
+                            <span class="badge badge-secondary ml-1" id="notes-count-badge">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="tab-tasks"
+                           data-toggle="tab" href="#panel-tasks" role="tab">
+                            <i class="fa fa-check-square-o"></i> Tasks
+                            <span class="badge badge-secondary ml-1" id="tasks-count-badge">0</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Global loading spinner -->
+                <div id="modal-loading" class="text-center py-5">
                     <i class="fa fa-spinner fa-spin fa-2x text-muted"></i>
-                    <p class="text-muted mt-2">Loading items...</p>
+                    <p class="text-muted mt-2">Loading...</p>
                 </div>
 
-                <!-- Comment table — shown after load -->
-                <div id="comment-body" style="display:none;">
-                    <table class="table table-bordered table-sm mb-0" id="comment-table">
-                        <thead class="thead-dark">
-                            <tr>
-                                <th style="width:35px;" class="text-center">#</th>
-                                <th style="width:120px;">Code</th>
-                                <th>Material Description</th>
-                                <th class="text-center" style="width:80px;">Qty</th>
-                                <th class="text-center" style="width:60px;">UOM</th>
-                                <th style="min-width:320px;">
-                                    Comment
-                                    <small class="text-muted font-weight-normal ml-1">
-                                        (click <i class="fa fa-microphone"></i> to dictate)
-                                    </small>
-                                </th>
-                                <th class="text-center" style="width:80px;">Save</th>
-                            </tr>
-                        </thead>
-                        <tbody id="comment-tbody">
-                            <!-- filled by JS -->
-                        </tbody>
-                    </table>
+                <!-- Tab panels — hidden until all 3 fetches complete -->
+                <div class="tab-content" id="poModalTabContent" style="display:none;">
+
+                    <!-- ══════════════════════════
+                         TAB 1 — ITEM COMMENTS
+                    ══════════════════════════ -->
+                    <div class="tab-pane fade show active p-0" id="panel-comments" role="tabpanel">
+                        <table class="table table-bordered table-sm mb-0" id="comment-table">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th style="width:35px;" class="text-center">#</th>
+                                    <th style="width:110px;">Code</th>
+                                    <th>Material Description</th>
+                                    <th class="text-center" style="width:70px;">Qty</th>
+                                    <th class="text-center" style="width:55px;">UOM</th>
+                                    <th style="min-width:260px;">
+                                        Comment
+                                        <small class="text-muted font-weight-normal ml-1">
+                                            (<i class="fa fa-microphone"></i> to dictate)
+                                        </small>
+                                    </th>
+                                    <th class="text-center" style="width:75px;">Save</th>
+                                </tr>
+                            </thead>
+                            <tbody id="comment-tbody">
+                                <!-- filled by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ══════════════════════════
+                         TAB 2 — NOTES
+                    ══════════════════════════ -->
+                    <div class="tab-pane fade p-3" id="panel-notes" role="tabpanel">
+
+                        <!-- Add note form -->
+                        <div class="card mb-3 border-warning">
+                            <div class="card-body p-2">
+                                <label class="font-weight-bold small text-muted mb-1">
+                                    <i class="fa fa-pencil"></i> Add New Note
+                                    <small class="font-weight-normal text-muted">&nbsp;Ctrl+Enter to save</small>
+                                </label>
+                                <div class="d-flex align-items-start" style="gap:8px;">
+                                    <textarea id="note-input"
+                                              class="form-control"
+                                              rows="3"
+                                              style="font-size:13px;resize:vertical;"
+                                              placeholder="Type your note here..."></textarea>
+                                    <div class="d-flex flex-column" style="gap:6px;">
+                                        <button type="button" class="mic-btn" id="note-mic-btn"
+                                                title="Click to dictate">
+                                            <i class="fa fa-microphone"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-warning btn-sm"
+                                                id="btn-add-note" title="Save note">
+                                            <i class="fa fa-save"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Thread -->
+                        <div id="notes-list"></div>
+                        <div id="notes-empty" class="text-center text-muted py-4" style="display:none;">
+                            <i class="fa fa-sticky-note-o fa-2x d-block mb-2"></i>
+                            No notes yet. Add the first one above.
+                        </div>
+
+                    </div>
+
+                    <!-- ══════════════════════════
+                         TAB 3 — TASKS
+                    ══════════════════════════ -->
+                    <div class="tab-pane fade p-3" id="panel-tasks" role="tabpanel">
+
+                        <!-- Add task form -->
+                        <div class="card mb-3 border-warning">
+                            <div class="card-body p-2">
+                                <label class="font-weight-bold small text-muted mb-1">
+                                    <i class="fa fa-plus-square-o"></i> Add New Task
+                                    <small class="font-weight-normal text-muted">&nbsp;Enter to add</small>
+                                </label>
+                                <div class="d-flex align-items-center" style="gap:8px;">
+                                    <input type="text"
+                                           id="task-input"
+                                           class="form-control"
+                                           placeholder="Type a task..."
+                                           maxlength="500"
+                                           style="font-size:13px;">
+                                    <button type="button" class="mic-btn" id="task-mic-btn"
+                                            title="Click to dictate">
+                                        <i class="fa fa-microphone"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-warning btn-sm"
+                                            id="btn-add-task" style="white-space:nowrap;">
+                                        <i class="fa fa-plus"></i> Add
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- To-do list -->
+                        <div id="tasks-list"></div>
+                        <div id="tasks-empty" class="text-center text-muted py-4" style="display:none;">
+                            <i class="fa fa-check-square-o fa-2x d-block mb-2"></i>
+                            No tasks yet. Add the first one above.
+                        </div>
+
+                    </div>
+
                 </div>
+                <!-- end tab-content -->
 
             </div>
+            <!-- end modal-body -->
 
             <div class="modal-footer">
                 <small class="text-muted mr-auto">
                     <i class="fa fa-info-circle"></i>
-                    Changes are saved per-item individually.
+                    Admin only. Changes saved instantly.
                 </small>
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                    Close
-                </button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             </div>
 
         </div>
@@ -339,33 +459,12 @@
 {% endif %}
 
 
+<!-- =====================================================
+     STYLES
+====================================================== -->
 <style>
-/* ── Comment modal styles ── */
-#comment-table td { vertical-align: middle; }
 
-.comment-input-wrap {
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
-}
-
-.comment-textarea {
-    flex: 1;
-    min-height: 60px;
-    font-size: 13px;
-    resize: vertical;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    padding: 6px 8px;
-    transition: border-color 0.2s;
-}
-
-.comment-textarea:focus {
-    outline: none;
-    border-color: #ffc107;
-    box-shadow: 0 0 0 2px rgba(255,193,7,0.25);
-}
-
+/* ── Mic button ── */
 .mic-btn {
     flex-shrink: 0;
     width: 36px;
@@ -379,47 +478,83 @@
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s;
-    margin-top: 2px;
 }
-
-.mic-btn:hover {
-    border-color: #dc3545;
-    color: #dc3545;
-}
-
-.mic-btn.recording {
-    border-color: #dc3545;
-    background: #dc3545;
-    color: #fff;
-    animation: mic-pulse 1s infinite;
-}
+.mic-btn:hover     { border-color: #dc3545; color: #dc3545; }
+.mic-btn.recording { border-color: #dc3545; background: #dc3545; color: #fff; animation: mic-pulse 1s infinite; }
 
 @keyframes mic-pulse {
-    0%   { box-shadow: 0 0 0 0 rgba(220,53,69,0.5); }
-    70%  { box-shadow: 0 0 0 8px rgba(220,53,69,0); }
-    100% { box-shadow: 0 0 0 0 rgba(220,53,69,0); }
+    0%   { box-shadow: 0 0 0 0   rgba(220,53,69,0.5); }
+    70%  { box-shadow: 0 0 0 8px rgba(220,53,69,0);   }
+    100% { box-shadow: 0 0 0 0   rgba(220,53,69,0);   }
 }
 
-.btn-save-comment {
-    white-space: nowrap;
+/* ── Item comment tab ── */
+#comment-table td   { vertical-align: middle; }
+.comment-input-wrap { display: flex; align-items: flex-start; gap: 6px; }
+.comment-textarea {
+    flex: 1;
+    min-height: 58px;
+    font-size: 13px;
+    resize: vertical;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 6px 8px;
+    transition: border-color 0.2s;
 }
+.comment-textarea:focus {
+    outline: none;
+    border-color: #ffc107;
+    box-shadow: 0 0 0 2px rgba(255,193,7,0.25);
+}
+.btn-save-comment    { white-space: nowrap; }
+.comment-saved-badge { display: none; font-size: 11px; }
 
-.comment-saved-badge {
-    display: none;
-    font-size: 11px;
+/* ── Note card ── */
+.note-card {
+    background: #fffde7;
+    border: 1px solid #ffe082;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    position: relative;
 }
+.note-card .note-meta { font-size: 11px; color: #888; margin-bottom: 4px; }
+.note-card .note-text { font-size: 13px; white-space: pre-wrap; word-break: break-word; padding-right: 38px; }
+.note-card .btn-del-note { position: absolute; top: 8px; right: 8px; }
+
+/* ── Task row ── */
+.task-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    background: #fff;
+    transition: background 0.15s;
+}
+.task-item.completed             { background: #f1f8e9; }
+.task-item .task-label           { flex: 1; font-size: 13px; word-break: break-word; }
+.task-item.completed .task-label { text-decoration: line-through; color: #999; }
+.task-item .task-meta            { font-size: 11px; color: #aaa; white-space: nowrap; }
+
 </style>
 
 
+<!-- =====================================================
+     JAVASCRIPT
+====================================================== -->
 <script>
 
-// ── Accordion toggle ──────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
+// Accordion toggle
+// ─────────────────────────────────────────────────────
 function toggleItems(poId) {
     var row  = document.getElementById("items-row-" + poId);
     var icon = document.getElementById("icon-" + poId);
     var btn  = document.getElementById("btn-" + poId);
     if (!row) return;
-
     if (row.style.display === "none" || row.style.display === "") {
         row.style.display = "table-row";
         icon.className    = "fa fa-chevron-up";
@@ -435,13 +570,14 @@ function toggleItems(poId) {
     }
 }
 
-// ── SweetAlert2 delete confirm ────────────────────────────────────
+// ─────────────────────────────────────────────────────
+// SweetAlert2 delete confirm
+// ─────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".btn-delete-trigger").forEach(function (btn) {
         btn.addEventListener("click", function () {
             var form   = btn.closest(".delete-po-form");
             var poName = form.getAttribute("data-po");
-
             Swal.fire({
                 title: "Delete " + poName + "?",
                 html: "This will permanently remove the PO and all its items and processes.<br><br><small class='text-muted'>This action cannot be undone.</small>",
@@ -453,279 +589,528 @@ document.addEventListener("DOMContentLoaded", function () {
                 cancelButtonText: "Cancel",
                 reverseButtons: true,
             }).then(function (result) {
-                if (result.isConfirmed) {
-                    form.submit();
-                }
+                if (result.isConfirmed) { form.submit(); }
             });
         });
     });
 });
 
 
-// =====================================================================
-//  PO COMMENT MODAL  (Admin only)
-// =====================================================================
 {% if is_admin %}
+// =====================================================================
+//  COMBINED MODAL LOGIC
+// =====================================================================
 (function () {
 
-    // Active speech recognition instance per row (keyed by item id)
-    var activeRecognizers = {};
-    var currentPoId = null;
+    var currentPoId        = null;
+    var SR                 = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    var noteRecognizer     = null;
+    var taskRecognizer     = null;
+    var commentRecognizers = {};   // { itemId: SpeechRecognition }
 
-    // ── CSRF helper ──────────────────────────────────────────────
+    // ── CSRF ──────────────────────────────────────────────────────
     function getCsrf() {
         var el = document.querySelector("[name=csrfmiddlewaretoken]");
         return el ? el.value : "";
     }
 
-    // ── Open modal on comment button click ───────────────────────
+    // ── HTML escape ───────────────────────────────────────────────
+    function esc(s) {
+        return String(s)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+
+    // =================================================================
+    // OPEN MODAL
+    // =================================================================
     document.addEventListener("click", function (e) {
         var btn = e.target.closest(".btn-comment-trigger");
         if (!btn) return;
 
-        currentPoId        = btn.dataset.poId;
-        var poNumber       = btn.dataset.poNumber;
+        currentPoId = btn.dataset.poId;
+        document.getElementById("modal-po-number").textContent       = btn.dataset.poNumber;
+        document.getElementById("modal-loading").style.display        = "block";
+        document.getElementById("poModalTabContent").style.display    = "none";
+        document.getElementById("comment-tbody").innerHTML             = "";
+        document.getElementById("notes-list").innerHTML                = "";
+        document.getElementById("tasks-list").innerHTML                = "";
+        document.getElementById("note-input").value                    = "";
+        document.getElementById("task-input").value                    = "";
+        document.getElementById("notes-count-badge").textContent       = "0";
+        document.getElementById("tasks-count-badge").textContent       = "0";
+        document.getElementById("notes-empty").style.display           = "none";
+        document.getElementById("tasks-empty").style.display           = "none";
 
-        document.getElementById("modal-po-number").textContent = poNumber;
-        document.getElementById("comment-loading").style.display = "block";
-        document.getElementById("comment-body").style.display   = "none";
-        document.getElementById("comment-tbody").innerHTML       = "";
+        stopAllMics();
 
-        // Stop any active mics from previous session
-        Object.values(activeRecognizers).forEach(function (r) {
-            try { r.stop(); } catch(e) {}
-        });
-        activeRecognizers = {};
+        // Always open on Tab 1
+        $("#poModalTabs a[href='#panel-comments']").tab("show");
 
         $("#poCommentModal").modal("show");
-        loadComments(currentPoId);
+        loadAll(currentPoId);
     });
 
-    // ── Load items + existing comments via AJAX ──────────────────
-    function loadComments(poId) {
-        fetch("/po/" + poId + "/comments/", {
-            method: "GET",
-            credentials: "same-origin",
-            headers: { "X-Requested-With": "XMLHttpRequest" }
-        })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            renderRows(data.items);
-            document.getElementById("comment-loading").style.display = "none";
-            document.getElementById("comment-body").style.display    = "block";
+    // =================================================================
+    // LOAD ALL — 3 parallel fetches
+    // =================================================================
+    function loadAll(poId) {
+        Promise.all([
+            fetch("/po/" + poId + "/comments/", { credentials: "same-origin" }).then(function (r) { return r.json(); }),
+            fetch("/po/" + poId + "/notes/",    { credentials: "same-origin" }).then(function (r) { return r.json(); }),
+            fetch("/po/" + poId + "/tasks/",    { credentials: "same-origin" }).then(function (r) { return r.json(); }),
+        ])
+        .then(function (res) {
+            renderComments(res[0].items || []);
+            renderNotes(res[1].notes    || []);
+            renderTasks(res[2].tasks    || []);
+            document.getElementById("modal-loading").style.display    = "none";
+            document.getElementById("poModalTabContent").style.display = "block";
         })
         .catch(function () {
-            document.getElementById("comment-loading").innerHTML =
-                '<p class="text-danger p-3"><i class="fa fa-exclamation-triangle"></i> Failed to load comments.</p>';
+            document.getElementById("modal-loading").innerHTML =
+                '<p class="text-danger text-center py-4">' +
+                '<i class="fa fa-exclamation-triangle"></i> Failed to load data. Please try again.</p>';
         });
     }
 
-    // ── Render table rows ────────────────────────────────────────
-    function renderRows(items) {
+    // =================================================================
+    // TAB 1 — ITEM COMMENTS
+    // =================================================================
+    function renderComments(items) {
         var tbody = document.getElementById("comment-tbody");
         tbody.innerHTML = "";
-
         if (!items || items.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No items found for this PO.</td></tr>';
             return;
         }
-
         items.forEach(function (item, idx) {
-            var escaped = (item.comment || "").replace(/"/g, "&quot;");
             var tr = document.createElement("tr");
             tr.dataset.itemId = item.id;
-            tr.innerHTML = `
-                <td class="text-center text-muted">${idx + 1}</td>
-                <td><small>${item.material_code}</small></td>
-                <td style="font-size:13px;">${item.material_description}</td>
-                <td class="text-center">${parseFloat(item.quantity_value).toFixed(2)}</td>
-                <td class="text-center">${item.uom}</td>
-                <td>
-                    <div class="comment-input-wrap">
-                        <textarea
-                            class="comment-textarea"
-                            id="comment-${item.id}"
-                            placeholder="Add comment for this item..."
-                            rows="2"
-                        >${item.comment || ""}</textarea>
-                        <button type="button"
-                                class="mic-btn"
-                                id="mic-${item.id}"
-                                data-item-id="${item.id}"
-                                title="Click to dictate comment">
-                            <i class="fa fa-microphone"></i>
-                        </button>
-                    </div>
-                </td>
-                <td class="text-center">
-                    <button type="button"
-                            class="btn btn-sm btn-warning btn-save-comment"
-                            data-item-id="${item.id}">
-                        <i class="fa fa-save"></i> Save
-                    </button>
-                    <span class="badge badge-success comment-saved-badge" id="saved-${item.id}">
-                        <i class="fa fa-check"></i> Saved
-                    </span>
-                </td>
-            `;
+            tr.innerHTML =
+                '<td class="text-center text-muted">' + (idx + 1) + '</td>' +
+                '<td><small>' + esc(item.material_code) + '</small></td>' +
+                '<td style="font-size:13px;">' + esc(item.material_description) + '</td>' +
+                '<td class="text-center">' + parseFloat(item.quantity_value).toFixed(2) + '</td>' +
+                '<td class="text-center">' + esc(item.uom) + '</td>' +
+                '<td>' +
+                    '<div class="comment-input-wrap">' +
+                        '<textarea class="comment-textarea" id="comment-' + item.id + '" rows="2"' +
+                            ' placeholder="Add comment...">' + esc(item.comment || '') + '</textarea>' +
+                        '<button type="button" class="mic-btn comment-mic-btn"' +
+                            ' data-item-id="' + item.id + '" title="Click to dictate">' +
+                            '<i class="fa fa-microphone"></i>' +
+                        '</button>' +
+                    '</div>' +
+                '</td>' +
+                '<td class="text-center">' +
+                    '<button type="button" class="btn btn-sm btn-warning btn-save-comment"' +
+                        ' data-item-id="' + item.id + '">' +
+                        '<i class="fa fa-save"></i> Save' +
+                    '</button>' +
+                    '<span class="badge badge-success comment-saved-badge" id="saved-' + item.id + '">' +
+                        '<i class="fa fa-check"></i> Saved' +
+                    '</span>' +
+                '</td>';
             tbody.appendChild(tr);
         });
 
-        // Attach save handlers
         tbody.querySelectorAll(".btn-save-comment").forEach(function (btn) {
-            btn.addEventListener("click", function () {
-                saveComment(this.dataset.itemId);
-            });
+            btn.addEventListener("click", function () { saveComment(this.dataset.itemId); });
         });
-
-        // Attach mic handlers
-        tbody.querySelectorAll(".mic-btn").forEach(function (btn) {
-            btn.addEventListener("click", function () {
-                toggleMic(this.dataset.itemId);
-            });
+        tbody.querySelectorAll(".comment-mic-btn").forEach(function (btn) {
+            btn.addEventListener("click", function () { toggleCommentMic(this.dataset.itemId); });
         });
     }
 
-    // ── Save comment via POST ─────────────────────────────────────
     function saveComment(itemId) {
         var textarea = document.getElementById("comment-" + itemId);
         var saveBtn  = document.querySelector('.btn-save-comment[data-item-id="' + itemId + '"]');
         var badge    = document.getElementById("saved-" + itemId);
-
         if (!textarea) return;
-
-        saveBtn.disabled    = true;
-        saveBtn.innerHTML   = '<i class="fa fa-spinner fa-spin"></i>';
-
+        saveBtn.disabled  = true;
+        saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
         fetch("/po/" + currentPoId + "/comments/", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": getCsrf(),
-                "X-Requested-With": "XMLHttpRequest",
-            },
-            body: JSON.stringify({
-                po_item_id: itemId,
-                comment: textarea.value,
-            }),
+            method: "POST", credentials: "same-origin",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrf() },
+            body: JSON.stringify({ po_item_id: itemId, comment: textarea.value }),
         })
         .then(function (r) { return r.json(); })
         .then(function (data) {
             saveBtn.disabled  = false;
             saveBtn.innerHTML = '<i class="fa fa-save"></i> Save';
-
             if (data.success) {
                 badge.style.display = "inline-block";
                 setTimeout(function () { badge.style.display = "none"; }, 2500);
-            } else {
-                alert("Failed to save comment. Please try again.");
-            }
+            } else { alert("Failed to save comment."); }
         })
         .catch(function () {
             saveBtn.disabled  = false;
             saveBtn.innerHTML = '<i class="fa fa-save"></i> Save';
-            alert("Network error. Please try again.");
+            alert("Network error.");
         });
     }
 
-    // ── Speech-to-text ────────────────────────────────────────────
-    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || null;
-
-    function toggleMic(itemId) {
-        if (!SpeechRecognition) {
-            alert("Speech recognition is not supported in your browser.\nTry Chrome or Edge.");
+    // =================================================================
+    // TAB 2 — NOTES
+    // =================================================================
+    function renderNotes(notes) {
+        document.getElementById("notes-count-badge").textContent = notes.length;
+        if (notes.length === 0) {
+            document.getElementById("notes-empty").style.display = "block";
             return;
         }
+        notes.forEach(function (n) { buildNoteCard(n, false); });
+    }
 
-        var micBtn   = document.getElementById("mic-" + itemId);
+    function buildNoteCard(n, prepend) {
+        document.getElementById("notes-empty").style.display = "none";
+        var container = document.getElementById("notes-list");
+        var div = document.createElement("div");
+        div.className      = "note-card";
+        div.dataset.noteId = n.id;
+        div.innerHTML =
+            '<div class="note-meta">' +
+                '<i class="fa fa-user-o"></i> ' + esc(n.created_by) +
+                ' &nbsp;·&nbsp; <i class="fa fa-clock-o"></i> ' + n.created_at +
+            '</div>' +
+            '<div class="note-text">' + esc(n.note) + '</div>' +
+            '<button type="button" class="btn btn-sm btn-outline-danger btn-del-note"' +
+                ' data-note-id="' + n.id + '" title="Delete note">' +
+                '<i class="fa fa-trash"></i>' +
+            '</button>';
+
+        if (prepend) { container.insertBefore(div, container.firstChild); }
+        else         { container.appendChild(div); }
+
+        div.querySelector(".btn-del-note").addEventListener("click", function () {
+            deleteNote(this.dataset.noteId);
+        });
+    }
+
+    document.getElementById("btn-add-note").addEventListener("click", addNote);
+
+    function addNote() {
+        var text = document.getElementById("note-input").value.trim();
+        if (!text) { document.getElementById("note-input").focus(); return; }
+        var btn = document.getElementById("btn-add-note");
+        btn.disabled  = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+        fetch("/po/" + currentPoId + "/notes/", {
+            method: "POST", credentials: "same-origin",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrf() },
+            body: JSON.stringify({ note: text }),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fa fa-save"></i>';
+            if (data.success) {
+                document.getElementById("note-input").value = "";
+                stopNoteMic();
+                buildNoteCard(data.note, true);
+                var badge = document.getElementById("notes-count-badge");
+                badge.textContent = parseInt(badge.textContent || 0) + 1;
+            } else { alert(data.error || "Failed to save note."); }
+        })
+        .catch(function () {
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fa fa-save"></i>';
+            alert("Network error.");
+        });
+    }
+
+    document.getElementById("note-input").addEventListener("keydown", function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { addNote(); }
+    });
+
+    function deleteNote(noteId) {
+        Swal.fire({
+            title: "Delete this note?", icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#dc3545", cancelButtonColor: "#6c757d",
+            confirmButtonText: "Yes, delete", cancelButtonText: "Cancel",
+        }).then(function (r) {
+            if (!r.isConfirmed) return;
+            fetch("/po/" + currentPoId + "/notes/", {
+                method: "DELETE", credentials: "same-origin",
+                headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrf() },
+                body: JSON.stringify({ note_id: noteId }),
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    var el = document.querySelector('.note-card[data-note-id="' + noteId + '"]');
+                    if (el) el.remove();
+                    var badge = document.getElementById("notes-count-badge");
+                    var count = Math.max(0, parseInt(badge.textContent || 0) - 1);
+                    badge.textContent = count;
+                    if (count === 0) document.getElementById("notes-empty").style.display = "block";
+                } else { alert("Failed to delete note."); }
+            })
+            .catch(function () { alert("Network error."); });
+        });
+    }
+
+    // =================================================================
+    // TAB 3 — TASKS
+    // =================================================================
+    function renderTasks(tasks) {
+        document.getElementById("tasks-count-badge").textContent = tasks.length;
+        if (tasks.length === 0) {
+            document.getElementById("tasks-empty").style.display = "block";
+            return;
+        }
+        tasks.forEach(function (t) { buildTaskRow(t); });
+    }
+
+    function buildTaskRow(t) {
+        document.getElementById("tasks-empty").style.display = "none";
+        var list = document.getElementById("tasks-list");
+        var div  = document.createElement("div");
+        div.className      = "task-item" + (t.is_completed ? " completed" : "");
+        div.dataset.taskId = t.id;
+        div.innerHTML =
+            '<input type="checkbox" class="task-checkbox" data-task-id="' + t.id + '"' +
+                (t.is_completed ? " checked" : "") +
+                ' style="width:18px;height:18px;cursor:pointer;flex-shrink:0;">' +
+            '<span class="task-label">' + esc(t.task) + '</span>' +
+            '<span class="task-meta" id="task-meta-' + t.id + '">' + t.updated_at + '</span>' +
+            '<button type="button" class="btn btn-sm btn-outline-danger btn-del-task"' +
+                ' data-task-id="' + t.id + '" title="Remove task">' +
+                '<i class="fa fa-minus"></i>' +
+            '</button>';
+        list.appendChild(div);
+
+        div.querySelector(".task-checkbox").addEventListener("change", function () {
+            toggleTask(t.id, div);
+        });
+        div.querySelector(".btn-del-task").addEventListener("click", function () {
+            deleteTask(t.id, div);
+        });
+    }
+
+    document.getElementById("btn-add-task").addEventListener("click", addTask);
+
+    function addTask() {
+        var input = document.getElementById("task-input");
+        var text  = input.value.trim();
+        if (!text) { input.focus(); return; }
+        var btn = document.getElementById("btn-add-task");
+        btn.disabled  = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+        fetch("/po/" + currentPoId + "/tasks/", {
+            method: "POST", credentials: "same-origin",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrf() },
+            body: JSON.stringify({ task: text }),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fa fa-plus"></i> Add';
+            if (data.success) {
+                input.value = "";
+                stopTaskMic();
+                buildTaskRow(data.task);
+                var badge = document.getElementById("tasks-count-badge");
+                badge.textContent = parseInt(badge.textContent || 0) + 1;
+            } else { alert(data.error || "Failed to add task."); }
+        })
+        .catch(function () {
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fa fa-plus"></i> Add';
+            alert("Network error.");
+        });
+    }
+
+    document.getElementById("task-input").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { addTask(); }
+    });
+
+    function toggleTask(taskId, divEl) {
+        fetch("/po/" + currentPoId + "/tasks/" + taskId + "/toggle/", {
+            method: "POST", credentials: "same-origin",
+            headers: { "X-CSRFToken": getCsrf() },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                if (data.is_completed) { divEl.classList.add("completed"); }
+                else                   { divEl.classList.remove("completed"); }
+                var meta = document.getElementById("task-meta-" + taskId);
+                if (meta) meta.textContent = data.updated_at;
+            } else {
+                var cb = divEl.querySelector(".task-checkbox");
+                if (cb) cb.checked = !cb.checked;
+                alert("Failed to update task.");
+            }
+        })
+        .catch(function () {
+            var cb = divEl.querySelector(".task-checkbox");
+            if (cb) cb.checked = !cb.checked;
+            alert("Network error.");
+        });
+    }
+
+    function deleteTask(taskId, divEl) {
+        Swal.fire({
+            title: "Remove this task?", icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#dc3545", cancelButtonColor: "#6c757d",
+            confirmButtonText: "Yes, remove", cancelButtonText: "Cancel",
+        }).then(function (r) {
+            if (!r.isConfirmed) return;
+            fetch("/po/" + currentPoId + "/tasks/" + taskId + "/delete/", {
+                method: "POST", credentials: "same-origin",
+                headers: { "X-CSRFToken": getCsrf() },
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    divEl.remove();
+                    var badge = document.getElementById("tasks-count-badge");
+                    var count = Math.max(0, parseInt(badge.textContent || 0) - 1);
+                    badge.textContent = count;
+                    if (count === 0) document.getElementById("tasks-empty").style.display = "block";
+                } else { alert("Failed to remove task."); }
+            })
+            .catch(function () { alert("Network error."); });
+        });
+    }
+
+    // =================================================================
+    // SPEECH — Item comment rows
+    // =================================================================
+    function toggleCommentMic(itemId) {
+        if (!SR) { alert("Speech recognition not supported. Try Chrome or Edge."); return; }
+        stopNoteMic(); stopTaskMic();
+
+        var micBtn   = document.querySelector('.comment-mic-btn[data-item-id="' + itemId + '"]');
         var textarea = document.getElementById("comment-" + itemId);
 
-        // If already recording this item — stop it
-        if (activeRecognizers[itemId]) {
-            try { activeRecognizers[itemId].stop(); } catch(e) {}
-            return;
+        if (commentRecognizers[itemId]) {
+            try { commentRecognizers[itemId].stop(); } catch(e) {} return;
         }
-
-        // Stop any other active recognizer first
-        Object.keys(activeRecognizers).forEach(function (id) {
-            if (id !== itemId) {
-                try { activeRecognizers[id].stop(); } catch(e) {}
-                var otherMic = document.getElementById("mic-" + id);
-                if (otherMic) otherMic.classList.remove("recording");
-            }
+        Object.keys(commentRecognizers).forEach(function (id) {
+            try { commentRecognizers[id].stop(); } catch(e) {}
+            var m = document.querySelector('.comment-mic-btn[data-item-id="' + id + '"]');
+            if (m) m.classList.remove("recording");
         });
-        activeRecognizers = {};
+        commentRecognizers = {};
 
-        var recognition = new SpeechRecognition();
-        recognition.lang            = "en-US";
-        recognition.continuous      = true;
-        recognition.interimResults  = true;
-        recognition.maxAlternatives = 1;
+        var rec = new SR();
+        rec.lang = "en-US"; rec.continuous = true; rec.interimResults = true;
+        var existing = textarea.value;
 
-        var existingText = textarea.value;
-        var interimText  = "";
-
-        recognition.onstart = function () {
-            activeRecognizers[itemId] = recognition;
-            micBtn.classList.add("recording");
-            micBtn.title = "Recording... click to stop";
-        };
-
-        recognition.onresult = function (event) {
-            interimText = "";
-            var finalText = "";
-
-            for (var i = event.resultIndex; i < event.results.length; i++) {
-                if (event.results[i].isFinal) {
-                    finalText += event.results[i][0].transcript + " ";
-                } else {
-                    interimText += event.results[i][0].transcript;
-                }
+        rec.onstart  = function () { commentRecognizers[itemId] = rec; micBtn.classList.add("recording"); };
+        rec.onresult = function (ev) {
+            var interim = "", fin = "";
+            for (var i = ev.resultIndex; i < ev.results.length; i++) {
+                if (ev.results[i].isFinal) { fin += ev.results[i][0].transcript + " "; }
+                else { interim += ev.results[i][0].transcript; }
             }
-
-            if (finalText) {
-                existingText = existingText + finalText;
-            }
-
-            // Show combined: committed + interim preview
-            textarea.value = existingText + interimText;
+            if (fin) existing += fin;
+            textarea.value = existing + interim;
         };
-
-        recognition.onerror = function (event) {
-            if (event.error === "not-allowed" || event.error === "permission-denied") {
-                alert("Microphone permission denied.\nPlease allow microphone access in your browser settings.");
-            } else if (event.error !== "aborted") {
-                console.warn("Speech recognition error:", event.error);
-            }
-            stopMic(itemId);
-        };
-
-        recognition.onend = function () {
-            // Commit whatever was interim on natural end
-            textarea.value = existingText;
-            stopMic(itemId);
-        };
-
-        recognition.start();
+        rec.onerror  = function (ev) { if (ev.error === "not-allowed") alert("Microphone permission denied."); _stopCMic(itemId); };
+        rec.onend    = function () { textarea.value = existing; _stopCMic(itemId); };
+        rec.start();
+    }
+    function _stopCMic(itemId) {
+        delete commentRecognizers[itemId];
+        var m = document.querySelector('.comment-mic-btn[data-item-id="' + itemId + '"]');
+        if (m) m.classList.remove("recording");
     }
 
-    function stopMic(itemId) {
-        delete activeRecognizers[itemId];
-        var micBtn = document.getElementById("mic-" + itemId);
-        if (micBtn) {
-            micBtn.classList.remove("recording");
-            micBtn.title = "Click to dictate comment";
-        }
-    }
+    // =================================================================
+    // SPEECH — Note textarea
+    // =================================================================
+    document.getElementById("note-mic-btn").addEventListener("click", function () {
+        if (!SR) { alert("Speech recognition not supported. Try Chrome or Edge."); return; }
+        if (noteRecognizer) { stopNoteMic(); return; }
+        stopTaskMic();
+        Object.keys(commentRecognizers).forEach(function (id) { try { commentRecognizers[id].stop(); } catch(e) {} });
+        commentRecognizers = {};
 
-    // Bootstrap 3 modal close event (your app uses Bootstrap 3/4 mix)
-    $("#poCommentModal").on("hidden.bs.modal", function () {
-        Object.keys(activeRecognizers).forEach(function (id) {
-            try { activeRecognizers[id].stop(); } catch(e) {}
-        });
-        activeRecognizers = {};
+        var textarea = document.getElementById("note-input");
+        var btn      = document.getElementById("note-mic-btn");
+        var existing = textarea.value;
+
+        noteRecognizer = new SR();
+        noteRecognizer.lang = "en-US"; noteRecognizer.continuous = true; noteRecognizer.interimResults = true;
+
+        noteRecognizer.onstart  = function () { btn.classList.add("recording"); };
+        noteRecognizer.onresult = function (e) {
+            var interim = "", fin = "";
+            for (var i = e.resultIndex; i < e.results.length; i++) {
+                if (e.results[i].isFinal) { fin += e.results[i][0].transcript + " "; }
+                else { interim += e.results[i][0].transcript; }
+            }
+            if (fin) existing += fin;
+            textarea.value = existing + interim;
+        };
+        noteRecognizer.onerror  = function (ev) { if (ev.error === "not-allowed") alert("Microphone permission denied."); stopNoteMic(); };
+        noteRecognizer.onend    = function () { textarea.value = existing; stopNoteMic(); };
+        noteRecognizer.start();
     });
+
+    function stopNoteMic() {
+        if (noteRecognizer) { try { noteRecognizer.stop(); } catch(e) {} noteRecognizer = null; }
+        var btn = document.getElementById("note-mic-btn");
+        if (btn) btn.classList.remove("recording");
+    }
+
+    // =================================================================
+    // SPEECH — Task input
+    // =================================================================
+    document.getElementById("task-mic-btn").addEventListener("click", function () {
+        if (!SR) { alert("Speech recognition not supported. Try Chrome or Edge."); return; }
+        if (taskRecognizer) { stopTaskMic(); return; }
+        stopNoteMic();
+        Object.keys(commentRecognizers).forEach(function (id) { try { commentRecognizers[id].stop(); } catch(e) {} });
+        commentRecognizers = {};
+
+        var input    = document.getElementById("task-input");
+        var btn      = document.getElementById("task-mic-btn");
+        var existing = input.value;
+
+        taskRecognizer = new SR();
+        taskRecognizer.lang = "en-US"; taskRecognizer.continuous = true; taskRecognizer.interimResults = true;
+
+        taskRecognizer.onstart  = function () { btn.classList.add("recording"); };
+        taskRecognizer.onresult = function (e) {
+            var interim = "", fin = "";
+            for (var i = e.resultIndex; i < e.results.length; i++) {
+                if (e.results[i].isFinal) { fin += e.results[i][0].transcript + " "; }
+                else { interim += e.results[i][0].transcript; }
+            }
+            if (fin) existing += fin;
+            input.value = existing + interim;
+        };
+        taskRecognizer.onerror  = function (ev) { if (ev.error === "not-allowed") alert("Microphone permission denied."); stopTaskMic(); };
+        taskRecognizer.onend    = function () { input.value = existing; stopTaskMic(); };
+        taskRecognizer.start();
+    });
+
+    function stopTaskMic() {
+        if (taskRecognizer) { try { taskRecognizer.stop(); } catch(e) {} taskRecognizer = null; }
+        var btn = document.getElementById("task-mic-btn");
+        if (btn) btn.classList.remove("recording");
+    }
+
+    // =================================================================
+    // Stop all mics — called on open and on modal close
+    // =================================================================
+    function stopAllMics() {
+        stopNoteMic();
+        stopTaskMic();
+        Object.keys(commentRecognizers).forEach(function (id) {
+            try { commentRecognizers[id].stop(); } catch(e) {}
+        });
+        commentRecognizers = {};
+    }
+
+    $("#poCommentModal").on("hidden.bs.modal", function () { stopAllMics(); });
 
 })();
 {% endif %}
