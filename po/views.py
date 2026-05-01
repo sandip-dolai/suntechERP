@@ -26,6 +26,8 @@ from .models import (
     POTarget,
     POTargetItem,
     POComment,
+    PONote,
+    POTask,
 )
 from .forms import (
     PurchaseOrderForm,
@@ -1750,3 +1752,213 @@ def po_comments_api(request, po_id):
         )
 
     return JsonResponse({"error": "Method not allowed"}, status=405)
+
+
+# =====================================================
+# PO NOTES API
+# =====================================================
+@login_required_view
+def po_notes_api(request, po_id):
+    """
+    GET    → list all notes for this PO
+    POST   → add a new note
+    DELETE → delete a note by note_id in request body
+    """
+    if not is_admin(request.user):
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    po = get_object_or_404(PurchaseOrder, pk=po_id)
+
+    # ── GET ──────────────────────────────────────────
+    if request.method == "GET":
+        notes = PONote.objects.filter(purchase_order=po).select_related("created_by")
+        data = [
+            {
+                "id": n.id,
+                "note": n.note,
+                "created_by": n.created_by.get_full_name() if n.created_by else "—",
+                "created_at": n.created_at.strftime("%d %b %Y, %I:%M %p"),
+                "updated_at": n.updated_at.strftime("%d %b %Y, %I:%M %p"),
+            }
+            for n in notes
+        ]
+        return JsonResponse({"po_number": po.po_number, "notes": data})
+
+    # ── POST ─────────────────────────────────────────
+    if request.method == "POST":
+        try:
+            body = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        note_text = body.get("note", "").strip()
+
+        if not note_text:
+            return JsonResponse({"error": "Note cannot be empty."}, status=400)
+
+        note = PONote.objects.create(
+            purchase_order=po,
+            note=note_text,
+            created_by=request.user,
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "note": {
+                    "id": note.id,
+                    "note": note.note,
+                    "created_by": (
+                        note.created_by.get_full_name() if note.created_by else "—"
+                    ),
+                    "created_at": note.created_at.strftime("%d %b %Y, %I:%M %p"),
+                    "updated_at": note.updated_at.strftime("%d %b %Y, %I:%M %p"),
+                },
+            },
+            status=201,
+        )
+
+    # ── DELETE ───────────────────────────────────────
+    if request.method == "DELETE":
+        try:
+            body = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        note_id = body.get("note_id")
+        if not note_id:
+            return JsonResponse({"error": "note_id is required."}, status=400)
+
+        note = get_object_or_404(PONote, pk=note_id, purchase_order=po)
+        note.delete()
+        return JsonResponse({"success": True, "deleted_id": note_id})
+
+    return JsonResponse({"error": "Method not allowed."}, status=405)
+
+
+# =====================================================
+# PO TASKS API
+# =====================================================
+@login_required_view
+def po_tasks_api(request, po_id):
+    """
+    GET  → list all tasks for this PO
+    POST → add a new task
+    """
+    if not is_admin(request.user):
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    po = get_object_or_404(PurchaseOrder, pk=po_id)
+
+    # ── GET ──────────────────────────────────────────
+    if request.method == "GET":
+        tasks = POTask.objects.filter(purchase_order=po).select_related("created_by")
+        data = [
+            {
+                "id": t.id,
+                "task": t.task,
+                "is_completed": t.is_completed,
+                "created_by": t.created_by.get_full_name() if t.created_by else "—",
+                "created_at": t.created_at.strftime("%d %b %Y, %I:%M %p"),
+                "updated_at": t.updated_at.strftime("%d %b %Y, %I:%M %p"),
+            }
+            for t in tasks
+        ]
+        return JsonResponse({"po_number": po.po_number, "tasks": data})
+
+    # ── POST ─────────────────────────────────────────
+    if request.method == "POST":
+        try:
+            body = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        task_text = body.get("task", "").strip()
+
+        if not task_text:
+            return JsonResponse({"error": "Task cannot be empty."}, status=400)
+
+        if len(task_text) > 500:
+            return JsonResponse(
+                {"error": "Task cannot exceed 500 characters."}, status=400
+            )
+
+        # order → place at the end
+        last_order = POTask.objects.filter(purchase_order=po).count()
+
+        task = POTask.objects.create(
+            purchase_order=po,
+            task=task_text,
+            created_by=request.user,
+            order=last_order,
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "task": {
+                    "id": task.id,
+                    "task": task.task,
+                    "is_completed": task.is_completed,
+                    "created_by": (
+                        task.created_by.get_full_name() if task.created_by else "—"
+                    ),
+                    "created_at": task.created_at.strftime("%d %b %Y, %I:%M %p"),
+                    "updated_at": task.updated_at.strftime("%d %b %Y, %I:%M %p"),
+                },
+            },
+            status=201,
+        )
+
+    return JsonResponse({"error": "Method not allowed."}, status=405)
+
+
+# =====================================================
+# PO TASK TOGGLE
+# =====================================================
+@login_required_view
+def po_task_toggle(request, po_id, task_id):
+    """
+    POST → toggle is_completed for a task
+    """
+    if not is_admin(request.user):
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed."}, status=405)
+
+    po = get_object_or_404(PurchaseOrder, pk=po_id)
+    task = get_object_or_404(POTask, pk=task_id, purchase_order=po)
+
+    task.is_completed = not task.is_completed
+    task.save(update_fields=["is_completed", "updated_at"])
+
+    return JsonResponse(
+        {
+            "success": True,
+            "task_id": task.id,
+            "is_completed": task.is_completed,
+            "updated_at": task.updated_at.strftime("%d %b %Y, %I:%M %p"),
+        }
+    )
+
+
+# =====================================================
+# PO TASK DELETE
+# =====================================================
+@login_required_view
+def po_task_delete(request, po_id, task_id):
+    """
+    POST → delete a task
+    """
+    if not is_admin(request.user):
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed."}, status=405)
+
+    po = get_object_or_404(PurchaseOrder, pk=po_id)
+    task = get_object_or_404(POTask, pk=task_id, purchase_order=po)
+    task.delete()
+
+    return JsonResponse({"success": True, "deleted_id": task_id})

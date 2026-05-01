@@ -86,4 +86,27 @@ urlpatterns = [
         views.po_comments_api,
         name="po_comments_api",
     ),
+    # ------------------------------
+    # PO NOTES & TASKS
+    # ------------------------------
+    path(
+        "<int:po_id>/notes/",
+        views.po_notes_api,
+        name="po_notes_api",
+    ),
+    path(
+        "<int:po_id>/tasks/",
+        views.po_tasks_api,
+        name="po_tasks_api",
+    ),
+    path(
+        "<int:po_id>/tasks/<int:task_id>/toggle/",
+        views.po_task_toggle,
+        name="po_task_toggle",
+    ),
+    path(
+        "<int:po_id>/tasks/<int:task_id>/delete/",
+        views.po_task_delete,
+        name="po_task_delete",
+    ),
 ]
