@@ -1,0 +1,945 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% block title %}PO Comments Report - Suntech ERP{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- ================= HEADER ================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">
+            <i class="fa fa-comment-o mr-1 text-warning"></i>
+            PO Comments Report
+        </h4>
+        <small class="text-muted">Total: {{ page_obj.paginator.count }} PO(s)</small>
+    </div>
+
+    <!-- ================= FILTER CARD ================= -->
+    <form method="get" id="filter-form">
+        <div class="card mb-3">
+            <div class="card-header">
+                <strong><i class="fa fa-filter mr-1"></i> Filters</strong>
+            </div>
+            <div class="card-body pb-2">
+                <div class="row align-items-end">
+
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label small font-weight-bold mb-1">From Date</label>
+                        <input type="date"
+                               name="date_from"
+                               class="form-control"
+                               value="{{ filters.date_from }}">
+                    </div>
+
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label small font-weight-bold mb-1">To Date</label>
+                        <input type="date"
+                               name="date_to"
+                               class="form-control"
+                               value="{{ filters.date_to }}">
+                    </div>
+
+                    <div class="col-md-2 mb-2">
+                        <label class="form-label small font-weight-bold mb-1">PO Number</label>
+                        <input type="text"
+                               name="po_number"
+                               class="form-control"
+                               placeholder="Search PO"
+                               value="{{ filters.po_number }}">
+                    </div>
+
+                    <div class="col-md-2 mb-2">
+                        <label class="form-label small font-weight-bold mb-1">OA Number</label>
+                        <input type="text"
+                               name="oa_number"
+                               class="form-control"
+                               placeholder="Search OA"
+                               value="{{ filters.oa_number }}">
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="col-md-2 mb-2 d-flex align-items-end" style="gap:6px;">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa fa-filter"></i> Filter
+                        </button>
+                        
+                        <a href="{% url 'po:po_comments_report_excel' %}?{{ request.GET.urlencode }}"
+                           class="btn btn-success">
+                            <i class="fa fa-file-excel-o"></i> Excel
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- ================= PO TABLE ================= -->
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-bordered table-hover table-sm mb-0">
+                <thead class="table-primary">
+                    <tr>
+                        <th style="width:40px;" class="text-center">#</th>
+                        <th>PO Number</th>
+                        <th>OA Number</th>
+                        <th>Company</th>
+                        <th class="text-center">PO Date</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center" style="width:130px;">Activity</th>
+                        <th class="text-center" style="width:80px;">Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                {% for po in page_obj %}
+
+                    <!-- ── Main PO Row ── -->
+                    <tr id="rpt-row-{{ po.pk }}">
+
+                        <td class="text-center text-muted">
+                            {{ page_obj.start_index|add:forloop.counter0 }}
+                        </td>
+
+                        <td>
+                            <a href="{% url 'po:po_process_list' po.pk %}"
+                               class="font-weight-bold" target="_blank">
+                                {{ po.po_number }}
+                            </a>
+                        </td>
+
+                        <td>{{ po.oa_number }}</td>
+                        <td>{{ po.company }}</td>
+                        <td class="text-center">{{ po.po_date }}</td>
+
+                        <td class="text-center">
+                            <span class="badge
+                                {% if po.po_status == 'COMPLETED' %}badge-success
+                                {% elif po.po_status == 'PENDING' %}badge-warning text-dark
+                                {% else %}badge-secondary{% endif %}">
+                                {{ po.get_po_status_display }}
+                            </span>
+                        </td>
+
+                        <!-- Activity indicators -->
+                        <td class="text-center">
+                            <!-- Notes badge -->
+                            <span class="badge {% if po.notes_count %}badge-primary{% else %}badge-light border{% endif %}"
+                                  title="{{ po.notes_count }} Note(s)">
+                                <i class="fa fa-sticky-note-o"></i> {{ po.notes_count }}
+                            </span>
+                            <!-- Tasks badge -->
+                            <span class="badge {% if po.tasks_count %}badge-info{% else %}badge-light border{% endif %}"
+                                  title="{{ po.tasks_count }} Task(s)">
+                                <i class="fa fa-check-square-o"></i> {{ po.tasks_count }}
+                            </span>
+                            <!-- Comments badge -->
+                            <span class="badge {% if po.comments_count %}badge-warning text-dark{% else %}badge-light border{% endif %}"
+                                  title="{{ po.comments_count }} Item Comment(s)">
+                                <i class="fa fa-comment-o"></i> {{ po.comments_count }}
+                            </span>
+                        </td>
+
+                        <!-- Expand button -->
+                        <td class="text-center">
+                            <button type="button"
+                                    class="btn btn-sm {% if po.notes_count or po.tasks_count or po.comments_count %}btn-warning{% else %}btn-outline-warning{% endif %} btn-rpt-expand"
+                                    data-po-id="{{ po.pk }}"
+                                    data-po-number="{{ po.po_number }}"
+                                    id="rpt-expand-btn-{{ po.pk }}"
+                                    title="View Notes, Tasks &amp; Comments">
+                                <i class="fa fa-chevron-down" id="rpt-expand-icon-{{ po.pk }}"></i>
+                            </button>
+                        </td>
+
+                    </tr>
+
+                    <!-- ── Accordion Detail Row ── -->
+                    <tr id="rpt-detail-{{ po.pk }}" style="display:none;">
+                        <td colspan="8" class="p-0">
+                            <div class="rpt-accordion-wrap" id="rpt-accordion-{{ po.pk }}">
+
+                                <!-- Loading state -->
+                                <div class="text-center py-4 rpt-loading-{{ po.pk }}">
+                                    <i class="fa fa-spinner fa-spin fa-lg text-muted"></i>
+                                    <span class="text-muted ml-2">Loading...</span>
+                                </div>
+
+                                <!-- Content (hidden until loaded) -->
+                                <div class="rpt-content-{{ po.pk }}" style="display:none;">
+
+                                    <!-- Tab nav -->
+                                    <ul class="nav nav-tabs px-3 pt-2 bg-light border-bottom"
+                                        id="rpt-tabs-{{ po.pk }}" role="tablist">
+                                        <li class="nav-item">
+                                            <a class="nav-link active"
+                                               data-toggle="tab"
+                                               href="#rpt-comments-{{ po.pk }}"
+                                               role="tab">
+                                                <i class="fa fa-comment-o"></i> Item Comments
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link"
+                                               data-toggle="tab"
+                                               href="#rpt-notes-{{ po.pk }}"
+                                               role="tab">
+                                                <i class="fa fa-sticky-note-o"></i> Notes
+                                                <span class="badge badge-secondary ml-1 rpt-notes-badge-{{ po.pk }}">0</span>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link"
+                                               data-toggle="tab"
+                                               href="#rpt-tasks-{{ po.pk }}"
+                                               role="tab">
+                                                <i class="fa fa-check-square-o"></i> Tasks
+                                                <span class="badge badge-secondary ml-1 rpt-tasks-badge-{{ po.pk }}">0</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+
+                                    <div class="tab-content p-3">
+
+                                        <!-- ── Tab 1: Item Comments ── -->
+                                        <div class="tab-pane fade show active p-0"
+                                             id="rpt-comments-{{ po.pk }}" role="tabpanel">
+                                            <table class="table table-bordered table-sm mb-0">
+                                                <thead class="thead-dark">
+                                                    <tr>
+                                                        <th style="width:35px;" class="text-center">#</th>
+                                                        <th style="width:110px;">Code</th>
+                                                        <th>Material Description</th>
+                                                        <th class="text-center" style="width:70px;">Qty</th>
+                                                        <th class="text-center" style="width:55px;">UOM</th>
+                                                        <th style="min-width:240px;">
+                                                            Comment
+                                                            <small class="text-muted font-weight-normal ml-1">
+                                                                (<i class="fa fa-microphone"></i> to dictate)
+                                                            </small>
+                                                        </th>
+                                                        <th class="text-center" style="width:75px;">Save</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="rpt-comment-tbody-{{ po.pk }}">
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <!-- ── Tab 2: Notes ── -->
+                                        <div class="tab-pane fade"
+                                             id="rpt-notes-{{ po.pk }}" role="tabpanel">
+
+                                            <!-- Add note -->
+                                            <div class="card mb-3 border-warning">
+                                                <div class="card-body p-2">
+                                                    <label class="font-weight-bold small text-muted mb-1">
+                                                        <i class="fa fa-pencil"></i> Add New Note
+                                                        <small class="font-weight-normal">&nbsp;Ctrl+Enter to save</small>
+                                                    </label>
+                                                    <div class="d-flex align-items-start" style="gap:8px;">
+                                                        <textarea
+                                                            class="form-control rpt-note-input-{{ po.pk }}"
+                                                            rows="2"
+                                                            style="font-size:13px;resize:vertical;"
+                                                            placeholder="Type your note here..."></textarea>
+                                                        <div class="d-flex flex-column" style="gap:6px;">
+                                                            <button type="button"
+                                                                    class="mic-btn rpt-note-mic-{{ po.pk }}"
+                                                                    data-po-id="{{ po.pk }}"
+                                                                    data-target="note"
+                                                                    title="Click to dictate">
+                                                                <i class="fa fa-microphone"></i>
+                                                            </button>
+                                                            <button type="button"
+                                                                    class="btn btn-warning btn-sm rpt-btn-add-note-{{ po.pk }}"
+                                                                    data-po-id="{{ po.pk }}"
+                                                                    title="Save note">
+                                                                <i class="fa fa-save"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="rpt-notes-list-{{ po.pk }}"></div>
+                                            <div class="rpt-notes-empty-{{ po.pk }} text-center text-muted py-3"
+                                                 style="display:none;">
+                                                <i class="fa fa-sticky-note-o fa-2x d-block mb-2"></i>
+                                                No notes yet.
+                                            </div>
+
+                                        </div>
+
+                                        <!-- ── Tab 3: Tasks ── -->
+                                        <div class="tab-pane fade"
+                                             id="rpt-tasks-{{ po.pk }}" role="tabpanel">
+
+                                            <!-- Add task -->
+                                            <div class="card mb-3 border-warning">
+                                                <div class="card-body p-2">
+                                                    <label class="font-weight-bold small text-muted mb-1">
+                                                        <i class="fa fa-plus-square-o"></i> Add New Task
+                                                        <small class="font-weight-normal">&nbsp;Enter to add</small>
+                                                    </label>
+                                                    <div class="d-flex align-items-center" style="gap:8px;">
+                                                        <input type="text"
+                                                               class="form-control rpt-task-input-{{ po.pk }}"
+                                                               placeholder="Type a task..."
+                                                               maxlength="500"
+                                                               style="font-size:13px;">
+                                                        <button type="button"
+                                                                class="mic-btn rpt-task-mic-{{ po.pk }}"
+                                                                data-po-id="{{ po.pk }}"
+                                                                data-target="task"
+                                                                title="Click to dictate">
+                                                            <i class="fa fa-microphone"></i>
+                                                        </button>
+                                                        <button type="button"
+                                                                class="btn btn-warning btn-sm rpt-btn-add-task-{{ po.pk }}"
+                                                                data-po-id="{{ po.pk }}"
+                                                                style="white-space:nowrap;">
+                                                            <i class="fa fa-plus"></i> Add
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="rpt-tasks-list-{{ po.pk }}"></div>
+                                            <div class="rpt-tasks-empty-{{ po.pk }} text-center text-muted py-3"
+                                                 style="display:none;">
+                                                <i class="fa fa-check-square-o fa-2x d-block mb-2"></i>
+                                                No tasks yet.
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+                                    <!-- end tab-content -->
+
+                                </div>
+                                <!-- end rpt-content -->
+
+                            </div>
+                        </td>
+                    </tr>
+
+                {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            No Purchase Orders found.
+                        </td>
+                    </tr>
+                {% endfor %}
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% include "components/pagination.html" %}
+
+</div>
+
+
+<!-- =====================================================
+     STYLES
+====================================================== -->
+<style>
+
+.rpt-accordion-wrap {
+    background: #f8f9fa;
+    border-top: 2px solid #ffc107;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* ── Mic button ── */
+.mic-btn {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2px solid #6c757d;
+    background: #fff;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.mic-btn:hover     { border-color: #dc3545; color: #dc3545; }
+.mic-btn.recording { border-color: #dc3545; background: #dc3545; color: #fff; animation: mic-pulse 1s infinite; }
+
+@keyframes mic-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(220,53,69,0.5); }
+    70%  { box-shadow: 0 0 0 8px rgba(220,53,69,0);   }
+    100% { box-shadow: 0 0 0 0   rgba(220,53,69,0);   }
+}
+
+/* ── Item comment cells ── */
+.rpt-comment-wrap  { display:flex; align-items:flex-start; gap:6px; }
+.rpt-comment-ta {
+    flex:1; min-height:52px; font-size:13px; resize:vertical;
+    border:1px solid #ced4da; border-radius:4px; padding:5px 7px;
+    transition: border-color 0.2s;
+}
+.rpt-comment-ta:focus {
+    outline:none; border-color:#ffc107;
+    box-shadow:0 0 0 2px rgba(255,193,7,0.2);
+}
+.rpt-save-btn        { white-space:nowrap; }
+.rpt-saved-badge     { display:none; font-size:11px; }
+
+/* ── Note card ── */
+.note-card {
+    background:#fffde7; border:1px solid #ffe082;
+    border-radius:6px; padding:10px 12px; margin-bottom:8px; position:relative;
+}
+.note-card .note-meta { font-size:11px; color:#888; margin-bottom:4px; }
+.note-card .note-text { font-size:13px; white-space:pre-wrap; word-break:break-word; padding-right:38px; }
+.note-card .btn-del-note { position:absolute; top:8px; right:8px; }
+
+/* ── Task row ── */
+.task-item {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 12px; border:1px solid #dee2e6;
+    border-radius:6px; margin-bottom:6px; background:#fff; transition:background 0.15s;
+}
+.task-item.completed              { background:#f1f8e9; }
+.task-item .task-label            { flex:1; font-size:13px; word-break:break-word; }
+.task-item.completed .task-label  { text-decoration:line-through; color:#999; }
+.task-item .task-meta             { font-size:11px; color:#aaa; white-space:nowrap; }
+
+</style>
+
+
+<!-- =====================================================
+     JAVASCRIPT
+====================================================== -->
+<script>
+(function () {
+
+    var SR      = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    var loaded  = {};       // { poId: true } — tracks already-loaded accordions
+    var mics    = {};       // { "poId-note" | "poId-task" | "poId-item-itemId": recognizer }
+
+    // ── CSRF ──────────────────────────────────────────────────────
+    function getCsrf() {
+        var el = document.querySelector("[name=csrfmiddlewaretoken]");
+        return el ? el.value : "";
+    }
+
+    // ── HTML escape ───────────────────────────────────────────────
+    function esc(s) {
+        return String(s)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+
+    // ── Stop a single mic by key ──────────────────────────────────
+    function stopMic(key) {
+        if (mics[key]) {
+            try { mics[key].stop(); } catch(e) {}
+            delete mics[key];
+        }
+        // Remove recording class from any button with this key
+        document.querySelectorAll("[data-mic-key='" + key + "']").forEach(function (b) {
+            b.classList.remove("recording");
+        });
+    }
+
+    // ── Stop all mics for a PO ───────────────────────────────────
+    function stopAllMicsForPo(poId) {
+        Object.keys(mics).forEach(function (k) {
+            if (k.indexOf(poId + "-") === 0) { stopMic(k); }
+        });
+    }
+
+    // =================================================================
+    // ACCORDION TOGGLE
+    // =================================================================
+    document.addEventListener("click", function (e) {
+        var btn = e.target.closest(".btn-rpt-expand");
+        if (!btn) return;
+
+        var poId   = btn.dataset.poId;
+        var detRow = document.getElementById("rpt-detail-" + poId);
+        var icon   = document.getElementById("rpt-expand-icon-" + poId);
+
+        if (detRow.style.display === "none" || detRow.style.display === "") {
+            // Open
+            detRow.style.display = "table-row";
+            icon.className       = "fa fa-chevron-up";
+
+            // Lazy load — only fetch once
+            if (!loaded[poId]) {
+                loadAll(poId);
+                loaded[poId] = true;
+            }
+        } else {
+            // Close
+            detRow.style.display = "none";
+            icon.className       = "fa fa-chevron-down";
+            stopAllMicsForPo(poId);
+        }
+    });
+
+    // =================================================================
+    // LOAD ALL — 3 parallel fetches per PO
+    // =================================================================
+    function loadAll(poId) {
+        Promise.all([
+            fetch("/po/" + poId + "/comments/", { credentials: "same-origin" }).then(function (r) { return r.json(); }),
+            fetch("/po/" + poId + "/notes/",    { credentials: "same-origin" }).then(function (r) { return r.json(); }),
+            fetch("/po/" + poId + "/tasks/",    { credentials: "same-origin" }).then(function (r) { return r.json(); }),
+        ])
+        .then(function (res) {
+            renderComments(poId, res[0].items  || []);
+            renderNotes(poId,    res[1].notes   || []);
+            renderTasks(poId,    res[2].tasks   || []);
+
+            document.querySelector(".rpt-loading-" + poId).style.display = "none";
+            document.querySelector(".rpt-content-" + poId).style.display = "block";
+
+            // Wire up add note / add task buttons + mic buttons
+            wireNoteAdd(poId);
+            wireTaskAdd(poId);
+            wireMics(poId);
+        })
+        .catch(function () {
+            document.querySelector(".rpt-loading-" + poId).innerHTML =
+                '<p class="text-danger text-center py-3">' +
+                '<i class="fa fa-exclamation-triangle"></i> Failed to load. Please try again.</p>';
+        });
+    }
+
+    // =================================================================
+    // TAB 1 — ITEM COMMENTS
+    // =================================================================
+    function renderComments(poId, items) {
+        var tbody = document.querySelector(".rpt-comment-tbody-" + poId);
+        tbody.innerHTML = "";
+
+        if (!items || items.length === 0) {
+            tbody.innerHTML =
+                '<tr><td colspan="7" class="text-center text-muted py-3">No items found for this PO.</td></tr>';
+            return;
+        }
+
+        items.forEach(function (item, idx) {
+            var tr = document.createElement("tr");
+            tr.innerHTML =
+                '<td class="text-center text-muted">' + (idx + 1) + '</td>' +
+                '<td><small>' + esc(item.material_code) + '</small></td>' +
+                '<td style="font-size:13px;">' + esc(item.material_description) + '</td>' +
+                '<td class="text-center">' + parseFloat(item.quantity_value).toFixed(2) + '</td>' +
+                '<td class="text-center">' + esc(item.uom) + '</td>' +
+                '<td>' +
+                    '<div class="rpt-comment-wrap">' +
+                        '<textarea class="rpt-comment-ta" id="rpt-cmt-' + poId + '-' + item.id + '" rows="2"' +
+                            ' placeholder="Add comment...">' + esc(item.comment || '') + '</textarea>' +
+                        '<button type="button" class="mic-btn rpt-cmt-mic"' +
+                            ' data-po-id="' + poId + '" data-item-id="' + item.id + '"' +
+                            ' data-mic-key="' + poId + '-item-' + item.id + '"' +
+                            ' title="Dictate">' +
+                            '<i class="fa fa-microphone"></i>' +
+                        '</button>' +
+                    '</div>' +
+                '</td>' +
+                '<td class="text-center">' +
+                    '<button type="button" class="btn btn-sm btn-warning rpt-save-btn rpt-cmt-save"' +
+                        ' data-po-id="' + poId + '" data-item-id="' + item.id + '">' +
+                        '<i class="fa fa-save"></i> Save' +
+                    '</button>' +
+                    '<span class="badge badge-success rpt-saved-badge" id="rpt-saved-' + poId + '-' + item.id + '">' +
+                        '<i class="fa fa-check"></i> Saved' +
+                    '</span>' +
+                '</td>';
+            tbody.appendChild(tr);
+        });
+
+        // Save handlers
+        tbody.querySelectorAll(".rpt-cmt-save").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                saveComment(this.dataset.poId, this.dataset.itemId);
+            });
+        });
+
+        // Comment mic handlers
+        tbody.querySelectorAll(".rpt-cmt-mic").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                toggleMic(
+                    this.dataset.poId + "-item-" + this.dataset.itemId,
+                    document.getElementById("rpt-cmt-" + this.dataset.poId + "-" + this.dataset.itemId),
+                    this
+                );
+            });
+        });
+    }
+
+    function saveComment(poId, itemId) {
+        var ta      = document.getElementById("rpt-cmt-" + poId + "-" + itemId);
+        var saveBtn = document.querySelector('.rpt-cmt-save[data-po-id="' + poId + '"][data-item-id="' + itemId + '"]');
+        var badge   = document.getElementById("rpt-saved-" + poId + "-" + itemId);
+        if (!ta) return;
+        saveBtn.disabled  = true;
+        saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+        fetch("/po/" + poId + "/comments/", {
+            method: "POST", credentials: "same-origin",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrf() },
+            body: JSON.stringify({ po_item_id: itemId, comment: ta.value }),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            saveBtn.disabled  = false;
+            saveBtn.innerHTML = '<i class="fa fa-save"></i> Save';
+            if (data.success) {
+                badge.style.display = "inline-block";
+                setTimeout(function () { badge.style.display = "none"; }, 2500);
+            } else { alert("Failed to save comment."); }
+        })
+        .catch(function () {
+            saveBtn.disabled  = false;
+            saveBtn.innerHTML = '<i class="fa fa-save"></i> Save';
+            alert("Network error.");
+        });
+    }
+
+    // =================================================================
+    // TAB 2 — NOTES
+    // =================================================================
+    function renderNotes(poId, notes) {
+        var badge = document.querySelector(".rpt-notes-badge-" + poId);
+        if (badge) badge.textContent = notes.length;
+        if (notes.length === 0) {
+            document.querySelector(".rpt-notes-empty-" + poId).style.display = "block";
+            return;
+        }
+        notes.forEach(function (n) { buildNoteCard(poId, n, false); });
+    }
+
+    function buildNoteCard(poId, n, prepend) {
+        document.querySelector(".rpt-notes-empty-" + poId).style.display = "none";
+        var container = document.querySelector(".rpt-notes-list-" + poId);
+        var div = document.createElement("div");
+        div.className      = "note-card";
+        div.dataset.noteId = n.id;
+        div.innerHTML =
+            '<div class="note-meta">' +
+                '<i class="fa fa-user-o"></i> ' + esc(n.created_by) +
+                ' &nbsp;·&nbsp; <i class="fa fa-clock-o"></i> ' + n.created_at +
+            '</div>' +
+            '<div class="note-text">' + esc(n.note) + '</div>' +
+            '<button type="button" class="btn btn-sm btn-outline-danger btn-del-note"' +
+                ' data-note-id="' + n.id + '" data-po-id="' + poId + '" title="Delete note">' +
+                '<i class="fa fa-trash"></i>' +
+            '</button>';
+        if (prepend) { container.insertBefore(div, container.firstChild); }
+        else         { container.appendChild(div); }
+        div.querySelector(".btn-del-note").addEventListener("click", function () {
+            deleteNote(poId, this.dataset.noteId);
+        });
+    }
+
+    function wireNoteAdd(poId) {
+        var btn = document.querySelector(".rpt-btn-add-note-" + poId);
+        if (!btn) return;
+        btn.addEventListener("click", function () { addNote(poId); });
+
+        var ta = document.querySelector(".rpt-note-input-" + poId);
+        if (ta) {
+            ta.addEventListener("keydown", function (e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { addNote(poId); }
+            });
+        }
+    }
+
+    function addNote(poId) {
+        var ta  = document.querySelector(".rpt-note-input-" + poId);
+        var btn = document.querySelector(".rpt-btn-add-note-" + poId);
+        var text = ta.value.trim();
+        if (!text) { ta.focus(); return; }
+        btn.disabled  = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+        fetch("/po/" + poId + "/notes/", {
+            method: "POST", credentials: "same-origin",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrf() },
+            body: JSON.stringify({ note: text }),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fa fa-save"></i>';
+            if (data.success) {
+                ta.value = "";
+                stopMic(poId + "-note");
+                buildNoteCard(poId, data.note, true);
+                var badge = document.querySelector(".rpt-notes-badge-" + poId);
+                if (badge) badge.textContent = parseInt(badge.textContent || 0) + 1;
+                // Update row activity badge
+                updateRowBadge(poId, "notes");
+            } else { alert(data.error || "Failed to save note."); }
+        })
+        .catch(function () {
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fa fa-save"></i>';
+            alert("Network error.");
+        });
+    }
+
+    function deleteNote(poId, noteId) {
+        Swal.fire({
+            title: "Delete this note?", icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#dc3545", cancelButtonColor: "#6c757d",
+            confirmButtonText: "Yes, delete", cancelButtonText: "Cancel",
+        }).then(function (r) {
+            if (!r.isConfirmed) return;
+            fetch("/po/" + poId + "/notes/", {
+                method: "DELETE", credentials: "same-origin",
+                headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrf() },
+                body: JSON.stringify({ note_id: noteId }),
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    var el = document.querySelector('.note-card[data-note-id="' + noteId + '"]');
+                    if (el) el.remove();
+                    var badge = document.querySelector(".rpt-notes-badge-" + poId);
+                    var count = Math.max(0, parseInt(badge ? badge.textContent : 1) - 1);
+                    if (badge) badge.textContent = count;
+                    if (count === 0) document.querySelector(".rpt-notes-empty-" + poId).style.display = "block";
+                    updateRowBadge(poId, "notes");
+                } else { alert("Failed to delete note."); }
+            })
+            .catch(function () { alert("Network error."); });
+        });
+    }
+
+    // =================================================================
+    // TAB 3 — TASKS
+    // =================================================================
+    function renderTasks(poId, tasks) {
+        var badge = document.querySelector(".rpt-tasks-badge-" + poId);
+        if (badge) badge.textContent = tasks.length;
+        if (tasks.length === 0) {
+            document.querySelector(".rpt-tasks-empty-" + poId).style.display = "block";
+            return;
+        }
+        tasks.forEach(function (t) { buildTaskRow(poId, t); });
+    }
+
+    function buildTaskRow(poId, t) {
+        document.querySelector(".rpt-tasks-empty-" + poId).style.display = "none";
+        var list = document.querySelector(".rpt-tasks-list-" + poId);
+        var div  = document.createElement("div");
+        div.className      = "task-item" + (t.is_completed ? " completed" : "");
+        div.dataset.taskId = t.id;
+        div.innerHTML =
+            '<input type="checkbox" class="rpt-task-cb" data-po-id="' + poId + '" data-task-id="' + t.id + '"' +
+                (t.is_completed ? " checked" : "") +
+                ' style="width:18px;height:18px;cursor:pointer;flex-shrink:0;">' +
+            '<span class="task-label">' + esc(t.task) + '</span>' +
+            '<span class="task-meta" id="rpt-task-meta-' + poId + '-' + t.id + '">' + t.updated_at + '</span>' +
+            '<button type="button" class="btn btn-sm btn-outline-danger rpt-task-del"' +
+                ' data-po-id="' + poId + '" data-task-id="' + t.id + '" title="Remove">' +
+                '<i class="fa fa-minus"></i>' +
+            '</button>';
+        list.appendChild(div);
+
+        div.querySelector(".rpt-task-cb").addEventListener("change", function () {
+            toggleTask(poId, t.id, div);
+        });
+        div.querySelector(".rpt-task-del").addEventListener("click", function () {
+            deleteTask(poId, t.id, div);
+        });
+    }
+
+    function wireTaskAdd(poId) {
+        var btn = document.querySelector(".rpt-btn-add-task-" + poId);
+        if (!btn) return;
+        btn.addEventListener("click", function () { addTask(poId); });
+
+        var inp = document.querySelector(".rpt-task-input-" + poId);
+        if (inp) {
+            inp.addEventListener("keydown", function (e) {
+                if (e.key === "Enter") { addTask(poId); }
+            });
+        }
+    }
+
+    function addTask(poId) {
+        var inp  = document.querySelector(".rpt-task-input-" + poId);
+        var btn  = document.querySelector(".rpt-btn-add-task-" + poId);
+        var text = inp.value.trim();
+        if (!text) { inp.focus(); return; }
+        btn.disabled  = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+        fetch("/po/" + poId + "/tasks/", {
+            method: "POST", credentials: "same-origin",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrf() },
+            body: JSON.stringify({ task: text }),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fa fa-plus"></i> Add';
+            if (data.success) {
+                inp.value = "";
+                stopMic(poId + "-task");
+                buildTaskRow(poId, data.task);
+                var badge = document.querySelector(".rpt-tasks-badge-" + poId);
+                if (badge) badge.textContent = parseInt(badge.textContent || 0) + 1;
+                updateRowBadge(poId, "tasks");
+            } else { alert(data.error || "Failed to add task."); }
+        })
+        .catch(function () {
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fa fa-plus"></i> Add';
+            alert("Network error.");
+        });
+    }
+
+    function toggleTask(poId, taskId, divEl) {
+        fetch("/po/" + poId + "/tasks/" + taskId + "/toggle/", {
+            method: "POST", credentials: "same-origin",
+            headers: { "X-CSRFToken": getCsrf() },
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                if (data.is_completed) { divEl.classList.add("completed"); }
+                else                   { divEl.classList.remove("completed"); }
+                var meta = document.getElementById("rpt-task-meta-" + poId + "-" + taskId);
+                if (meta) meta.textContent = data.updated_at;
+            } else {
+                var cb = divEl.querySelector(".rpt-task-cb");
+                if (cb) cb.checked = !cb.checked;
+                alert("Failed to update task.");
+            }
+        })
+        .catch(function () {
+            var cb = divEl.querySelector(".rpt-task-cb");
+            if (cb) cb.checked = !cb.checked;
+            alert("Network error.");
+        });
+    }
+
+    function deleteTask(poId, taskId, divEl) {
+        Swal.fire({
+            title: "Remove this task?", icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#dc3545", cancelButtonColor: "#6c757d",
+            confirmButtonText: "Yes, remove", cancelButtonText: "Cancel",
+        }).then(function (r) {
+            if (!r.isConfirmed) return;
+            fetch("/po/" + poId + "/tasks/" + taskId + "/delete/", {
+                method: "POST", credentials: "same-origin",
+                headers: { "X-CSRFToken": getCsrf() },
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    divEl.remove();
+                    var badge = document.querySelector(".rpt-tasks-badge-" + poId);
+                    var count = Math.max(0, parseInt(badge ? badge.textContent : 1) - 1);
+                    if (badge) badge.textContent = count;
+                    if (count === 0) document.querySelector(".rpt-tasks-empty-" + poId).style.display = "block";
+                    updateRowBadge(poId, "tasks");
+                } else { alert("Failed to remove task."); }
+            })
+            .catch(function () { alert("Network error."); });
+        });
+    }
+
+    // =================================================================
+    // UPDATE ROW ACTIVITY BADGE (live after add/delete)
+    // =================================================================
+    function updateRowBadge(poId, type) {
+        // Re-fetch counts and update the coloured badges in the main table row
+        fetch("/po/" + poId + "/notes/",  { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (d) {
+            var el = document.querySelector('#rpt-row-' + poId + ' .badge[title$="Note(s)"]');
+            if (el) {
+                el.textContent = d.notes.length + ' ';
+                el.className   = "badge " + (d.notes.length ? "badge-primary" : "badge-light border");
+                // prepend icon back
+                el.innerHTML   = '<i class="fa fa-sticky-note-o"></i> ' + d.notes.length;
+            }
+        }).catch(function(){});
+
+        fetch("/po/" + poId + "/tasks/",  { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (d) {
+            var el = document.querySelector('#rpt-row-' + poId + ' .badge[title$="Task(s)"]');
+            if (el) {
+                el.innerHTML = '<i class="fa fa-check-square-o"></i> ' + d.tasks.length;
+                el.className = "badge " + (d.tasks.length ? "badge-info" : "badge-light border");
+            }
+        }).catch(function(){});
+    }
+
+    // =================================================================
+    // SPEECH — generic mic toggle
+    // =================================================================
+    function wireMics(poId) {
+        // Note mic
+        var noteMicBtn = document.querySelector(".rpt-note-mic-" + poId);
+        if (noteMicBtn) {
+            noteMicBtn.addEventListener("click", function () {
+                toggleMic(
+                    poId + "-note",
+                    document.querySelector(".rpt-note-input-" + poId),
+                    this
+                );
+            });
+        }
+
+        // Task mic
+        var taskMicBtn = document.querySelector(".rpt-task-mic-" + poId);
+        if (taskMicBtn) {
+            taskMicBtn.addEventListener("click", function () {
+                toggleMic(
+                    poId + "-task",
+                    document.querySelector(".rpt-task-input-" + poId),
+                    this
+                );
+            });
+        }
+    }
+
+    function toggleMic(key, inputEl, btnEl) {
+        if (!SR) { alert("Speech recognition not supported. Try Chrome or Edge."); return; }
+
+        if (mics[key]) { stopMic(key); return; }
+
+        // Stop all other mics in same PO scope
+        var poId = key.split("-")[0];
+        Object.keys(mics).forEach(function (k) {
+            if (k.indexOf(poId + "-") === 0) { stopMic(k); }
+        });
+
+        var rec      = new SR();
+        var existing = inputEl.value;
+        rec.lang = "en-US"; rec.continuous = true; rec.interimResults = true;
+
+        rec.onstart  = function () { mics[key] = rec; btnEl.classList.add("recording"); };
+        rec.onresult = function (e) {
+            var interim = "", fin = "";
+            for (var i = e.resultIndex; i < e.results.length; i++) {
+                if (e.results[i].isFinal) { fin += e.results[i][0].transcript + " "; }
+                else { interim += e.results[i][0].transcript; }
+            }
+            if (fin) existing += fin;
+            inputEl.value = existing + interim;
+        };
+        rec.onerror  = function (ev) {
+            if (ev.error === "not-allowed") alert("Microphone permission denied.");
+            stopMic(key);
+        };
+        rec.onend    = function () { inputEl.value = existing; stopMic(key); };
+        rec.start();
+    }
+
+})();
+</script>
+
+{% endblock %}
