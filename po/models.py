@@ -245,7 +245,13 @@ class POProcessItemStatus(models.Model):
         on_delete=models.PROTECT,
         related_name="process_item_statuses",
     )
-
+    qty_completed = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Total qty completed so far in this process step",
+    )
     updated_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -283,6 +289,63 @@ MONTH_CHOICES = [
     (11, "November"),
     (12, "December"),
 ]
+
+
+class POProcessItemHistory(models.Model):
+    """
+    Immutable log of every qty/status update on a PO item within a process.
+    Append-only — never overwritten. One row per update event.
+    """
+
+    po_process = models.ForeignKey(
+        POProcess,
+        on_delete=models.CASCADE,
+        related_name="item_history",
+    )
+
+    po_item = models.ForeignKey(
+        PurchaseOrderItem,
+        on_delete=models.PROTECT,
+        related_name="process_history",
+    )
+
+    status = models.ForeignKey(
+        ProcessStatusMaster,
+        on_delete=models.PROTECT,
+        related_name="item_process_history",
+    )
+
+    qty_completed = models.DecimalField(
+        max_digits=12,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Qty completed in this specific update entry",
+    )
+
+    remark = models.TextField(blank=True)
+
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="po_process_item_history_changes",
+    )
+
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-changed_at"]
+        verbose_name = "PO Process Item History"
+        verbose_name_plural = "PO Process Item Histories"
+
+    def __str__(self):
+        return (
+            f"{self.po_process.purchase_order.po_number} | "
+            f"{self.po_process.department_process.name} | "
+            f"{self.po_item.material_description[:30]} | "
+            f"Qty: {self.qty_completed}"
+        )
 
 
 class POTarget(models.Model):
