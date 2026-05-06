@@ -43,7 +43,7 @@
                                 <!-- STATUS DROPDOWN -->
                                 <div class="col-md-5">
                                     <label class="form-label fw-bold">
-                                        Apply Status to Selected Items
+                                        Status for This Update
                                         <span class="text-danger">*</span>
                                     </label>
                                     <select name="item_status"
@@ -56,6 +56,9 @@
                                             </option>
                                         {% endfor %}
                                     </select>
+                                    <small class="text-muted">
+                                        Applied to all items where you enter a qty below.
+                                    </small>
                                 </div>
 
                                 <!-- REMARK -->
@@ -63,29 +66,26 @@
                                     <label for="id_remark">
                                         Remark <span class="text-danger">*</span>
                                     </label>
-                                    <textarea name="remark" 
-                                            id="id_remark" 
-                                            class="form-control" 
-                                            rows="2" 
-                                            placeholder="Add remark (required)"
-                                            required>{{ form.remark.value|default:'' }}</textarea>
+                                    <textarea name="remark"
+                                              id="id_remark"
+                                              class="form-control"
+                                              rows="2"
+                                              placeholder="Add remark (required)"
+                                              required>{{ form.remark.value|default:'' }}</textarea>
                                     {% if form.remark.errors %}
-                                    <div class="text-danger small mt-1">{{ form.remark.errors.0 }}</div>
+                                        <div class="text-danger small mt-1">
+                                            {{ form.remark.errors.0 }}
+                                        </div>
                                     {% endif %}
                                 </div>
                             </div>
 
-                            <!-- SELECT ALL -->
-                            <div class="mb-2">
-                                <div class="form-check">
-                                    <input type="checkbox"
-                                           id="select-all"
-                                           class="form-check-input">
-                                    <label class="form-check-label fw-bold"
-                                           for="select-all">
-                                        Select All Items
-                                    </label>
-                                </div>
+                            <!-- INFO NOTE -->
+                            <div class="alert alert-info py-2 px-3 mb-3" style="font-size:0.875rem;">
+                                <i class="fa fa-info-circle"></i>
+                                Enter qty completed for each item in this update.
+                                Leave blank to skip an item.
+                                Item will auto-mark <strong>Completed</strong> when qty equals total qty.
                             </div>
 
                             <!-- ITEMS TABLE -->
@@ -93,13 +93,14 @@
                                 <table class="table table-bordered table-sm">
                                     <thead class="table-light">
                                         <tr>
-                                            <th style="width:40px;" class="text-center">
-                                                Select
-                                            </th>
                                             <th>Material Code</th>
                                             <th>Material Description</th>
-                                            <th class="text-center">Qty</th>
-                                            <th class="text-center">UOM</th>
+                                            <th class="text-center">Total Qty</th>
+                                            <th class="text-center">Done So Far</th>
+                                            <th class="text-center">Remaining</th>
+                                            <th class="text-center" style="width:140px;">
+                                                Qty This Update
+                                            </th>
                                             <th class="text-center">Current Status</th>
                                         </tr>
                                     </thead>
@@ -107,18 +108,58 @@
                                         {% for item in po_items %}
                                         {% with item_status=existing_statuses|get_item:item.id %}
                                         <tr>
-                                            <td class="text-center">
-                                                <input type="checkbox"
-                                                       name="selected_items"
-                                                       value="{{ item.id }}"
-                                                       class="form-check-input item-checkbox">
-                                            </td>
                                             <td>{{ item.material_code|default:"—" }}</td>
                                             <td>{{ item.material_description }}</td>
+
+                                            <!-- Total Qty -->
                                             <td class="text-center">
-                                                {{ item.quantity_value|floatformat:2 }}
+                                                {{ item.quantity_value|floatformat:3 }}
+                                                {{ item.uom }}
                                             </td>
-                                            <td class="text-center">{{ item.uom }}</td>
+
+                                            <!-- Done So Far -->
+                                            <td class="text-center">
+                                                {% if item_status and item_status.qty_completed %}
+                                                    <strong>{{ item_status.qty_completed|floatformat:3 }}</strong>
+                                                {% else %}
+                                                    <span class="text-muted">0</span>
+                                                {% endif %}
+                                            </td>
+
+                                            <!-- Remaining -->
+                                            <td class="text-center">
+                                                {% if item_status and item_status.qty_completed %}
+                                                    {% with remaining=item.quantity_value|subtract:item_status.qty_completed %}
+                                                        {% if remaining <= 0 %}
+                                                            <span class="text-success fw-bold">
+                                                                Done
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="text-warning fw-bold">
+                                                                {{ remaining|floatformat:3 }}
+                                                            </span>
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                {% else %}
+                                                    <span class="text-muted">
+                                                        {{ item.quantity_value|floatformat:3 }}
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+
+                                            <!-- Qty This Update -->
+                                            <td class="text-center">
+                                                <input type="number"
+                                                       name="qty_completed_{{ item.id }}"
+                                                       class="form-control form-control-sm text-center"
+                                                       step="0.001"
+                                                       min="0"
+                                                       max="{{ item.quantity_value }}"
+                                                       placeholder="—"
+                                                       style="width:110px; margin:auto;">
+                                            </td>
+
+                                            <!-- Current Status -->
                                             <td class="text-center">
                                                 {% if item_status %}
                                                     <span class="badge"
@@ -135,7 +176,7 @@
                                         {% endwith %}
                                         {% empty %}
                                         <tr>
-                                            <td colspan="6" class="text-center text-muted">
+                                            <td colspan="7" class="text-center text-muted">
                                                 No items found for this PO.
                                             </td>
                                         </tr>
@@ -181,14 +222,4 @@
         </div>
     </div>
 </div>
-
-<script>
-document.getElementById("select-all") && 
-document.getElementById("select-all").addEventListener("change", function () {
-    document.querySelectorAll(".item-checkbox").forEach(function (cb) {
-        cb.checked = document.getElementById("select-all").checked;
-    });
-});
-</script>
-
 {% endblock %}

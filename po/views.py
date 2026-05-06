@@ -23,6 +23,7 @@ from .models import (
     POProcess,
     POProcessHistory,
     POProcessItemStatus,
+    POProcessItemHistory,
     POTarget,
     POTargetItem,
     POComment,
@@ -590,7 +591,7 @@ def can_edit_po_process(user, po_process):
     return getattr(user, "department", None) == po_process.department_process.department
 
 
-@login_required_view
+@ login_required_view
 def po_process_update(request, process_id):
     po_process = get_object_or_404(POProcess, pk=process_id)
     po = po_process.purchase_order
@@ -602,10 +603,9 @@ def po_process_update(request, process_id):
             "You do not have permission to update this process."
         )
 
-    # Get all PO items
     po_items = po.items.all()
 
-    # Get existing item statuses for this process → dict {item_id: POProcessItemStatus}
+    # Current state: {item_id: POProcessItemStatus}
     existing_statuses = {
         s.po_item_id: s
         for s in POProcessItemStatus.objects.filter(
@@ -613,7 +613,6 @@ def po_process_update(request, process_id):
         ).select_related("status")
     }
 
-    # Get all active statuses for item dropdown
     status_choices = ProcessStatusMaster.objects.filter(is_active=True)
 
     if request.method == "POST":
@@ -625,62 +624,130 @@ def po_process_update(request, process_id):
 
         if form.is_valid():
             if has_item_tracking:
-                # Get selected items and status from POST
-                selected_item_ids = request.POST.getlist("selected_items")
-                selected_status_id = request.POST.get("item_status")
                 remark = form.cleaned_data.get("remark", "")
+                selected_status_id = request.POST.get("item_status")
 
-                if not selected_item_ids or not selected_status_id:
-                    messages.error(
-                        request, "Please select at least one item and a status."
-                    )
+                if not selected_status_id:
+                    messages.error(request, "Please select a status.")
                 else:
                     try:
                         selected_status = ProcessStatusMaster.objects.get(
                             id=selected_status_id
                         )
-
-                        # Save or update POProcessItemStatus for each selected item
-                        for item_id in selected_item_ids:
-                            POProcessItemStatus.objects.update_or_create(
-                                po_process=po_process,
-                                po_item_id=item_id,
-                                defaults={
-                                    "status": selected_status,
-                                    "updated_by": request.user,
-                                },
-                            )
-
-                        # Save remark to history
-                        POProcessHistory.objects.create(
-                            po_process=po_process,
-                            status=selected_status,
-                            remark=remark,
-                            changed_by=request.user,
-                        )
-
-                        # Update last_updated_by
-                        po_process.last_updated_by = request.user
-                        po_process.save(update_fields=["last_updated_by"])
-
-                        # Auto set process status based on all item statuses
-                        from .forms import auto_set_process_status
-
-                        auto_set_process_status(po_process)
-
-                        # Auto check and update PO status
-                        from .forms import check_and_update_po_status
-
-                        check_and_update_po_status(po)
-
-                        messages.success(request, "Item statuses updated successfully.")
-                        return redirect("po:po_process_list", po_id=po.id)
-
                     except ProcessStatusMaster.DoesNotExist:
                         messages.error(request, "Invalid status selected.")
+                        selected_status = None
+
+                    if selected_status:
+                        errors = []
+                        updates = []  # collect valid updates before saving
+
+                        for item in po_items:
+                            raw_qty = request.POST.get(
+                                f"qty_completed_{item.id}", ""
+                            ).strip()
+
+                            # Skip items where qty was not filled in
+                            if not raw_qty:
+                                continue
+
+                            try:
+                                qty_entered = Decimal(raw_qty)
+                            except Exception:
+                                errors.append(
+                                    f"{item.material_description[:30]}: invalid qty value."
+                                )
+                                continue
+
+                            if qty_entered < 0:
+                                errors.append(
+                                    f"{item.material_description[:30]}: qty cannot be negative."
+                                )
+                                continue
+
+                            total_qty = item.quantity_value or Decimal("0")
+
+                            if qty_entered > total_qty:
+                                errors.append(
+                                    f"{item.material_description[:30]}: "
+                                    f"qty {qty_entered} exceeds total {total_qty}."
+                                )
+                                continue
+
+                            updates.append((item, qty_entered))
+
+                        if errors:
+                            for err in errors:
+                                messages.error(request, err)
+                        elif not updates:
+                            messages.error(
+                                request, "Please enter qty for at least one item."
+                            )
+                        else:
+                            with transaction.atomic():
+                                for item, qty_entered in updates:
+                                    # Determine final status for this item
+                                    total_qty = item.quantity_value or Decimal("0")
+                                    if qty_entered >= total_qty:
+                                        # Get completed status
+                                        completed_status = (
+                                            ProcessStatusMaster.objects.filter(
+                                                is_completed=True, is_active=True
+                                            ).first()
+                                        )
+                                        final_status = (
+                                            completed_status or selected_status
+                                        )
+                                    else:
+                                        final_status = selected_status
+
+                                    # Update current state (POProcessItemStatus)
+                                    POProcessItemStatus.objects.update_or_create(
+                                        po_process=po_process,
+                                        po_item=item,
+                                        defaults={
+                                            "status": final_status,
+                                            "qty_completed": qty_entered,
+                                            "updated_by": request.user,
+                                        },
+                                    )
+
+                                    # Append to history (never overwrite)
+                                    POProcessItemHistory.objects.create(
+                                        po_process=po_process,
+                                        po_item=item,
+                                        status=final_status,
+                                        qty_completed=qty_entered,
+                                        remark=remark,
+                                        changed_by=request.user,
+                                    )
+
+                                # Save process-level history
+                                POProcessHistory.objects.create(
+                                    po_process=po_process,
+                                    status=selected_status,
+                                    remark=remark,
+                                    changed_by=request.user,
+                                )
+
+                                po_process.last_updated_by = request.user
+                                po_process.save(update_fields=["last_updated_by"])
+
+                                from .forms import auto_set_process_status
+
+                                auto_set_process_status(po_process)
+
+                                from .forms import check_and_update_po_status
+
+                                check_and_update_po_status(po)
+
+                            messages.success(
+                                request, "Item quantities updated successfully."
+                            )
+                            return redirect("po:po_process_list", po_id=po.id)
 
             else:
-                # Normal process update
+                # Non item-tracking process — normal status update
                 form.save()
                 messages.success(request, "Process status updated successfully.")
                 return redirect("po:po_process_list", po_id=po.id)

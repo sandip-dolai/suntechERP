@@ -67,11 +67,14 @@ def _update_po_item_status(po_item):
     POProcessItemStatus records across all item-tracking processes.
 
     Rules:
-      No tracking processes exist        → leave untouched (stay PENDING)
-      No POProcessItemStatus for item    → PENDING
-      At least one exists, not all done  → INPROCESS
-      ALL tracking processes completed   → COMPLETED
+      No tracking processes exist               → leave untouched (stay PENDING)
+      No POProcessItemStatus for item           → PENDING
+      At least one exists, not all done         → INPROCESS
+      ALL tracking processes: status completed
+        AND qty_completed >= quantity_value      → COMPLETED
     """
+    from decimal import Decimal
+
     tracking_processes = po_item.purchase_order.processes.filter(
         department_process__has_item_tracking=True
     )
@@ -82,19 +85,22 @@ def _update_po_item_status(po_item):
     item_statuses = POProcessItemStatus.objects.filter(
         po_item=po_item,
         po_process__in=tracking_processes,
-    ).select_related("status")
+    ).select_related("status", "po_item")
 
     if not item_statuses.exists():
         new_status = "PENDING"
     else:
         tracking_process_ids = set(tracking_processes.values_list("id", flat=True))
-        completed_process_ids = set(
-            item_statuses.filter(status__is_completed=True).values_list(
-                "po_process_id", flat=True
-            )
-        )
+        total_qty = po_item.quantity_value or Decimal("0")
 
-        if tracking_process_ids == completed_process_ids:
+        fully_done_process_ids = set()
+        for item_status in item_statuses:
+            status_done = item_status.status.is_completed
+            qty_done = item_status.qty_completed or Decimal("0")
+            if status_done and qty_done >= total_qty:
+                fully_done_process_ids.add(item_status.po_process_id)
+
+        if tracking_process_ids == fully_done_process_ids:
             new_status = "COMPLETED"
         else:
             new_status = "INPROCESS"

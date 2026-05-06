@@ -223,10 +223,13 @@ def check_and_update_po_status(po):
 def auto_set_process_status(po_process):
     """
     For has_item_tracking=True processes only.
-    If ALL PO items have is_completed=True status → set process status to COMPLETED.
-    If ANY item is missing or non-completed → set process status to most recent item status.
+    A process is COMPLETED only when ALL items satisfy BOTH:
+      1. status is_completed=True
+      2. qty_completed >= item.quantity_value
+    Otherwise → set process status to the most recent item status.
     """
     from .models import POProcessItemStatus
+    from decimal import Decimal
 
     po_items = po_process.purchase_order.items.all()
     total_items = po_items.count()
@@ -236,11 +239,11 @@ def auto_set_process_status(po_process):
 
     item_statuses = POProcessItemStatus.objects.filter(
         po_process=po_process
-    ).select_related("status")
+    ).select_related("status", "po_item")
 
     tracked_count = item_statuses.count()
 
-    # Not all items tracked yet
+    # Not all items have been touched yet — cannot be complete
     if tracked_count < total_items:
         latest = item_statuses.order_by("-updated_at").first()
         if latest:
@@ -248,8 +251,17 @@ def auto_set_process_status(po_process):
             po_process.save(update_fields=["current_status"])
         return
 
-    # Check if ALL items have completed status
-    all_completed = not item_statuses.exclude(status__is_completed=True).exists()
+    # Check every item — both status AND qty must be fully done
+    all_completed = True
+    for item_status in item_statuses:
+        status_done = item_status.status.is_completed
+        total_qty = item_status.po_item.quantity_value or Decimal("0")
+        qty_done = item_status.qty_completed or Decimal("0")
+        qty_full = qty_done >= total_qty
+
+        if not status_done or not qty_full:
+            all_completed = False
+            break
 
     if all_completed:
         completed_status = ProcessStatusMaster.objects.filter(
@@ -369,12 +381,14 @@ class POTargetForm(forms.Form):
         widget=forms.Select(attrs={"class": "form-control"}),
     )
     year = forms.IntegerField(
-        widget=forms.NumberInput(attrs={
-            "class": "form-control",
-            "placeholder": "e.g. 2026",
-            "min": 2020,
-            "max": 2099,
-        }),
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "e.g. 2026",
+                "min": 2020,
+                "max": 2099,
+            }
+        ),
     )
     selected_items = forms.CharField(
         widget=forms.HiddenInput(),
@@ -404,7 +418,11 @@ class POTargetForm(forms.Form):
         selected_items_raw = cleaned_data.get("selected_items", "")
 
         # On edit, use instance PO; on create, use form PO
-        po = self.instance.purchase_order if self.instance else cleaned_data.get("purchase_order")
+        po = (
+            self.instance.purchase_order
+            if self.instance
+            else cleaned_data.get("purchase_order")
+        )
 
         try:
             item_ids = [int(i) for i in selected_items_raw.split(",") if i.strip()]
