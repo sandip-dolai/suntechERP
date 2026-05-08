@@ -206,7 +206,16 @@
                                             <td>{{ item.material_description }}</td>
                                             <td class="text-center">{{ item.quantity_value|floatformat:3 }}</td>
                                             <td class="text-center">{{ item.uom }}</td>
-                                            <td class="text-right">{{ item.material_value|floatformat:2|default:"—" }}</td>
+                                            <td class="text-right">
+                                                {% load po_extras %}
+                                                {% if item.quantity_value and item.material_value %}
+                                                    {% with total=item.quantity_value|multiply:item.material_value %}
+                                                        {{ total|floatformat:2 }}
+                                                    {% endwith %}
+                                                {% else %}
+                                                    —
+                                                {% endif %}
+                                            </td>
                                             <td class="text-center">
                                                 <span class="badge
                                                     {% if item.status == 'COMPLETED' %}badge-success

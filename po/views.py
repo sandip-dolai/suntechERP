@@ -3,12 +3,14 @@ from django.db.models import (
     F,
     Q,
     Count,
+    ExpressionWrapper,
     Value,
     CharField,
     OuterRef,
     Subquery,
     Sum,
     DecimalField,
+    Prefetch,
 )
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -170,17 +172,23 @@ def po_report(request):
 
     total_po_value = all_pos.aggregate(
         total=Coalesce(
-            Sum("items__material_value"),
+            Sum(
+                F("items__quantity_value") * F("items__material_value"),
+                output_field=DecimalField(max_digits=15, decimal_places=2),
+            ),
             Value(0),
-            output_field=DecimalField(max_digits=12, decimal_places=2),
+            output_field=DecimalField(max_digits=15, decimal_places=2),
         )
     )["total"]
 
     dispatched_po_value = all_pos.filter(po_status="COMPLETED").aggregate(
         total=Coalesce(
-            Sum("items__material_value"),
+            Sum(
+                F("items__quantity_value") * F("items__material_value"),
+                output_field=DecimalField(max_digits=15, decimal_places=2),
+            ),
             Value(0),
-            output_field=DecimalField(max_digits=12, decimal_places=2),
+            output_field=DecimalField(max_digits=15, decimal_places=2),
         )
     )["total"]
 
@@ -244,9 +252,12 @@ def po_report(request):
                     output_field=DecimalField(max_digits=12, decimal_places=3),
                 ),
                 total_value=Coalesce(
-                    Sum("items__material_value"),
+                    Sum(
+                        F("items__quantity_value") * F("items__material_value"),
+                        output_field=DecimalField(max_digits=15, decimal_places=2),
+                    ),
                     Value(0),
-                    output_field=DecimalField(max_digits=12, decimal_places=2),
+                    output_field=DecimalField(max_digits=15, decimal_places=2),
                 ),
                 has_bom=Count("boms", distinct=True),
                 has_indent=Count("indents", distinct=True),
@@ -266,17 +277,21 @@ def po_report(request):
 
         agg = PurchaseOrder.objects.filter(**base_filters).aggregate(
             total_value=Coalesce(
-                Sum("items__material_value"),
+                Sum(
+                    F("items__quantity_value") * F("items__material_value"),
+                    output_field=DecimalField(max_digits=15, decimal_places=2),
+                ),
                 Value(0),
-                output_field=DecimalField(max_digits=12, decimal_places=2),
+                output_field=DecimalField(max_digits=15, decimal_places=2),
             ),
             dispatched_value=Coalesce(
                 Sum(
-                    "items__material_value",
+                    F("items__quantity_value") * F("items__material_value"),
                     filter=Q(po_status="COMPLETED"),
+                    output_field=DecimalField(max_digits=15, decimal_places=2),
                 ),
                 Value(0),
-                output_field=DecimalField(max_digits=12, decimal_places=2),
+                output_field=DecimalField(max_digits=15, decimal_places=2),
             ),
         )
 
@@ -329,9 +344,12 @@ def po_report(request):
                 output_field=DecimalField(max_digits=12, decimal_places=3),
             ),
             total_value=Coalesce(
-                Sum("material_value"),
+                Sum(
+                    F("quantity_value") * F("material_value"),
+                    output_field=DecimalField(max_digits=15, decimal_places=2),
+                ),
                 Value(0),
-                output_field=DecimalField(max_digits=12, decimal_places=2),
+                output_field=DecimalField(max_digits=15, decimal_places=2),
             ),
         )
 
@@ -394,6 +412,7 @@ def po_report(request):
 # ==============================================================
 @login_required_view
 def po_report_summary_excel(request):
+
     today = datetime.today().date()
     date_from = request.GET.get("date_from") or today.strftime("%Y-%m-%d")
     date_to = request.GET.get("date_to") or today.strftime("%Y-%m-%d")
@@ -411,9 +430,17 @@ def po_report_summary_excel(request):
     if request.GET.get("department"):
         base_filters["department"] = request.GET["department"]
 
+    # Annotate items with line_total
+    items_with_total = PurchaseOrderItem.objects.annotate(
+        line_total=ExpressionWrapper(
+            F("quantity_value") * F("material_value"),
+            output_field=DecimalField(max_digits=15, decimal_places=2),
+        )
+    )
+
     pos = (
-        PurchaseOrder.objects.select_related("company", "created_by")
-        .prefetch_related("items")
+        PurchaseOrder.objects.select_related("created_by", "company")
+        .prefetch_related(Prefetch("items", queryset=items_with_total))
         .filter(**base_filters)
         .annotate(
             total_quantity=Coalesce(
@@ -422,9 +449,12 @@ def po_report_summary_excel(request):
                 output_field=DecimalField(max_digits=12, decimal_places=3),
             ),
             total_value=Coalesce(
-                Sum("items__material_value"),
+                Sum(
+                    F("items__quantity_value") * F("items__material_value"),
+                    output_field=DecimalField(max_digits=15, decimal_places=2),
+                ),
                 Value(0),
-                output_field=DecimalField(max_digits=12, decimal_places=2),
+                output_field=DecimalField(max_digits=15, decimal_places=2),
             ),
         )
         .order_by("id")
@@ -438,9 +468,12 @@ def po_report_summary_excel(request):
             output_field=DecimalField(max_digits=12, decimal_places=3),
         ),
         total_value=Coalesce(
-            Sum("items__material_value"),
+            Sum(
+                F("items__quantity_value") * F("items__material_value"),
+                output_field=DecimalField(max_digits=15, decimal_places=2),
+            ),
             Value(0),
-            output_field=DecimalField(max_digits=12, decimal_places=2),
+            output_field=DecimalField(max_digits=15, decimal_places=2),
         ),
     )
 
@@ -493,6 +526,12 @@ def po_report_item_excel(request):
             "purchase_order__created_by",
         )
         .filter(**base_filters)
+        .annotate(
+            line_total=ExpressionWrapper(
+                F("quantity_value") * F("material_value"),
+                output_field=DecimalField(max_digits=15, decimal_places=2),
+            )
+        )
         .order_by("purchase_order__id", "id")
     )
 
@@ -503,12 +542,14 @@ def po_report_item_excel(request):
             output_field=DecimalField(max_digits=12, decimal_places=3),
         ),
         total_value=Coalesce(
-            Sum("material_value"),
+            Sum(
+                F("quantity_value") * F("material_value"),
+                output_field=DecimalField(max_digits=15, decimal_places=2),
+            ),
             Value(0),
-            output_field=DecimalField(max_digits=12, decimal_places=2),
+            output_field=DecimalField(max_digits=15, decimal_places=2),
         ),
     )
-
     html = render_to_string(
         "po/po_report_item_excel.html",
         {
@@ -591,7 +632,7 @@ def can_edit_po_process(user, po_process):
     return getattr(user, "department", None) == po_process.department_process.department
 
 
-@ login_required_view
+@login_required_view
 def po_process_update(request, process_id):
     po_process = get_object_or_404(POProcess, pk=process_id)
     po = po_process.purchase_order
@@ -881,9 +922,12 @@ def po_list(request):
                 output_field=DecimalField(max_digits=12, decimal_places=3),
             ),
             total_value=Coalesce(
-                Sum("items__material_value"),
+                Sum(
+                    F("items__quantity_value") * F("items__material_value"),
+                    output_field=DecimalField(max_digits=15, decimal_places=2),
+                ),
                 Value(0),
-                output_field=DecimalField(max_digits=12, decimal_places=2),
+                output_field=DecimalField(max_digits=15, decimal_places=2),
             ),
             # True (>0) if any BOM exists for this PO
             has_bom=Count("boms", distinct=True),
@@ -911,9 +955,33 @@ def po_list(request):
 
 @login_required_view
 def po_print(request, pk):
+    from django.db.models import Prefetch
+
+    # Annotate items with line_total
+    items_with_total = PurchaseOrderItem.objects.annotate(
+        line_total=ExpressionWrapper(
+            F("quantity_value") * F("material_value"),
+            output_field=DecimalField(max_digits=15, decimal_places=2),
+        )
+    )
+
     po = get_object_or_404(
-        PurchaseOrder.objects.select_related("company", "created_by").prefetch_related(
-            "items"
+        PurchaseOrder.objects.select_related("company", "created_by")
+        .prefetch_related(Prefetch("items", queryset=items_with_total))
+        .annotate(
+            total_quantity=Coalesce(
+                Sum("items__quantity_value"),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=3),
+            ),
+            total_value=Coalesce(
+                Sum(
+                    F("items__quantity_value") * F("items__material_value"),
+                    output_field=DecimalField(max_digits=15, decimal_places=2),
+                ),
+                Value(0),
+                output_field=DecimalField(max_digits=15, decimal_places=2),
+            ),
         ),
         pk=pk,
     )
@@ -1269,7 +1337,10 @@ def po_target_create(request):
                 id__in=item_ids, purchase_order=po
             ).aggregate(
                 total=Coalesce(
-                    Sum("material_value"),
+                    Sum(
+                        F("quantity_value") * F("material_value"),
+                        output_field=DecimalField(max_digits=15, decimal_places=2),
+                    ),
                     Value(0),
                     output_field=DecimalField(max_digits=15, decimal_places=2),
                 )
@@ -1332,7 +1403,10 @@ def po_target_edit(request, pk):
                 purchase_order=target.purchase_order,
             ).aggregate(
                 total=Coalesce(
-                    Sum("material_value"),
+                    Sum(
+                        F("quantity_value") * F("material_value"),
+                        output_field=DecimalField(max_digits=15, decimal_places=2),
+                    ),
                     Value(0),
                     output_field=DecimalField(max_digits=15, decimal_places=2),
                 )
@@ -1415,7 +1489,10 @@ def po_target_report(request):
                 status="COMPLETED",
             ).aggregate(
                 total=Coalesce(
-                    Sum("material_value"),
+                    Sum(
+                        F("quantity_value") * F("material_value"),
+                        output_field=DecimalField(max_digits=15, decimal_places=2),
+                    ),
                     Value(0),
                     output_field=DecimalField(max_digits=15, decimal_places=2),
                 )
@@ -1426,8 +1503,14 @@ def po_target_report(request):
             target_val = target.target_value or 0
             pct = (achieved / target_val * 100) if target_val > 0 else 0
 
-            total_target += target_val
-            total_achieved += achieved
+            # Annotate items with line_total for Excel template
+            items_with_total = []
+            for ti in target.target_items.all():
+                item = ti.po_item
+                item.line_total = (item.quantity_value or 0) * (
+                    item.material_value or 0
+                )
+                items_with_total.append(item)
 
             data.append(
                 {
@@ -1438,7 +1521,7 @@ def po_target_report(request):
                     "target": target_val,
                     "achieved": achieved,
                     "percentage": round(pct, 2),
-                    "items": [ti.po_item for ti in target.target_items.all()],
+                    "items": items_with_total,
                 }
             )
 
@@ -1595,7 +1678,10 @@ def po_target_yearly_report(request):
                     id__in=item_ids, status="COMPLETED"
                 ).aggregate(
                     total=Coalesce(
-                        Sum("material_value"),
+                        Sum(
+                            F("quantity_value") * F("material_value"),
+                            output_field=DecimalField(max_digits=15, decimal_places=2),
+                        ),
                         Value(0),
                         output_field=DecimalField(max_digits=15, decimal_places=2),
                     )
@@ -1695,7 +1781,10 @@ def po_target_yearly_report_excel(request):
                     id__in=item_ids, status="COMPLETED"
                 ).aggregate(
                     total=Coalesce(
-                        Sum("material_value"),
+                        Sum(
+                            F("quantity_value") * F("material_value"),
+                            output_field=DecimalField(max_digits=15, decimal_places=2),
+                        ),
                         Value(0),
                         output_field=DecimalField(max_digits=15, decimal_places=2),
                     )

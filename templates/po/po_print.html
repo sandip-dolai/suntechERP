@@ -135,7 +135,7 @@
                 <td class="center">{{ item.quantity_value|floatformat:2 }}</td>
                 <td class="center">{{ item.uom }}</td>
                 {% if can_view_value %}
-                <td class="right">{{ item.material_value|floatformat:2 }}</td>
+                <td class="right">{{ item.line_total|floatformat:2 }}</td>
                 {% endif %}
             </tr>
             {% empty %}

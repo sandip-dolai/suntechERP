@@ -45,7 +45,7 @@
             <td>{{ item.material_description }}</td>
             <td>{{ item.quantity_value|floatformat:3 }}</td>
             <td>{{ item.uom }}</td>
-            <td>{{ item.material_value|floatformat:2|default:"—" }}</td>
+            <td>{{ item.line_total|floatformat:2|default:"—" }}</td>
             <td>{{ item.get_status_display }}</td>
         </tr>
         {% empty %}

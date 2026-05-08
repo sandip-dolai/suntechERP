@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static %}
 {% block title %}PO Report - Suntech ERP{% endblock %}
-
+{% load po_extras %}
 {% block extra_css %}
 <style>
     .select2-container--default .select2-selection--single {
@@ -372,7 +372,8 @@
                                             <th class="text-center" style="width:90px;">Qty</th>
                                             <th class="text-center" style="width:70px;">UOM</th>
                                             {% if can_view_value %}
-                                            <th class="text-center" style="width:100px;">Value</th>
+                                            <th class="text-center" style="width:100px;">Unit Value</th>
+                                            <th class="text-center" style="width:100px;">Total Value</th>
                                             {% endif %}
                                             <th class="text-center" style="width:110px;">Status</th>
                                         </tr>
@@ -390,6 +391,15 @@
                                             {% if can_view_value %}
                                             <td class="text-center">
                                                 {{ item.material_value|floatformat:2|default:"—" }}
+                                            </td>
+                                            <td class="text-center">
+                                                {% if item.quantity_value and item.material_value %}
+                                                    {% with total=item.quantity_value|multiply:item.material_value %}
+                                                        {{ total|floatformat:2 }}
+                                                    {% endwith %}
+                                                {% else %}
+                                                    —
+                                                {% endif %}
                                             </td>
                                             {% endif %}
                                             <td class="text-center">
@@ -454,7 +464,8 @@
                         <th class="text-center" style="width:90px;">Qty</th>
                         <th class="text-center" style="width:70px;">UOM</th>
                         {% if can_view_value %}
-                        <th class="text-center" style="width:100px;">Value</th>
+                        <th class="text-center" style="width:100px;">Unit Value</th>
+                        <th class="text-center" style="width:110px;">Total Value</th>
                         {% endif %}
                         <th class="text-center" style="width:110px;">Status</th>
                         <th class="text-center">PO Date</th>
@@ -477,13 +488,22 @@
                         <td>{{ item.purchase_order.company }}</td>
                         <td>{{ item.material_code|default:"—" }}</td>
                         <td>{{ item.material_description }}</td>
-                        <td class="text-center">
+                        <td class="text-right">
                             {{ item.quantity_value|floatformat:2 }}
                         </td>
                         <td class="text-center">{{ item.uom }}</td>
                         {% if can_view_value %}
                         <td class="text-center">
                             {{ item.material_value|floatformat:2|default:"—" }}
+                        </td>
+                        <td class="text-center">
+                            {% if item.quantity_value and item.material_value %}
+                                {% with total=item.quantity_value|multiply:item.material_value %}
+                                    {{ total|floatformat:2 }}
+                                {% endwith %}
+                            {% else %}
+                                —
+                            {% endif %}
                         </td>
                         {% endif %}
                         <td class="text-center">
@@ -512,6 +532,7 @@
                         <td class="text-center">
                             {{ grand_totals.total_quantity|floatformat:2 }}
                         </td>
+                        <td></td>
                         <td></td>
                         {% if can_view_value %}
                         <td class="text-center">
