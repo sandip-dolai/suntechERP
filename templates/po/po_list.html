@@ -220,7 +220,8 @@
                                             <th class="text-center" style="width:90px;">Qty</th>
                                             <th class="text-center" style="width:70px;">UOM</th>
                                             {% if can_view_value %}
-                                            <th class="text-center" style="width:100px;">Value</th>
+                                            <th class="text-center" style="width:100px;">Unit Value</th>
+                                            <th class="text-center" style="width:110px;">Total Value</th>
                                             {% endif %}
                                             <th class="text-center" style="width:110px;">Status</th>
                                         </tr>
@@ -238,6 +239,16 @@
                                             {% if can_view_value %}
                                             <td class="text-center">
                                                 {{ item.material_value|floatformat:2|default:"—" }}
+                                            </td>
+                                            <td class="text-center">
+                                                {% load po_extras %}
+                                                {% if item.quantity_value and item.material_value %}
+                                                    {% with total=item.quantity_value|multiply:item.material_value %}
+                                                        {{ total|floatformat:2 }}
+                                                    {% endwith %}
+                                                {% else %}
+                                                    —
+                                                {% endif %}
                                             </td>
                                             {% endif %}
                                             <td class="text-center">

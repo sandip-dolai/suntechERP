@@ -1026,8 +1026,10 @@ def ajax_po_items_list(request, pk):
             "status": status_map.get(item["status"], item["status"]),
         }
         if show_value:
-            val = item["material_value"]
-            row["value"] = "{:.2f}".format(val) if val is not None else "—"
+            qty = item["quantity_value"] or 0
+            unit_price = item["material_value"] or 0
+            line_total = qty * unit_price
+            row["value"] = "{:.2f}".format(line_total)
         data.append(row)
 
     return JsonResponse(
@@ -1283,7 +1285,7 @@ def ajax_po_items_for_target(request, po_id):
             "description": item["material_description"],
             "quantity": str(item["quantity_value"] or 0),
             "uom": item["uom"],
-            "value": str(item["material_value"] or 0),
+            "value": str((item["quantity_value"] or 0) * (item["material_value"] or 0)),
             "selected": item["id"] in selected_item_ids,
         }
         for item in items
