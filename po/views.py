@@ -1577,13 +1577,14 @@ def po_target_report_excel(request):
                 status="COMPLETED",
             ).aggregate(
                 total=Coalesce(
-                    Sum("material_value"),
+                    Sum(
+                        F("quantity_value") * F("material_value"),
+                        output_field=DecimalField(max_digits=15, decimal_places=2),
+                    ),
                     Value(0),
                     output_field=DecimalField(max_digits=15, decimal_places=2),
                 )
-            )[
-                "total"
-            ]
+            )["total"]
 
             target_val = target.target_value or 0
             pct = (achieved / target_val * 100) if target_val > 0 else 0
