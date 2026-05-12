@@ -684,19 +684,33 @@ def po_process_update(request, process_id):
                         updates = []  # collect valid updates before saving
 
                         for item in po_items:
+                            # Check if this item's checkbox is checked
+                            is_checked = request.POST.get(f"update_item_{item.id}")
+
+                            # Skip unchecked items
+                            if not is_checked:
+                                continue
+
                             raw_qty = request.POST.get(
                                 f"qty_completed_{item.id}", ""
                             ).strip()
 
-                            # Skip items where qty was not filled in
+                            # If checked but no qty entered
                             if not raw_qty:
+                                errors.append(
+                                    f"{item.material_description[:30]}: qty is required for selected items."
+                                )
                                 continue
-
                             try:
                                 qty_entered = Decimal(raw_qty)
                             except Exception:
                                 errors.append(
                                     f"{item.material_description[:30]}: invalid qty value."
+                                )
+                                continue
+                            if qty_entered != int(qty_entered):
+                                errors.append(
+                                    f"{item.material_description[:30]}: only whole numbers allowed (no decimals)."
                                 )
                                 continue
 
@@ -1584,7 +1598,9 @@ def po_target_report_excel(request):
                     Value(0),
                     output_field=DecimalField(max_digits=15, decimal_places=2),
                 )
-            )["total"]
+            )[
+                "total"
+            ]
 
             target_val = target.target_value or 0
             pct = (achieved / target_val * 100) if target_val > 0 else 0

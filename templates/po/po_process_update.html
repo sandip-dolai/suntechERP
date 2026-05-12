@@ -93,6 +93,9 @@
                                 <table class="table table-bordered table-sm">
                                     <thead class="table-light">
                                         <tr>
+                                            <th class="text-center" style="width:40px;">
+                                                <input type="checkbox" id="select-all-items" title="Select/Deselect All">
+                                            </th>
                                             <th>Material Code</th>
                                             <th>Material Description</th>
                                             <th class="text-center">Total Qty</th>
@@ -108,6 +111,12 @@
                                         {% for item in po_items %}
                                         {% with item_status=existing_statuses|get_item:item.id %}
                                         <tr>
+                                            <td class="text-center">
+                                                <input type="checkbox" 
+                                                       class="item-checkbox" 
+                                                       name="update_item_{{ item.id }}" 
+                                                       value="1">
+                                            </td>
                                             <td>{{ item.material_code|default:"—" }}</td>
                                             <td>{{ item.material_description }}</td>
 
@@ -149,10 +158,9 @@
 
                                             <!-- Qty This Update -->
                                             <td class="text-center">
-                                                <input type="number"
+                                                <input type="text"
                                                        name="qty_completed_{{ item.id }}"
-                                                       class="form-control form-control-sm text-center"
-                                                       step="0.001"
+                                                       class="form-control form-control-sm text-center qty-input"
                                                        min="0"
                                                        max="{{ item.quantity_value }}"
                                                        placeholder="—"
@@ -176,7 +184,7 @@
                                         {% endwith %}
                                         {% empty %}
                                         <tr>
-                                            <td colspan="7" class="text-center text-muted">
+                                            <td colspan="8" class="text-center text-muted">
                                                 No items found for this PO.
                                             </td>
                                         </tr>
@@ -222,4 +230,113 @@
         </div>
     </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    
+    // ========================================
+    // SELECT ALL CHECKBOX
+    // ========================================
+    $("#select-all-items").on("change", function() {
+        $(".item-checkbox").prop("checked", this.checked);
+    });
+    
+    // Update select-all state when individual checkbox changes
+    $(".item-checkbox").on("change", function() {
+        let total = $(".item-checkbox").length;
+        let checked = $(".item-checkbox:checked").length;
+        $("#select-all-items").prop("checked", total === checked);
+    });
+    
+    // ========================================
+    // INTEGER ONLY VALIDATION FOR QTY
+    // ========================================
+    $(".qty-input").on("keydown", function(e) {
+        // Allow: backspace, delete, tab, escape, enter
+        if ($.inArray(e.keyCode, [46, 8, 9, 27, 13]) !== -1 ||
+            // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+            (e.keyCode === 65 && e.ctrlKey === true) ||
+            (e.keyCode === 67 && e.ctrlKey === true) ||
+            (e.keyCode === 86 && e.ctrlKey === true) ||
+            (e.keyCode === 88 && e.ctrlKey === true) ||
+            // Allow: home, end, left, right
+            (e.keyCode >= 35 && e.keyCode <= 39)) {
+            return;
+        }
+        
+        // Block decimal point (period and numpad period)
+        if (e.keyCode === 190 || e.keyCode === 110) {
+            e.preventDefault();
+            return;
+        }
+        
+        // Ensure it's a number (0-9) or numpad (0-9)
+        if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && 
+            (e.keyCode < 96 || e.keyCode > 105)) {
+            e.preventDefault();
+        }
+    });
+    
+    $(".qty-input").on("keyup paste", function() {
+        let val = $(this).val();
+        
+        // Remove any non-digit characters (including decimal points)
+        let cleaned = val.replace(/[^0-9]/g, '');
+        
+        if (val !== cleaned) {
+            $(this).val(cleaned);
+            $(this).addClass("is-invalid");
+            
+            // Show temporary error message
+            if (!$(this).next('.invalid-feedback').length) {
+                $(this).after('<div class="invalid-feedback d-block">Only whole numbers allowed</div>');
+            }
+            
+            setTimeout(() => {
+                $(this).removeClass("is-invalid");
+                $(this).next('.invalid-feedback').remove();
+            }, 2000);
+        }
+    });
+    
+    // ========================================
+    // FORM VALIDATION ON SUBMIT
+    // ========================================
+    $("form").on("submit", function(e) {
+        let checkedCount = $(".item-checkbox:checked").length;
+        
+        if (checkedCount === 0) {
+            e.preventDefault();
+            alert("Please select at least one item to update.");
+            return false;
+        }
+        
+        // Check if checked items have qty entered
+        let hasError = false;
+        $(".item-checkbox:checked").each(function() {
+            let itemId = $(this).attr("name").replace("update_item_", "");
+            let qtyInput = $("input[name='qty_completed_" + itemId + "']");
+            let qtyValue = qtyInput.val().trim();
+            
+            if (!qtyValue || qtyValue === "0") {
+                hasError = true;
+                qtyInput.addClass("is-invalid");
+                if (!qtyInput.next('.invalid-feedback').length) {
+                    qtyInput.after('<div class="invalid-feedback d-block">Qty required for checked items</div>');
+                }
+            }
+        });
+        
+        if (hasError) {
+            e.preventDefault();
+            alert("Please enter quantity for all checked items.");
+            return false;
+        }
+        
+        return true;
+    });
+    
+});
+</script>
 {% endblock %}
