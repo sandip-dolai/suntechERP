@@ -232,6 +232,7 @@
 </div>
 {% endblock %}
 {% block extra_js %}
+{% if has_item_tracking %}
 <script>
 $(document).ready(function() {
     
@@ -252,43 +253,26 @@ $(document).ready(function() {
     // ========================================
     // INTEGER ONLY VALIDATION FOR QTY
     // ========================================
-    $(".qty-input").on("keydown", function(e) {
-        // Allow: backspace, delete, tab, escape, enter
-        if ($.inArray(e.keyCode, [46, 8, 9, 27, 13]) !== -1 ||
-            // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
-            (e.keyCode === 65 && e.ctrlKey === true) ||
-            (e.keyCode === 67 && e.ctrlKey === true) ||
-            (e.keyCode === 86 && e.ctrlKey === true) ||
-            (e.keyCode === 88 && e.ctrlKey === true) ||
-            // Allow: home, end, left, right
-            (e.keyCode >= 35 && e.keyCode <= 39)) {
-            return;
-        }
+    $(".qty-input").on("keypress", function(e) {
+        let allowedChars = "0123456789";
+        let char = String.fromCharCode(e.which);
         
-        // Block decimal point (period and numpad period)
-        if (e.keyCode === 190 || e.keyCode === 110) {
+        // Block if character is not in allowed list
+        if (allowedChars.indexOf(char) === -1) {
             e.preventDefault();
-            return;
-        }
-        
-        // Ensure it's a number (0-9) or numpad (0-9)
-        if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && 
-            (e.keyCode < 96 || e.keyCode > 105)) {
-            e.preventDefault();
+            return false;
         }
     });
     
-    $(".qty-input").on("keyup paste", function() {
-        let val = $(this).val();
+    $(".qty-input").on("paste", function(e) {
+        // Get pasted data
+        let pastedData = e.originalEvent.clipboardData.getData('text');
         
-        // Remove any non-digit characters (including decimal points)
-        let cleaned = val.replace(/[^0-9]/g, '');
-        
-        if (val !== cleaned) {
-            $(this).val(cleaned);
+        // Check if all characters are digits
+        if (!/^\d+$/.test(pastedData)) {
+            e.preventDefault();
             $(this).addClass("is-invalid");
             
-            // Show temporary error message
             if (!$(this).next('.invalid-feedback').length) {
                 $(this).after('<div class="invalid-feedback d-block">Only whole numbers allowed</div>');
             }
@@ -339,4 +323,5 @@ $(document).ready(function() {
     
 });
 </script>
+{% endif %}
 {% endblock %}
