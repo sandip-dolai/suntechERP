@@ -83,9 +83,9 @@
                             <!-- INFO NOTE -->
                             <div class="alert alert-info py-2 px-3 mb-3" style="font-size:0.875rem;">
                                 <i class="fa fa-info-circle"></i>
-                                Enter qty completed for each item in this update.
+                                Enter qty completed for each item. Use a <strong>negative number</strong> to record returned parts.
                                 Leave blank to skip an item.
-                                Item will auto-mark <strong>Completed</strong> when qty equals total qty.
+                                Item will auto-mark <strong>Completed</strong> when cumulative qty equals total qty.
                             </div>
 
                             <!-- ITEMS TABLE -->
@@ -254,29 +254,30 @@ $(document).ready(function() {
     // INTEGER ONLY VALIDATION FOR QTY
     // ========================================
     $(".qty-input").on("keypress", function(e) {
-        let allowedChars = "0123456789";
+        let allowedChars = "0123456789-";
         let char = String.fromCharCode(e.which);
         
-        // Block if character is not in allowed list
-        if (allowedChars.indexOf(char) === -1) {
+        // Allow minus only as the first character
+        if (char === "-" && $(this).val().length === 0) {
+            return true;
+        }
+        
+        if ("0123456789".indexOf(char) === -1) {
             e.preventDefault();
             return false;
         }
     });
     
     $(".qty-input").on("paste", function(e) {
-        // Get pasted data
         let pastedData = e.originalEvent.clipboardData.getData('text');
         
-        // Check if all characters are digits
-        if (!/^\d+$/.test(pastedData)) {
+        // Allow optional leading minus followed by digits
+        if (!/^-?\d+$/.test(pastedData)) {
             e.preventDefault();
             $(this).addClass("is-invalid");
-            
             if (!$(this).next('.invalid-feedback').length) {
-                $(this).after('<div class="invalid-feedback d-block">Only whole numbers allowed</div>');
+                $(this).after('<div class="invalid-feedback d-block">Only whole numbers allowed (negative for returns)</div>');
             }
-            
             setTimeout(() => {
                 $(this).removeClass("is-invalid");
                 $(this).next('.invalid-feedback').remove();
@@ -303,11 +304,12 @@ $(document).ready(function() {
             let qtyInput = $("input[name='qty_completed_" + itemId + "']");
             let qtyValue = qtyInput.val().trim();
             
-            if (!qtyValue || qtyValue === "0") {
+            // Block empty or exactly "0" or just "-"
+            if (!qtyValue || qtyValue === "0" || qtyValue === "-") {
                 hasError = true;
                 qtyInput.addClass("is-invalid");
                 if (!qtyInput.next('.invalid-feedback').length) {
-                    qtyInput.after('<div class="invalid-feedback d-block">Qty required for checked items</div>');
+                    qtyInput.after('<div class="invalid-feedback d-block">Qty required (use negative for returns)</div>');
                 }
             }
         });

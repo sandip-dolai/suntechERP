@@ -36,14 +36,22 @@
     <tbody>
         {% load po_extras %}
         {% for process in processes %}
-        <tr>
+        <tr {% if process.id in completed_process_ids %}class="table-success"{% endif %}>
             <td><strong>{{ process.department_process.department }}</strong></td>
             <td>{{ process.department_process.name }}</td>
+
+            <!-- STATUS CELL -->
             <td class="text-center">
-                <span class="badge"
-                    style="background-color: {{ process.current_status.color_code }}; color: #fff;">
-                    {{ process.current_status.name }}
-                </span>
+                {% if process.id in completed_process_ids %}
+                    <span class="badge badge-success">
+                        <i class="fa fa-check-circle"></i> Completed
+                    </span>
+                {% else %}
+                    <span class="badge"
+                        style="background-color: {{ process.current_status.color_code }}; color: #fff;">
+                        {{ process.current_status.name }}
+                    </span>
+                {% endif %}
             </td>
 
             <td>
@@ -59,6 +67,7 @@
             </td>
 
             <td>{{ process.latest_remark|default:"—" }}</td>
+
             <td>
                 {% if process.department_process.has_item_tracking %}
                     {% with statuses=item_status_map|get_item:process.id %}
@@ -89,19 +98,17 @@
                     <span class="text-muted small">—</span>
                 {% endif %}
             </td>
-
+            <!-- ACTIONS CELL -->
             <td class="text-center">
                 <a href="{% url 'po:po_process_history' process.id %}"
                 class="btn btn-sm btn-outline-secondary">
                     History
                 </a>
 
-                {% if request.user.is_staff or request.user.department == process.department_process.department or is_admin %}
-                    <a href="{% url 'po:po_process_update' process.id %}"
-                    class="btn btn-sm btn-outline-primary">
-                        Update
-                    </a>
-                {% endif %}
+                <a href="{% url 'po:po_process_update' process.id %}"
+                class="btn btn-sm btn-outline-primary">
+                    Update
+                </a>
             </td>
         </tr>
         {% empty %}

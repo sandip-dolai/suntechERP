@@ -605,6 +605,29 @@ def po_process_list(request, po_id):
     # Total PO items count
     total_items = po.items.count()
 
+    from decimal import Decimal
+
+    completed_process_ids = set()
+    for process in processes:
+        if not process.current_status.is_completed:
+            continue
+
+        if process.department_process.has_item_tracking:
+            item_statuses = item_status_map.get(process.id, {})
+            # Must have all items tracked
+            if len(item_statuses) < total_items:
+                continue
+            # Every item must have qty_completed >= quantity_value
+            all_qty_done = all(
+                (s.qty_completed or Decimal("0"))
+                >= (s.po_item.quantity_value or Decimal("0"))
+                for s in item_statuses.values()
+            )
+            if not all_qty_done:
+                continue
+
+        completed_process_ids.add(process.id)
+
     return render(
         request,
         "po/po_process_list.html",
@@ -614,6 +637,7 @@ def po_process_list(request, po_id):
             "item_status_map": item_status_map,
             "total_items": total_items,
             "po_items": po.items.all(),
+            "completed_process_ids": completed_process_ids,
         },
     )
 
@@ -714,22 +738,35 @@ def po_process_update(request, process_id):
                                 )
                                 continue
 
-                            if qty_entered < 0:
-                                errors.append(
-                                    f"{item.material_description[:30]}: qty cannot be negative."
-                                )
-                                continue
-
                             total_qty = item.quantity_value or Decimal("0")
 
-                            if qty_entered > total_qty:
+                            # Get already completed qty for this item
+                            existing = existing_statuses.get(item.id)
+                            already_done = (
+                                (existing.qty_completed or Decimal("0"))
+                                if existing
+                                else Decimal("0")
+                            )
+
+                            # Apply delta (can be negative for returns)
+                            new_qty = already_done + qty_entered
+
+                            # Clamp to 0 — can't go below zero
+                            if new_qty < Decimal("0"):
                                 errors.append(
                                     f"{item.material_description[:30]}: "
-                                    f"qty {qty_entered} exceeds total {total_qty}."
+                                    f"return qty {qty_entered} exceeds completed qty {already_done}."
                                 )
                                 continue
 
-                            updates.append((item, qty_entered))
+                            if new_qty > total_qty:
+                                errors.append(
+                                    f"{item.material_description[:30]}: "
+                                    f"qty {new_qty} exceeds total {total_qty}."
+                                )
+                                continue
+
+                            updates.append((item, new_qty))
 
                         if errors:
                             for err in errors:
@@ -740,10 +777,10 @@ def po_process_update(request, process_id):
                             )
                         else:
                             with transaction.atomic():
-                                for item, qty_entered in updates:
+                                for item, new_qty in updates:
                                     # Determine final status for this item
                                     total_qty = item.quantity_value or Decimal("0")
-                                    if qty_entered >= total_qty:
+                                    if new_qty >= total_qty:
                                         # Get completed status
                                         completed_status = (
                                             ProcessStatusMaster.objects.filter(
@@ -762,7 +799,7 @@ def po_process_update(request, process_id):
                                         po_item=item,
                                         defaults={
                                             "status": final_status,
-                                            "qty_completed": qty_entered,
+                                            "qty_completed": new_qty,
                                             "updated_by": request.user,
                                         },
                                     )
@@ -1866,10 +1903,6 @@ def po_comments_api(request, po_id):
     GET  → returns all items with their existing comments for this PO
     POST → saves/updates a comment for a specific PO item
     """
-    from suntech_erp.permissions import is_admin
-
-    if not is_admin(request.user):
-        return JsonResponse({"error": "Unauthorized"}, status=403)
 
     po = get_object_or_404(PurchaseOrder, pk=po_id)
 
@@ -1942,8 +1975,6 @@ def po_notes_api(request, po_id):
     POST   → add a new note
     DELETE → delete a note by note_id in request body
     """
-    if not is_admin(request.user):
-        return JsonResponse({"error": "Unauthorized"}, status=403)
 
     po = get_object_or_404(PurchaseOrder, pk=po_id)
 
@@ -2023,8 +2054,6 @@ def po_tasks_api(request, po_id):
     GET  → list all tasks for this PO
     POST → add a new task
     """
-    if not is_admin(request.user):
-        return JsonResponse({"error": "Unauthorized"}, status=403)
 
     po = get_object_or_404(PurchaseOrder, pk=po_id)
 
@@ -2099,8 +2128,6 @@ def po_task_toggle(request, po_id, task_id):
     """
     POST → toggle is_completed for a task
     """
-    if not is_admin(request.user):
-        return JsonResponse({"error": "Unauthorized"}, status=403)
 
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed."}, status=405)
@@ -2129,8 +2156,6 @@ def po_task_delete(request, po_id, task_id):
     """
     POST → delete a task
     """
-    if not is_admin(request.user):
-        return JsonResponse({"error": "Unauthorized"}, status=403)
 
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed."}, status=405)
@@ -2147,8 +2172,6 @@ def po_task_delete(request, po_id, task_id):
 # ==============================================================
 @login_required_view
 def po_comments_report(request):
-    if not is_admin(request.user):
-        return HttpResponseForbidden()
 
     # ── Filters ───────────────────────────────────────────────
     po_number = request.GET.get("po_number", "").strip()
@@ -2205,8 +2228,6 @@ def po_comments_report(request):
 # ==============================================================
 @login_required_view
 def po_comments_report_excel(request):
-    if not is_admin(request.user):
-        return HttpResponseForbidden()
 
     # ── Same filters as report view ────────────────────────────
     po_number = request.GET.get("po_number", "").strip()
