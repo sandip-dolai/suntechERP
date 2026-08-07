@@ -1097,17 +1097,16 @@ def po_process_report(request):
     # ------------------------------
     # FILTER INPUTS
     # ------------------------------
-    date_from = request.GET.get("date_from")
-    date_to = request.GET.get("date_to")
     processes = request.GET.getlist("processes")
-    po_status = request.GET.get("po_status")
+    po_ids = request.GET.getlist("po_ids")
+    status = request.GET.get("status")
     company = request.GET.get("company")
-    po_number = request.GET.get("po_number")
 
     # ------------------------------
     # FILTER VALIDATION
+    # "processes" is the only mandatory filter. Everything else is optional.
     # ------------------------------
-    filter_used = bool(processes and (date_from or date_to))
+    filter_used = bool(processes)
 
     rows = []
 
@@ -1119,27 +1118,16 @@ def po_process_report(request):
             "purchase_order__company",
         )
 
-        # PROCESS FILTER
+        # PROCESS FILTER (required)
         process_qs = process_qs.filter(department_process_id__in=processes)
 
-        # DATE FILTER
-        if date_from:
-            process_qs = process_qs.filter(purchase_order__po_date__gte=date_from)
+        # PO FILTER (multi-select; options are searchable by PO No. or OA No.)
+        if po_ids:
+            process_qs = process_qs.filter(purchase_order_id__in=po_ids)
 
-        if date_to:
-            process_qs = process_qs.filter(purchase_order__po_date__lte=date_to)
-
-        # OTHER FILTERS
-        if po_status:
-            process_qs = process_qs.filter(purchase_order__po_status=po_status)
-
+        # COMPANY FILTER
         if company:
             process_qs = process_qs.filter(purchase_order__company_id=company)
-
-        if po_number:
-            process_qs = process_qs.filter(
-                purchase_order__po_number__icontains=po_number
-            )
 
         process_qs = (
             process_qs.prefetch_related(
@@ -1165,11 +1153,13 @@ def po_process_report(request):
                 item_status_obj = status_map.get(item.id)
 
                 if process.department_process.has_item_tracking:
-                    status_name = (
-                        item_status_obj.status.name if item_status_obj else item.status
-                    )
+                    row_status_obj = item_status_obj.status if item_status_obj else None
+                    status_name = row_status_obj.name if row_status_obj else item.status
+                    status_id = row_status_obj.id if row_status_obj else None
                 else:
-                    status_name = process.current_status.name
+                    row_status_obj = process.current_status
+                    status_name = row_status_obj.name
+                    status_id = row_status_obj.id
 
                 rows.append(
                     {
@@ -1184,8 +1174,15 @@ def po_process_report(request):
                         "quantity": item.quantity_value,
                         "uom": item.uom,
                         "status": status_name,
+                        "status_id": status_id,
                     }
                 )
+
+        # STATUS FILTER
+        # Applied after row resolution because item-tracking processes
+        # resolve status per-item rather than on the POProcess itself.
+        if status:
+            rows = [r for r in rows if str(r["status_id"]) == str(status)]
 
     # ------------------------------
     # PAGINATION
@@ -1201,13 +1198,15 @@ def po_process_report(request):
         "filter_used": filter_used,
         "process_list": DepartmentProcessMaster.objects.filter(is_active=True),
         "companies": CompanyMaster.objects.order_by("name"),
+        "purchase_orders": PurchaseOrder.objects.select_related("company").order_by(
+            "-id"
+        ),
+        "status_list": ProcessStatusMaster.objects.filter(is_active=True),
         "filters": {
-            "date_from": date_from or "",
-            "date_to": date_to or "",
             "processes": processes,
-            "po_status": po_status or "",
+            "po_ids": po_ids,
+            "status": status or "",
             "company": company or "",
-            "po_number": po_number or "",
         },
     }
 
@@ -1216,16 +1215,14 @@ def po_process_report(request):
 
 @login_required_view
 def po_process_report_excel(request):
-    date_from = request.GET.get("date_from")
-    date_to = request.GET.get("date_to")
     processes = request.GET.getlist("processes")
-    po_status = request.GET.get("po_status")
+    po_ids = request.GET.getlist("po_ids")
+    status = request.GET.get("status")
     company = request.GET.get("company")
-    po_number = request.GET.get("po_number")
 
     rows = []
 
-    if processes and (date_from or date_to):
+    if processes:
 
         process_qs = POProcess.objects.select_related(
             "purchase_order",
@@ -1234,22 +1231,11 @@ def po_process_report_excel(request):
             "purchase_order__company",
         ).filter(department_process_id__in=processes)
 
-        if date_from:
-            process_qs = process_qs.filter(purchase_order__po_date__gte=date_from)
-
-        if date_to:
-            process_qs = process_qs.filter(purchase_order__po_date__lte=date_to)
-
-        if po_status:
-            process_qs = process_qs.filter(purchase_order__po_status=po_status)
+        if po_ids:
+            process_qs = process_qs.filter(purchase_order_id__in=po_ids)
 
         if company:
             process_qs = process_qs.filter(purchase_order__company_id=company)
-
-        if po_number:
-            process_qs = process_qs.filter(
-                purchase_order__po_number__icontains=po_number
-            )
 
         process_qs = (
             process_qs.prefetch_related(
@@ -1274,11 +1260,13 @@ def po_process_report_excel(request):
                 item_status_obj = status_map.get(item.id)
 
                 if process.department_process.has_item_tracking:
-                    status_name = (
-                        item_status_obj.status.name if item_status_obj else item.status
-                    )
+                    row_status_obj = item_status_obj.status if item_status_obj else None
+                    status_name = row_status_obj.name if row_status_obj else item.status
+                    status_id = row_status_obj.id if row_status_obj else None
                 else:
-                    status_name = process.current_status.name
+                    row_status_obj = process.current_status
+                    status_name = row_status_obj.name
+                    status_id = row_status_obj.id
 
                 rows.append(
                     {
@@ -1289,8 +1277,12 @@ def po_process_report_excel(request):
                         "item_description": item.material_description,
                         "quantity": item.quantity_value,
                         "status": status_name,
+                        "status_id": status_id,
                     }
                 )
+
+        if status:
+            rows = [r for r in rows if str(r["status_id"]) == str(status)]
 
     # ------------------------------
     # RENDER EXCEL
