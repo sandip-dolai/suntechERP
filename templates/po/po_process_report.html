@@ -2,94 +2,305 @@
 {% load static %}
 {% block content %}
 
-<link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css"
-/>
-<link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/select2-bootstrap-theme/0.1.0-beta.10/select2-bootstrap.min.css"
-/>
-
 <style>
 .table thead th {
     position: sticky;
     top: 0;
     background: #007bff;
     color: #fff;
+    z-index: 1;
 }
-.select2-container .select2-selection--multiple,
-.select2-container .select2-selection--single {
-    min-height: calc(1.5em + 0.75rem + 2px);
+
+/* ==============================================================
+   CUSTOM MULTI-SELECT DROPDOWN
+   Self-contained (no jQuery / select2 / bootstrap-select needed)
+   ============================================================== */
+:root {
+    --ms-border: #d7dbe0;
+    --ms-radius: 8px;
+    --ms-shadow: 0 8px 24px rgba(15, 23, 42, .12);
+    --ms-primary: #0d6efd;
+    --ms-primary-soft: #eaf2ff;
+    --ms-text: #1f2937;
+    --ms-muted: #6b7280;
 }
-.select2-container--bootstrap .select2-selection--single {
-    height: calc(1.5em + 0.75rem + 2px);
+
+.ms-wrapper { position: relative; width: 100%; }
+
+.ms-native { display: none; }
+
+.ms-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    min-height: 38px;
+    padding: .5rem .75rem;
+    border: 1px solid var(--ms-border);
+    border-radius: var(--ms-radius);
+    background: #fff;
+    font-size: .9rem;
+    color: var(--ms-text);
+    cursor: pointer;
+    transition: border-color .15s;
 }
+.ms-trigger:hover,
+.ms-wrapper.open .ms-trigger { border-color: var(--ms-primary); }
+.ms-wrapper.ms-error .ms-trigger { border-color: #dc3545; }
+
+.ms-trigger-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ms-trigger-text.placeholder { color: var(--ms-muted); }
+
+.ms-badge {
+    background: var(--ms-primary);
+    color: #fff;
+    border-radius: 999px;
+    font-size: .7rem;
+    padding: 1px 7px;
+    flex-shrink: 0;
+}
+
+.ms-caret { color: var(--ms-muted); font-size: .75rem; transition: transform .15s; }
+.ms-wrapper.open .ms-caret { transform: rotate(180deg); }
+
+.ms-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    background: #fff;
+    border: 1px solid var(--ms-border);
+    border-radius: var(--ms-radius);
+    box-shadow: var(--ms-shadow);
+    overflow: hidden;
+    display: none;
+}
+.ms-wrapper.open .ms-panel { display: block; }
+
+.ms-search { padding: .5rem; border-bottom: 1px solid #eef1f4; }
+.ms-search-input {
+    width: 100%;
+    border: 1px solid var(--ms-border);
+    border-radius: 6px;
+    padding: .35rem .6rem;
+    font-size: .85rem;
+    outline: none;
+}
+.ms-search-input:focus { border-color: var(--ms-primary); }
+
+.ms-actions {
+    display: flex;
+    justify-content: space-between;
+    padding: .4rem .75rem;
+    font-size: .78rem;
+    border-bottom: 1px solid #eef1f4;
+    background: #fafbfc;
+}
+.ms-actions a { color: var(--ms-primary); text-decoration: none; cursor: pointer; }
+.ms-actions a:hover { text-decoration: underline; }
+
+.ms-options { max-height: 260px; overflow-y: auto; padding: .25rem 0; }
+
+.ms-group-label {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--ms-muted);
+    padding: .55rem .9rem .25rem;
+}
+
+.ms-option {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .4rem .9rem;
+    font-size: .85rem;
+    color: var(--ms-text);
+    cursor: pointer;
+    margin: 0;
+}
+.ms-option:hover { background: var(--ms-primary-soft); }
+.ms-option input { margin: 0; accent-color: var(--ms-primary); cursor: pointer; }
+.ms-option.hidden { display: none; }
+
+.ms-empty { padding: .6rem .9rem; font-size: .8rem; color: var(--ms-muted); text-align: center; }
+
+.ms-error-text {
+    display: none;
+    color: #dc3545;
+    font-size: .75rem;
+    margin-top: .25rem;
+}
+.ms-wrapper.ms-error + .ms-error-text,
+.ms-wrapper.ms-error ~ .ms-error-text { display: block; }
 </style>
 
 <div class="container-fluid">
 
-<h4>PO Process Report</h4>
+<h4 class="mb-3">PO Process Report</h4>
 
-<form method="get">
+<form method="get" id="po-process-report-form">
 <div class="card mb-3">
 <div class="card-body">
 
 <div class="row">
 
-<div class="col-md-3">
-    <label for="id_company">Company</label>
-    <select name="company" id="id_company" class="form-control select2-single">
-        <option value="">All Companies</option>
-        {% for c in companies %}
-        <option value="{{ c.id }}" {% if filters.company|stringformat:"s" == c.id|stringformat:"s" %}selected{% endif %}>
-            {{ c.name }}
-        </option>
-        {% endfor %}
-    </select>
+    <!-- COMPANY (single select) -->
+    <div class="col-md-3 mb-3">
+        <label class="form-label small font-weight-bold mb-1">Company</label>
+        <div class="ms-wrapper" data-mode="single" data-placeholder="All Companies">
+            <select name="company" class="ms-native">
+                <option value=""></option>
+                {% for c in companies %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="ms-trigger" tabindex="0">
+                <span class="ms-trigger-text placeholder">All Companies</span>
+                <i class="fa fa-chevron-down ms-caret"></i>
+            </div>
+            <div class="ms-panel">
+                <div class="ms-search"><input type="text" class="ms-search-input" placeholder="Search company..."></div>
+                <div class="ms-options">
+                    <label class="ms-option" data-label="All Companies">
+                        <input type="checkbox" value="" {% if not filters.company %}checked{% endif %}>
+                        <span>All Companies</span>
+                    </label>
+                    {% for c in companies %}
+                    <label class="ms-option" data-label="{{ c.name }}">
+                        <input type="checkbox" value="{{ c.id }}" {% if filters.company == c.id|stringformat:"s" %}checked{% endif %}>
+                        <span>{{ c.name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PO (No. / OA No.) — multi select -->
+    <div class="col-md-3 mb-3">
+        <label class="form-label small font-weight-bold mb-1">PO (No. / OA No.)</label>
+        <div class="ms-wrapper" data-mode="multi" data-placeholder="All POs">
+            <select name="po_ids" multiple class="ms-native">
+                {% for po in purchase_orders %}
+                <option value="{{ po.id }}">{{ po.po_number }}</option>
+                {% endfor %}
+            </select>
+            <div class="ms-trigger" tabindex="0">
+                <span class="ms-trigger-text placeholder">All POs</span>
+                <i class="fa fa-chevron-down ms-caret"></i>
+            </div>
+            <div class="ms-panel">
+                <div class="ms-search"><input type="text" class="ms-search-input" placeholder="Search PO or OA no..."></div>
+                <div class="ms-actions">
+                    <a class="ms-select-all">Select all</a>
+                    <a class="ms-clear">Clear</a>
+                </div>
+                <div class="ms-options">
+                    {% for po in purchase_orders %}
+                    <label class="ms-option" data-label="{{ po.po_number }} {{ po.oa_number }}">
+                        <input type="checkbox" value="{{ po.id }}" {% if po.id|stringformat:"s" in filters.po_ids %}checked{% endif %}>
+                        <span>{{ po.po_number }} — {{ po.oa_number }}</span>
+                    </label>
+                    {% empty %}
+                    <div class="ms-empty">No POs found</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROCESS — multi select, grouped by Department -->
+    <div class="col-md-3 mb-3">
+        <label class="form-label small font-weight-bold mb-1">
+            Process <span class="text-danger">*</span>
+        </label>
+        <div class="ms-wrapper" data-mode="multi" data-placeholder="Select Process(es)">
+            <select name="processes" multiple class="ms-native">
+                {% for p in process_list %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="ms-trigger" tabindex="0">
+                <span class="ms-trigger-text placeholder">Select Process(es)</span>
+                <i class="fa fa-chevron-down ms-caret"></i>
+            </div>
+            <div class="ms-panel">
+                <div class="ms-search"><input type="text" class="ms-search-input" placeholder="Search process..."></div>
+                <div class="ms-actions">
+                    <a class="ms-select-all">Select all</a>
+                    <a class="ms-clear">Clear</a>
+                </div>
+                <div class="ms-options">
+                    {% regroup process_list by department as dept_groups %}
+                    {% for group in dept_groups %}
+                    <div class="ms-group-label">{{ group.grouper }}</div>
+                    {% for p in group.list %}
+                    <label class="ms-option" data-label="{{ p.name }}">
+                        <input type="checkbox" value="{{ p.id }}" {% if p.id|stringformat:"s" in filters.processes %}checked{% endif %}>
+                        <span>{{ p.name }}</span>
+                    </label>
+                    {% endfor %}
+                    {% empty %}
+                    <div class="ms-empty">No processes found</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="ms-error-text">Please select at least one process.</div>
+    </div>
+
+    <!-- STATUS — multi select -->
+    <div class="col-md-3 mb-3">
+        <label class="form-label small font-weight-bold mb-1">Status</label>
+        <div class="ms-wrapper" data-mode="multi" data-placeholder="All Statuses">
+            <select name="status" multiple class="ms-native">
+                {% for s in status_list %}
+                <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="ms-trigger" tabindex="0">
+                <span class="ms-trigger-text placeholder">All Statuses</span>
+                <i class="fa fa-chevron-down ms-caret"></i>
+            </div>
+            <div class="ms-panel">
+                <div class="ms-search"><input type="text" class="ms-search-input" placeholder="Search status..."></div>
+                <div class="ms-actions">
+                    <a class="ms-select-all">Select all</a>
+                    <a class="ms-clear">Clear</a>
+                </div>
+                <div class="ms-options">
+                    {% for s in status_list %}
+                    <label class="ms-option" data-label="{{ s.name }}">
+                        <input type="checkbox" value="{{ s.id }}" {% if s.id|stringformat:"s" in filters.status %}checked{% endif %}>
+                        <span>{{ s.name }}</span>
+                    </label>
+                    {% empty %}
+                    <div class="ms-empty">No statuses found</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
-<div class="col-md-3">
-    <label for="id_po_ids">PO (No. / OA No.)</label>
-    <select name="po_ids" id="id_po_ids" class="form-control selectpicker" multiple>
-        {% for po in purchase_orders %}
-        <option value="{{ po.id }}" {% if po.id|stringformat:"s" in filters.po_ids %}selected{% endif %}>
-            {{ po.po_number }} — {{ po.oa_number }}
-        </option>
-        {% endfor %}
-    </select>
-</div>
-
-<div class="col-md-3">
-    <label for="id_processes">Process <span class="text-danger">*</span></label>
-    <select name="processes" id="id_processes" class="form-control selectpicker" multiple required>
-        {% for p in process_list %}
-        <option value="{{ p.id }}" {% if p.id|stringformat:"s" in filters.processes %}selected{% endif %}>
-            {{ p.name }}
-        </option>
-        {% endfor %}
-    </select>
-</div>
-
-<div class="col-md-3">
-    <label for="id_status">Status</label>
-    <select name="status" id="id_status" class="form-control select2-single">
-        <option value="">All</option>
-        {% for s in status_list %}
-        <option value="{{ s.id }}" {% if filters.status|stringformat:"s" == s.id|stringformat:"s" %}selected{% endif %}>
-            {{ s.name }}
-        </option>
-        {% endfor %}
-    </select>
-</div>
-
-</div>
-
-<div class="row mt-3">
+<div class="row mt-1">
 <div class="col-md-12 text-right">
-<button class="btn btn-primary">Filter</button>
-<a href="{% url 'po:po_process_report' %}" class="btn btn-secondary">Reset</a>
-<a href="{% url 'po:po_process_report_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">Excel</a>
+    <button type="submit" class="btn btn-primary">
+        <i class="fa fa-filter"></i> Filter
+    </button>
+    <a href="{% url 'po:po_process_report' %}" class="btn btn-secondary">Reset</a>
+    <a href="{% url 'po:po_process_report_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+        <i class="fa fa-file-excel-o"></i> Excel
+    </a>
 </div>
 </div>
 
@@ -100,10 +311,10 @@
 <div class="card">
 <div class="card-body p-0">
 
-<table class="table table-bordered table-sm">
+<table class="table table-bordered table-sm mb-0">
 <thead>
 <tr>
-<th>#</th>
+<th style="width:50px;">#</th>
 <th>PO</th>
 <th>Process</th>
 <th>Item</th>
@@ -131,9 +342,11 @@
 </tr>
 {% endfor %}
 
+{% empty %}
+<tr><td colspan="5" class="text-center text-muted py-3">No results for the selected filters.</td></tr>
 {% endfor %}
 {% else %}
-<tr><td colspan="5" class="text-center">Please select a Process to run the report.</td></tr>
+<tr><td colspan="5" class="text-center text-muted py-3">Please select a Process to run the report.</td></tr>
 {% endif %}
 
 </tbody>
@@ -148,21 +361,179 @@
 
 </div>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.18/dist/css/bootstrap-select.min.css">
-
 <script>
-window.addEventListener('load', function () {
-    if (!window.jQuery) {
-        console.error('jQuery not found on this page — bootstrap-select needs it.');
-        return;
+(function () {
+
+    function initMultiSelect(wrapper) {
+        var mode = wrapper.dataset.mode || 'multi';
+        var placeholder = wrapper.dataset.placeholder || 'Select...';
+        var trigger = wrapper.querySelector('.ms-trigger');
+        var triggerText = wrapper.querySelector('.ms-trigger-text');
+        var nativeSelect = wrapper.querySelector('.ms-native');
+        var options = Array.prototype.slice.call(wrapper.querySelectorAll('.ms-option'));
+        var searchInput = wrapper.querySelector('.ms-search-input');
+        var selectAllBtn = wrapper.querySelector('.ms-select-all');
+        var clearBtn = wrapper.querySelector('.ms-clear');
+
+        function checkboxes() {
+            return options.map(function (o) { return o.querySelector('input[type=checkbox]'); });
+        }
+
+        function syncNative() {
+            if (mode === 'single') {
+                var checked = checkboxes().filter(function (b) { return b.checked; })[0];
+                nativeSelect.value = checked ? checked.value : '';
+            } else {
+                var checkedVals = checkboxes()
+                    .filter(function (b) { return b.checked; })
+                    .map(function (b) { return b.value; });
+                Array.prototype.forEach.call(nativeSelect.options, function (opt) {
+                    opt.selected = checkedVals.indexOf(opt.value) !== -1;
+                });
+            }
+        }
+
+        function updateTriggerText() {
+            var existingBadge = wrapper.querySelector('.ms-badge');
+            if (existingBadge) existingBadge.remove();
+
+            var checkedLabels = [];
+            options.forEach(function (o) {
+                var box = o.querySelector('input[type=checkbox]');
+                if (box.checked && box.value !== '') checkedLabels.push(o.dataset.label);
+            });
+
+            if (checkedLabels.length === 0) {
+                triggerText.textContent = placeholder;
+                triggerText.classList.add('placeholder');
+            } else {
+                triggerText.classList.remove('placeholder');
+                if (checkedLabels.length <= 2) {
+                    triggerText.textContent = checkedLabels.join(', ');
+                } else {
+                    triggerText.textContent = checkedLabels.slice(0, 2).join(', ');
+                    var badge = document.createElement('span');
+                    badge.className = 'ms-badge';
+                    badge.textContent = '+' + (checkedLabels.length - 2);
+                    triggerText.after(badge);
+                }
+            }
+        }
+
+        function closePanel() { wrapper.classList.remove('open'); }
+        function openPanel() {
+            document.querySelectorAll('.ms-wrapper.open').forEach(function (w) {
+                if (w !== wrapper) w.classList.remove('open');
+            });
+            wrapper.classList.add('open');
+            if (searchInput) searchInput.focus();
+        }
+
+        trigger.addEventListener('click', function (e) {
+            e.stopPropagation();
+            wrapper.classList.contains('open') ? closePanel() : openPanel();
+        });
+
+        options.forEach(function (opt) {
+            var box = opt.querySelector('input[type=checkbox]');
+            // Listen to the checkbox's native 'change' event rather than
+            // intercepting clicks on the label — clicking a label already
+            // toggles its checkbox for free, so a manual toggle here was
+            // fighting the browser's own toggle and cancelling it out.
+            box.addEventListener('change', function () {
+                if (mode === 'single') {
+                    if (box.checked) {
+                        checkboxes().forEach(function (b) {
+                            if (b !== box) b.checked = false;
+                        });
+                    }
+                    syncNative();
+                    updateTriggerText();
+                    closePanel();
+                } else {
+                    syncNative();
+                    updateTriggerText();
+                }
+            });
+        });
+
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                options.forEach(function (o) {
+                    if (!o.classList.contains('hidden')) {
+                        o.querySelector('input[type=checkbox]').checked = true;
+                    }
+                });
+                syncNative();
+                updateTriggerText();
+            });
+        }
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                checkboxes().forEach(function (b) { b.checked = false; });
+                syncNative();
+                updateTriggerText();
+            });
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                var q = searchInput.value.trim().toLowerCase();
+                options.forEach(function (o) {
+                    var label = (o.dataset.label || '').toLowerCase();
+                    o.classList.toggle('hidden', label.indexOf(q) === -1);
+                });
+                wrapper.querySelectorAll('.ms-group-label').forEach(function (gl) {
+                    var next = gl.nextElementSibling;
+                    var anyVisible = false;
+                    while (next && next.classList.contains('ms-option')) {
+                        if (!next.classList.contains('hidden')) anyVisible = true;
+                        next = next.nextElementSibling;
+                    }
+                    gl.style.display = anyVisible ? '' : 'none';
+                });
+            });
+        }
+
+        // init from server-rendered checked state
+        syncNative();
+        updateTriggerText();
     }
-    var script = document.createElement('script');
-    script.src = "https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.18/dist/js/bootstrap-select.min.js";
-    script.onload = function () {
-        jQuery('.selectpicker').selectpicker();
-    };
-    document.body.appendChild(script);
-});
+
+    document.querySelectorAll('.ms-wrapper').forEach(initMultiSelect);
+
+    // close any open panel on outside click / Escape
+    document.addEventListener('click', function (e) {
+        document.querySelectorAll('.ms-wrapper.open').forEach(function (w) {
+            if (!w.contains(e.target)) w.classList.remove('open');
+        });
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.ms-wrapper.open').forEach(function (w) {
+                w.classList.remove('open');
+            });
+        }
+    });
+
+    // manual "required" check for Process (native required is ignored on hidden fields)
+    var form = document.getElementById('po-process-report-form');
+    form.addEventListener('submit', function (e) {
+        var processSelect = form.querySelector('select[name="processes"]');
+        var hasSelection = Array.prototype.some.call(processSelect.options, function (o) { return o.selected; });
+        var wrapper = processSelect.closest('.ms-wrapper');
+        if (!hasSelection) {
+            e.preventDefault();
+            wrapper.classList.add('ms-error');
+            wrapper.querySelector('.ms-trigger').focus();
+        } else {
+            wrapper.classList.remove('ms-error');
+        }
+    });
+
+})();
 </script>
 
 {% endblock %}

@@ -221,10 +221,10 @@ def po_report(request):
     base_filters = {"po_date__range": [date_from, date_to]}
 
     if request.GET.get("po_number"):
-        base_filters["po_number"] = request.GET["po_number"]
+        base_filters["po_number__icontains"] = request.GET["po_number"]
 
     if request.GET.get("oa_number"):
-        base_filters["oa_number"] = request.GET["oa_number"]
+        base_filters["oa_number__icontains"] = request.GET["oa_number"]
 
     if request.GET.get("company"):
         base_filters["company_id"] = request.GET["company"]
@@ -420,9 +420,9 @@ def po_report_summary_excel(request):
     base_filters = {"po_date__range": [date_from, date_to]}
 
     if request.GET.get("po_number"):
-        base_filters["po_number"] = request.GET["po_number"]
+        base_filters["po_number__icontains"] = request.GET["po_number"]
     if request.GET.get("oa_number"):
-        base_filters["oa_number"] = request.GET["oa_number"]
+        base_filters["oa_number__icontains"] = request.GET["oa_number"]
     if request.GET.get("company"):
         base_filters["company_id"] = request.GET["company"]
     if request.GET.get("po_status"):
@@ -509,9 +509,9 @@ def po_report_item_excel(request):
     base_filters = {"purchase_order__po_date__range": [date_from, date_to]}
 
     if request.GET.get("po_number"):
-        base_filters["purchase_order__po_number"] = request.GET["po_number"]
+        base_filters["purchase_order__po_number__icontains"] = request.GET["po_number"]
     if request.GET.get("oa_number"):
-        base_filters["purchase_order__oa_number"] = request.GET["oa_number"]
+        base_filters["purchase_order__oa_number__icontains"] = request.GET["oa_number"]
     if request.GET.get("company"):
         base_filters["purchase_order__company_id"] = request.GET["company"]
     if request.GET.get("po_status"):
@@ -1099,7 +1099,7 @@ def po_process_report(request):
     # ------------------------------
     processes = request.GET.getlist("processes")
     po_ids = request.GET.getlist("po_ids")
-    status = request.GET.get("status")
+    status_ids = request.GET.getlist("status")  # multi-select now
     company = request.GET.get("company")
 
     # ------------------------------
@@ -1178,11 +1178,12 @@ def po_process_report(request):
                     }
                 )
 
-        # STATUS FILTER
+        # STATUS FILTER (multi-select)
         # Applied after row resolution because item-tracking processes
         # resolve status per-item rather than on the POProcess itself.
-        if status:
-            rows = [r for r in rows if str(r["status_id"]) == str(status)]
+        if status_ids:
+            status_id_set = {str(s) for s in status_ids}
+            rows = [r for r in rows if str(r["status_id"]) in status_id_set]
 
     # ------------------------------
     # PAGINATION
@@ -1196,7 +1197,9 @@ def po_process_report(request):
         "rows": page_obj,
         "page_obj": page_obj,
         "filter_used": filter_used,
-        "process_list": DepartmentProcessMaster.objects.filter(is_active=True),
+        "process_list": DepartmentProcessMaster.objects.filter(is_active=True).order_by(
+            "department", "sequence"
+        ),
         "companies": CompanyMaster.objects.order_by("name"),
         "purchase_orders": PurchaseOrder.objects.select_related("company").order_by(
             "-id"
@@ -1205,7 +1208,7 @@ def po_process_report(request):
         "filters": {
             "processes": processes,
             "po_ids": po_ids,
-            "status": status or "",
+            "status": status_ids,  # list now, not a single value
             "company": company or "",
         },
     }
@@ -1217,7 +1220,7 @@ def po_process_report(request):
 def po_process_report_excel(request):
     processes = request.GET.getlist("processes")
     po_ids = request.GET.getlist("po_ids")
-    status = request.GET.get("status")
+    status_ids = request.GET.getlist("status")  # multi-select now
     company = request.GET.get("company")
 
     rows = []
@@ -1281,8 +1284,9 @@ def po_process_report_excel(request):
                     }
                 )
 
-        if status:
-            rows = [r for r in rows if str(r["status_id"]) == str(status)]
+        if status_ids:
+            status_id_set = {str(s) for s in status_ids}
+            rows = [r for r in rows if str(r["status_id"]) in status_id_set]
 
     # ------------------------------
     # RENDER EXCEL
